@@ -13,6 +13,7 @@ export class InMemoryCalendarEventRequestRepository implements CalendarEventRequ
     const now = new Date();
     const request: CalendarEventRequest = {
       id: randomUUID(),
+      userId: input.userId,
       action: input.action ?? "create",
       status: "pending",
       providerCallId: input.providerCallId,
@@ -34,75 +35,60 @@ export class InMemoryCalendarEventRequestRepository implements CalendarEventRequ
     return request;
   }
 
-  async get(id: string): Promise<CalendarEventRequest | undefined> {
+  async get(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
     await this.expirePending();
-    return this.requests.get(id);
+    const request = this.requests.get(id);
+    return request?.userId === userId ? request : undefined;
   }
 
-  async listPending(now = new Date()): Promise<CalendarEventRequest[]> {
+  async listPending(userId: string, now = new Date()): Promise<CalendarEventRequest[]> {
     await this.expirePending(now);
     return [...this.requests.values()]
-      .filter((request) => request.status === "pending")
+      .filter((request) => request.userId === userId && request.status === "pending")
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async listRecent(limit = 25): Promise<CalendarEventRequest[]> {
+  async listRecent(userId: string, limit = 25): Promise<CalendarEventRequest[]> {
     await this.expirePending();
     return [...this.requests.values()]
+      .filter((request) => request.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }
 
-  async listCreatedForCaller(callerNumber?: string, limit = 10): Promise<CalendarEventRequest[]> {
+  async listCreatedForCaller(userId: string, callerNumber?: string, limit = 10): Promise<CalendarEventRequest[]> {
     await this.expirePending();
     return [...this.requests.values()]
+      .filter((request) => request.userId === userId)
       .filter((request) => Boolean(request.createdEventId))
       .filter((request) => !callerNumber || request.callerNumber === callerNumber)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }
 
-  async findCreatedByEventId(eventId: string): Promise<CalendarEventRequest | undefined> {
+  async findCreatedByEventId(userId: string, eventId: string): Promise<CalendarEventRequest | undefined> {
     await this.expirePending();
-    return [...this.requests.values()].find((request) => request.createdEventId === eventId);
+    return [...this.requests.values()].find((request) => request.userId === userId && request.createdEventId === eventId);
   }
 
-  async accept(id: string): Promise<CalendarEventRequest | undefined> {
-    return this.decide(id, "accepted");
+  async accept(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
+    return this.decide(id, userId, "accepted");
   }
 
-  async decline(id: string): Promise<CalendarEventRequest | undefined> {
-    return this.decide(id, "declined");
+  async decline(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
+    return this.decide(id, userId, "declined");
   }
 
   async markCreated(id: string, event: { eventId?: string; htmlLink?: string }): Promise<CalendarEventRequest | undefined> {
-    const existing = await this.get(id);
-    if (!existing) {
-      return undefined;
-    }
-    const updated = { ...existing, status: "created" as const, createdEventId: event.eventId, createdEventHtmlLink: event.htmlLink, decidedAt: new Date() };
-    this.requests.set(id, updated);
-    return updated;
+    return this.updateStatus(id, { status: "created", createdEventId: event.eventId, createdEventHtmlLink: event.htmlLink, decidedAt: new Date() });
   }
 
   async markUpdated(id: string, event: { eventId?: string; htmlLink?: string }): Promise<CalendarEventRequest | undefined> {
-    const existing = await this.get(id);
-    if (!existing) {
-      return undefined;
-    }
-    const updated = { ...existing, status: "updated" as const, createdEventId: event.eventId, createdEventHtmlLink: event.htmlLink, decidedAt: new Date() };
-    this.requests.set(id, updated);
-    return updated;
+    return this.updateStatus(id, { status: "updated", createdEventId: event.eventId, createdEventHtmlLink: event.htmlLink, decidedAt: new Date() });
   }
 
   async markFailed(id: string, errorMessage: string): Promise<CalendarEventRequest | undefined> {
-    const existing = await this.get(id);
-    if (!existing) {
-      return undefined;
-    }
-    const updated = { ...existing, status: "failed" as const, errorMessage, decidedAt: new Date() };
-    this.requests.set(id, updated);
-    return updated;
+    return this.updateStatus(id, { status: "failed", errorMessage, decidedAt: new Date() });
   }
 
   async expirePending(now = new Date()): Promise<void> {
@@ -113,16 +99,26 @@ export class InMemoryCalendarEventRequestRepository implements CalendarEventRequ
     }
   }
 
-  private async decide(id: string, status: Extract<CalendarEventRequestStatus, "accepted" | "declined">): Promise<CalendarEventRequest | undefined> {
+  private async decide(id: string, userId: string, status: Extract<CalendarEventRequestStatus, "accepted" | "declined">): Promise<CalendarEventRequest | undefined> {
     await this.expirePending();
     const existing = this.requests.get(id);
-    if (!existing) {
+    if (!existing || existing.userId !== userId) {
       return undefined;
     }
     if (existing.status !== "pending") {
       return existing;
     }
     const updated = { ...existing, status, decidedAt: new Date() };
+    this.requests.set(id, updated);
+    return updated;
+  }
+
+  private async updateStatus(id: string, input: Partial<CalendarEventRequest>): Promise<CalendarEventRequest | undefined> {
+    const existing = this.requests.get(id);
+    if (!existing) {
+      return undefined;
+    }
+    const updated = { ...existing, ...input };
     this.requests.set(id, updated);
     return updated;
   }

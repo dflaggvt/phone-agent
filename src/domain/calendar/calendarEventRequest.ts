@@ -3,6 +3,7 @@ export type CalendarEventAction = "create" | "update";
 
 export interface CalendarEventRequest {
   id: string;
+  userId: string;
   action: CalendarEventAction;
   status: CalendarEventRequestStatus;
   providerCallId?: string;
@@ -24,6 +25,7 @@ export interface CalendarEventRequest {
 }
 
 export interface CreateCalendarEventRequestInput {
+  userId: string;
   action?: CalendarEventAction;
   providerCallId?: string;
   callerNumber?: string;
@@ -42,13 +44,13 @@ export interface CreateCalendarEventRequestInput {
 
 export interface CalendarEventRequestRepository {
   create(input: CreateCalendarEventRequestInput): Promise<CalendarEventRequest>;
-  get(id: string): Promise<CalendarEventRequest | undefined>;
-  listPending(now?: Date): Promise<CalendarEventRequest[]>;
-  listRecent(limit?: number): Promise<CalendarEventRequest[]>;
-  listCreatedForCaller(callerNumber?: string, limit?: number): Promise<CalendarEventRequest[]>;
-  findCreatedByEventId(eventId: string): Promise<CalendarEventRequest | undefined>;
-  accept(id: string): Promise<CalendarEventRequest | undefined>;
-  decline(id: string): Promise<CalendarEventRequest | undefined>;
+  get(id: string, userId: string): Promise<CalendarEventRequest | undefined>;
+  listPending(userId: string, now?: Date): Promise<CalendarEventRequest[]>;
+  listRecent(userId: string, limit?: number): Promise<CalendarEventRequest[]>;
+  listCreatedForCaller(userId: string, callerNumber?: string, limit?: number): Promise<CalendarEventRequest[]>;
+  findCreatedByEventId(userId: string, eventId: string): Promise<CalendarEventRequest | undefined>;
+  accept(id: string, userId: string): Promise<CalendarEventRequest | undefined>;
+  decline(id: string, userId: string): Promise<CalendarEventRequest | undefined>;
   markCreated(id: string, event: { eventId?: string; htmlLink?: string }): Promise<CalendarEventRequest | undefined>;
   markUpdated(id: string, event: { eventId?: string; htmlLink?: string }): Promise<CalendarEventRequest | undefined>;
   markFailed(id: string, errorMessage: string): Promise<CalendarEventRequest | undefined>;

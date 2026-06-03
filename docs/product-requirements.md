@@ -82,6 +82,7 @@ The MVP remains Android-first and phone-first, but it should be built on the cro
 - Live transfer approval, live user answer requests, active call awareness, and call history.
 - Caller/contact memory and relationship-aware handling.
 - User-approved phone contact sync so first-time assistant callers can still be recognized when their number exists in the user's address book.
+- Phone contact sync must be available in the production Android Compose app. The user should be able to open Phone contacts from Assistant or Profile/Settings, understand what will be synced, grant Android Contacts permission only after tapping sync, resync later, and see the synced contact count.
 - Temporary agent notes.
 - Google Calendar free/busy and direct assistant-created calendar events with notifications.
 - Generic `CommunicationItem` records for calls now and future SMS, email, documents, calendar, and agent messages.
@@ -128,9 +129,11 @@ Required guardrails:
 - Do not provision paid Retell/telephony resources for anonymous users.
 - Do not let one user's mobile app read another user's calls, topics, notes, calendar activity, rules, or Retell mapping.
 - Do not load caller memory, topic memory, or calendar context into a Retell call until the inbound number is mapped to a user.
+- Calendar OAuth connections, free/busy checks, assistant-created event records, and calendar activity history must be scoped to the authenticated user. A global calendar connection is not acceptable for multi-user beta.
 - Caller identity and relationship memory must be scoped to the owning user. The same external phone number may be "Mom" for one user, "Contractor" for another, and unknown for a third.
 - The voice agent must greet or refer to a caller by name only when that name comes from the caller's user-scoped profile, an explicit user-authored note for that caller, or the caller's own statement during the current call. It must never use hard-coded caller names.
 - Contact-derived identity is separate from caller memory. A synced phone contact can identify a first-time caller, but prior-call memory, summaries, and inferred facts should only come from actual communications or user edits.
+- Contact sync is optional and revocable at the platform permission level. The app must never imply that synced contacts have conversation history; they are identity hints only.
 - Treat billing and usage limits as onboarding gates before broad self-serve launch.
 - Require a payment method and user-selected monthly spending cap before assigning a dedicated paid assistant number to non-beta users.
 - Use customer-facing usage categories such as assistant call time, AI processing, assistant number, messages, documents, and storage. Do not show backend provider names or raw token details in the primary consumer billing experience.
@@ -342,6 +345,10 @@ The ideal production mobile app should use five primary destinations:
 
 The UI should feel calm, minimal, and executive. It should not feel like a call center.
 
+Settings should not be a primary bottom tab. The authenticated shell should expose a profile/avatar entry that opens a merged Profile and Settings surface. That surface owns account identity, assistant name/behavior, forwarding, billing, calendar, privacy, notification preferences, support, diagnostics, and logout. Logout must be available from this surface, must require confirmation, and must clear local authenticated cache after signing out.
+
+Recent calls should use compact rows inspired by familiar phone-recents patterns: caller identity, phone number or relationship, timestamp, and direct actions such as call back, details, note, or topic attachment. Rows should stay provider-neutral and should not show long summaries inline.
+
 For beta readiness, the app must make activation obvious. The user should always know what remains before the assistant is useful, how to make a test call, and whether the first useful handled call has happened.
 
 The detailed production mobile screen and flow blueprint lives in `docs/mobile-ux-blueprint.md`. Future mobile UI changes should use that document as the source of truth for screen hierarchy, interaction states, empty/error states, notification behavior, and facelift sequencing.
@@ -402,6 +409,26 @@ Notification reliability must be observable. The system should track delivery at
 - First useful handled call conversion rate.
 - Cost per handled call and gross margin by plan.
 - Agent eval pass rate before deployment.
+
+## Product Analytics Requirements
+
+Phone Agent needs dense, high-fidelity engagement tracking before a broader beta. The product team should be able to answer activation, retention, feature adoption, funnel, and reliability questions without reading private communication content.
+
+Track:
+
+- App opens, sessions, screen views, tab selection, profile/settings opens, and logout.
+- Onboarding step views, completions, failures, retries, and elapsed time.
+- Forwarding screen opens, dial-code taps, copy-code taps, and test-call starts.
+- Call row opens, call-back taps, note taps, detail opens, and topic-attach actions.
+- Assistant presence state changes, live request views, answer/transfer actions, and expired live requests.
+- Topic card impressions, topic opens, topic creates, suggestion accepts/dismissals, and review queue actions.
+- Billing setup opens, card setup returns, cap changes, usage views, and billing issue recovery actions.
+
+Do not track:
+
+- Transcript text, summaries, note bodies, live-answer text, search query text, contact book contents, calendar descriptions, payment details, or raw provider payloads.
+
+Analytics should support per-user, per-session, per-screen, per-action, and per-object aggregation while preserving user trust.
 
 ## Product Risks
 

@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.phoneagent.app.BuildConfig
 
 @Database(
     entities = [
@@ -30,15 +29,11 @@ abstract class PhoneAgentDatabase : RoomDatabase() {
         }
 
         private fun buildDatabase(context: Context): PhoneAgentDatabase {
-            val builder = Room.databaseBuilder(
+            return Room.databaseBuilder(
                 context,
                 PhoneAgentDatabase::class.java,
                 "phone_agent_cache.db"
-            )
-            if (BuildConfig.DEBUG) {
-                builder.fallbackToDestructiveMigration()
-            }
-            return builder.build()
+            ).build()
         }
     }
 }

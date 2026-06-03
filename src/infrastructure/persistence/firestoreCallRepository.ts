@@ -64,6 +64,34 @@ export class FirestoreCallRepository implements CallRepository {
       .get();
     return snapshot.docs.map((doc) => callSessionFromFirestore(doc.id, doc.data()));
   }
+
+  async listCallsForRoute(phoneNumber: string, limit = 100): Promise<CallSession[]> {
+    const normalized = normalizePhone(phoneNumber);
+    if (!normalized) {
+      return [];
+    }
+    const [toSnapshot, fromSnapshot] = await Promise.all([
+      this.firestore
+        .collection(CALLS_COLLECTION)
+        .where("toNumber", "==", normalized)
+        .orderBy("updatedAt", "desc")
+        .limit(limit)
+        .get(),
+      this.firestore
+        .collection(CALLS_COLLECTION)
+        .where("fromNumber", "==", normalized)
+        .orderBy("updatedAt", "desc")
+        .limit(limit)
+        .get()
+    ]);
+    const byId = new Map<string, CallSession>();
+    for (const doc of [...toSnapshot.docs, ...fromSnapshot.docs]) {
+      byId.set(doc.id, callSessionFromFirestore(doc.id, doc.data()));
+    }
+    return [...byId.values()]
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, limit);
+  }
 }
 
 function callSessionFromFirestore(id: string, data: Record<string, unknown>): CallSession {
@@ -116,4 +144,8 @@ function getString(value: unknown): string | undefined {
 
 function getRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? value as Record<string, unknown> : undefined;
+}
+
+function normalizePhone(value?: string): string {
+  return value?.replace(/[^\d+]/g, "") ?? "";
 }

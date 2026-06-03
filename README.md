@@ -36,6 +36,8 @@ This repo currently contains the backend foundation for Retell webhook ingestion
 - `GET /readyz`: health check.
 - `GET /v1/billing/usage`: current usage and plan limits.
 - `GET /v1/onboarding/status`: setup checklist and activation state.
+- `GET /v1/calendar/status`, `/connect-url`, `/disconnect`, and `/event-requests`: authenticated user-scoped calendar connection and assistant calendar activity.
+- `POST /v1/analytics/events`: first-party, privacy-safe product analytics ingestion. The backend rejects attributes that look like transcripts, notes, search text, contact data, calendar descriptions, payment data, provider payloads, or secrets.
 - `src/domain/communications`: provider-neutral `CommunicationItem` model for calls, SMS, email, calendar events, documents, manual notes, and agent messages.
 - `src/domain/topics`: `TopicThread`, participant, decision, open question, and task model skeleton.
 - `src/domain/providers`: provider-neutral voice provider contracts.
@@ -46,6 +48,7 @@ This repo currently contains the backend foundation for Retell webhook ingestion
 The repo also contains an Android app under `android/`:
 
 - Firebase Phone Auth first-run onboarding with real SMS/voice verification.
+- Profile and Settings opened from the assistant presence/avatar control, including logout.
 - Communication Inbox backed by `/v1/communications`.
 - Topic Threads backed by `/v1/topics`.
 - Topic creation, communication attachment, and basic topic detail.
@@ -81,6 +84,8 @@ For local Retell webhook testing, expose the server with a tunnel and configure 
 Set `RETELL_API_KEY` and keep `RETELL_INBOUND_WEBHOOK_VERIFY=true` outside tests.
 Set `RETELL_DEFAULT_FROM_NUMBER` to the Retell-managed or imported phone number used for outbound calls.
 Set `FIREBASE_PROJECT_ID` so the backend can verify Android Firebase ID tokens.
+Set `GOOGLE_OAUTH_STATE_SECRET` when Google Calendar OAuth is enabled. This must be a managed secret in deployed environments.
+Set `PERSISTENCE_DRIVER=firestore` for deployed environments so call history, calendar state, billing, analytics, webhook idempotency, and shared rate limits are durable.
 
 Client API calls under `/v1` require:
 

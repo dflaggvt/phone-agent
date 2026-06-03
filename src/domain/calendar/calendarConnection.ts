@@ -1,5 +1,6 @@
 export interface CalendarConnection {
-  id: "primary";
+  id: string;
+  userId: string;
   provider: "google";
   connected: boolean;
   refreshToken?: string;
@@ -10,7 +11,7 @@ export interface CalendarConnection {
 }
 
 export interface CalendarConnectionRepository {
-  get(): Promise<CalendarConnection | undefined>;
+  get(userId: string): Promise<CalendarConnection | undefined>;
   save(connection: CalendarConnection): Promise<CalendarConnection>;
-  disconnect(): Promise<CalendarConnection | undefined>;
+  disconnect(userId: string): Promise<CalendarConnection | undefined>;
 }

@@ -9,13 +9,13 @@ Current target release:
 - Version code: `2`.
 - Version name: `0.1.1-internal`.
 - Release artifact: `android/app/build/outputs/bundle/release/app-release.aab`.
-- Release notes source: `release/play/internal-test-v0.1.1/release-notes/en-US/default.txt`.
+- Release notes source: `docs/play-release-notes/internal-test-v0.1.1.md`.
 
 Required before first internal test upload:
 
-- Release app signing configured. Status: local upload-key workflow available; keep keystore out of source control.
+- Release app signing configured. Status: local PKCS12 upload key created outside the repo and ignored signing properties configured.
 - Version code incremented. Status: complete for `versionCode 2`.
-- App bundle generated with `./gradlew bundleRelease`.
+- App bundle generated with `./gradlew bundleRelease`. Status: signed release AAB produced at `android/app/build/outputs/bundle/release/app-release.aab`.
 - Firebase Android app uses the production package name.
 - Crashlytics enabled in non-debug builds.
 - Privacy policy URL available. Status: draft exists in `docs/privacy-policy-draft.md`; must be hosted before Play submission.
@@ -40,10 +40,10 @@ Generate an upload key locally:
 ```powershell
 keytool -genkeypair `
   -v `
-  -keystore "$env:USERPROFILE\phone-agent-upload-key.jks" `
-  -storetype JKS `
+  -keystore "$env:USERPROFILE\.phone-agent\secrets\phone-agent-upload.p12" `
+  -storetype PKCS12 `
   -keyalg RSA `
-  -keysize 2048 `
+  -keysize 4096 `
   -validity 10000 `
   -alias phone-agent-upload
 ```
@@ -51,7 +51,7 @@ keytool -genkeypair `
 Then set:
 
 ```powershell
-$env:PHONE_AGENT_KEYSTORE_PATH="$env:USERPROFILE\phone-agent-upload-key.jks"
+$env:PHONE_AGENT_KEYSTORE_PATH="$env:USERPROFILE\.phone-agent\secrets\phone-agent-upload.p12"
 $env:PHONE_AGENT_KEYSTORE_PASSWORD="<password>"
 $env:PHONE_AGENT_KEY_ALIAS="phone-agent-upload"
 $env:PHONE_AGENT_KEY_PASSWORD="<password>"
@@ -70,16 +70,16 @@ Expected output:
 android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-For this repository, the release signing file is expected to live outside source control. A local machine setup may place it under:
+For this repository, the release signing file is expected to live outside source control. The current local machine setup places it under:
 
 ```text
-C:\Users\Daryl Flagg\.phone-agent\phone-agent-upload-key.jks
+C:\Users\Daryl Flagg\.phone-agent\secrets\phone-agent-upload.p12
 ```
 
-The matching environment file may live under:
+The matching ignored local Gradle signing file lives under:
 
 ```text
-C:\Users\Daryl Flagg\.phone-agent\release-signing.env
+C:\Users\Daryl Flagg\source\repos\phone-agent\android\signing.properties
 ```
 
 Treat both files as production credentials. Back them up in a secure password manager or secret vault before using the key for Play Console upload signing.
@@ -90,7 +90,7 @@ Treat both files as production credentials. Back them up in a secure password ma
 2. Choose package name `com.phoneagent.app`.
 3. Enable Play App Signing.
 4. Upload `android/app/build/outputs/bundle/release/app-release.aab` to Internal testing.
-5. Paste release notes from `release/play/internal-test-v0.1.1/release-notes/en-US/default.txt`.
+5. Paste release notes from `docs/play-release-notes/internal-test-v0.1.1.md`.
 6. Add internal testers.
 7. Complete App content:
    - Privacy policy URL.

@@ -55,5 +55,19 @@ export class InMemoryCallRepository implements CallRepository {
   async listCalls(): Promise<CallSession[]> {
     return [...this.sessions.values()].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
+
+  async listCallsForRoute(phoneNumber: string, limit = 100): Promise<CallSession[]> {
+    const normalized = normalizePhone(phoneNumber);
+    if (!normalized) {
+      return [];
+    }
+    return [...this.sessions.values()]
+      .filter((session) => normalizePhone(session.toNumber) === normalized || normalizePhone(session.fromNumber) === normalized)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, limit);
+  }
 }
 
+function normalizePhone(value?: string): string {
+  return value?.replace(/[^\d+]/g, "") ?? "";
+}

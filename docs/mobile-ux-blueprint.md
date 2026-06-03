@@ -8,11 +8,14 @@ The current app should be treated as disposable scaffolding. This document defin
 
 ## Android Implementation Direction
 
-The production Android client should be rebuilt in Kotlin with Jetpack Compose. The previous hand-built Java view hierarchy is considered prototype scaffolding and should not receive major new UX investment except for temporary fixes needed to keep a test build usable during migration.
+The production Android client is Kotlin with Jetpack Compose. The previous hand-built Java view hierarchy has been retired; new UI work must use Compose screens, shared Compose components, and previewable fixture states.
 
 Compose implementation requirements:
 
 - Use Material 3 as the Android foundation for accessibility, state, touch targets, text fields, buttons, chips, surfaces, and theme plumbing, but wrap it in Phone Agent product components so the app does not look like stock Material.
+- Use MVVM for production Android screens: Compose renders state, ViewModels expose `StateFlow`, repositories perform backend/cache work, and Activity code is limited to Android integration edges such as permissions, auth callbacks, dial intents, and browser launches.
+- Use Hilt for dependency injection. Do not manually construct backend clients, repositories, or Room databases in Activities.
+- Use Retrofit and OkHttp for REST calls. Do not add new app API calls through raw `HttpURLConnection`.
 - Use a shared design-token layer for color, type, spacing, shape, elevation, and motion.
 - Build reusable composables before adding one-off screen layouts.
 - Treat the app shell, top bar, bottom nav, topic cards, call rows, review cards, assistant action rows, form fields, and empty/error states as first-class components.
@@ -20,15 +23,15 @@ Compose implementation requirements:
 - Keep screens previewable with fixture data so UI quality can be reviewed without live backend state.
 - Add screenshot/golden testing after the first Compose component set stabilizes.
 - Continue using connected-device screenshots for final device sanity checks, but do not rely on manual screenshots as the primary path to pixel precision.
-- Keep the legacy Java activity only as a reference during migration; new user-facing screens should be Compose-first.
+- Do not add Java Activity UI surfaces or programmatic Android view hierarchy screens.
 
 Initial Compose migration slice:
 
 1. Add Kotlin and Jetpack Compose to the Android project.
-2. Introduce a Compose launcher activity with the production shell: atmospheric background, header, status pill, five-item bottom nav, and safe-area handling.
+2. Introduce a Compose launcher activity with the production shell: atmospheric background, header, assistant presence control, five-item bottom nav, and safe-area handling.
 3. Recreate the core authenticated screens in Compose: Home, Topics, Review, Assistant, Search, topic detail, forwarding, billing entry, and first-run phone onboarding.
-4. Keep backend APIs, Firebase Auth, FCM, notification actions, and provider-neutral domain language intact.
-5. Remove or retire legacy Java UI surfaces once each Compose replacement reaches parity.
+4. Move app state and backend orchestration into Hilt ViewModels, repositories, Retrofit/OkHttp API clients, and Room-backed data sources.
+5. Keep the retired Java UI out of the production app. If a missing behavior is discovered, rebuild it in Compose rather than restoring the legacy Activity.
 
 ## Product Design Thesis
 
@@ -109,7 +112,7 @@ The ideal mobile app uses `5` bottom navigation destinations:
 4. Assistant
 5. Search
 
-Settings are reached from the profile/avatar button in the top right. Settings should not consume a primary bottom-nav slot.
+Profile and Settings are reached from the assistant presence/avatar control in the header. Settings should not consume a primary bottom-nav slot.
 
 ### Why This IA
 
@@ -142,6 +145,7 @@ Search is a first-class memory retrieval tool because the moat is cross-channel 
 - Bottom nav total height: `72dp`.
 - The live-call dock may appear above bottom nav and must not obscure the active tab.
 - Settings, account, billing, privacy, and diagnostics are not bottom-nav items.
+- The assistant presence/avatar control opens Profile and Settings. It should be reachable from every authenticated primary screen.
 
 ## Global App Shell
 
@@ -175,7 +179,7 @@ Header elements:
 
 - Left: current section title or compact Phone Agent wordmark.
 - Center: none by default.
-- Right: status pill and profile/avatar.
+- Right: assistant presence control.
 
 Header numeric spec:
 
@@ -186,19 +190,21 @@ Header numeric spec:
 | Title size | `24sp` |
 | Title line height | `30sp` |
 | Title max lines | `1` |
-| Status pill height | `34dp` |
-| Status pill radius | `999dp` |
-| Status pill horizontal padding | `12dp` |
-| Avatar size | `36dp` |
+| Presence control height | `38dp` |
+| Presence control radius | `999dp` |
+| Presence control horizontal padding | `8dp` |
+| Avatar size | `32dp` |
 | Header element gap | `10dp` |
 
-### Status Pill
+### Assistant Presence Control
 
-Status pill states:
+The assistant presence control replaces the old standalone `Active` pill. It should answer: "Can my assistant protect me right now?" It combines a small state dot or ring, a human label, and the user's avatar/initials.
+
+Presence states:
 
 | State | Label | Color | Trigger |
 | --- | --- | --- | --- |
-| Active | Active | Green | Assistant reachable and no urgent issue |
+| Ready | Ready | Green | Assistant reachable and no urgent issue |
 | Setup | Setup | Amber | Required onboarding incomplete |
 | Live | Live | Amber | Assistant is on a call |
 | Needs you | Needs you | Red | User action pending |
@@ -206,11 +212,44 @@ Status pill states:
 | Offline | Offline | Gray/red | Backend unreachable for `30s` |
 | Paused | Paused | Gray | User disabled assistant |
 
-Tapping status pill opens Assistant Status sheet.
+Tapping the presence control opens Profile and Settings. A future long-press may open Assistant Status directly. The old `Active` label should not be the primary visual language; use `Ready` for normal operation.
+
+Numeric:
+
+- Height: `38dp`.
+- Status dot: `8dp`.
+- Avatar: `32dp`.
+- Label text: `13sp`, `700`.
+- Max width: `132dp` on `360dp` screens, `160dp` on wider phones.
+- If the label would overflow, hide the label and keep dot + avatar.
+
+The presence control must not look like a call-center status badge. It should feel like a calm account and assistant affordance.
+
+### Profile And Settings
+
+The profile/settings surface opens from the presence control and may be a full screen or a modal sheet. For the current Android app, use a full screen so logout, billing, forwarding, privacy, and support have enough room.
+
+Sections:
+
+- Profile: display name, phone number, assistant name.
+- Assistant: behavior, greeting, disclosure, notes, live transfer policy.
+- Phone: forwarding setup, assistant number, test call.
+- Billing: plan, card, spending cap, invoices.
+- Calendar and connected channels.
+- Privacy and notification preferences.
+- Support and diagnostics.
+- Logout.
+
+Logout:
+
+- Must be visible near the bottom.
+- Must require confirmation.
+- Must clear local cache and authenticated state.
+- Must not delete the user's cloud data.
 
 ### Assistant Status Sheet
 
-The sheet should show:
+The status sheet, reachable later from Assistant or long-press presence, should show:
 
 - Assistant mode.
 - Phone forwarding state.
@@ -1595,6 +1634,26 @@ Contacts are optional after core onboarding. The Assistant tab must include a `P
 - Requests Android `READ_CONTACTS` only when the user taps sync.
 - Syncs minimal identity data only: contact display name, phone numbers, phone labels, source contact ID, and sync timestamp.
 - Shows success with synced contact count.
+- Exists in the production Compose launcher.
+- Is reachable from both Assistant and Profile/Settings.
+- Shows clear empty, permission denied, syncing, success, and failure states.
+- Uses privacy-safe copy: contacts are identity hints, not conversation memory.
+
+Numeric specs:
+
+- Primary sync CTA height: `46dp`.
+- Status rows: `52-68dp`.
+- Body copy line height: `19-21sp`.
+- Permission denial recovery must be visible without scrolling on a `360x780dp` viewport.
+- Sync completion toast/snackbar copy: max `44` characters.
+
+Acceptance criteria:
+
+- The permission prompt appears only after the user taps sync.
+- A denied permission does not block the rest of the app.
+- Sync uploads no contact emails, addresses, birthdays, notes, photos, groups, organizations, or raw contact payloads.
+- The Assistant tab updates the Phone contacts row count after a successful sync.
+- First-time callers in synced contacts are greeted by contact name without "again" or prior-history language.
 - Shows a permission-denied state with a clear path to try again.
 - Does not upload notes, email addresses, addresses, birthdays, photos, or unrelated contact fields in the MVP.
 

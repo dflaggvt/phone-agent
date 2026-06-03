@@ -3,23 +3,22 @@ import type { CalendarConnection, CalendarConnectionRepository } from "../../dom
 import { firestoreDate, removeUndefinedDeep } from "./firestoreClient.js";
 
 const COLLECTION = "calendarConnections";
-const DOC_ID = "primary";
 
 export class FirestoreCalendarConnectionRepository implements CalendarConnectionRepository {
   constructor(private readonly firestore: Firestore) {}
 
-  async get(): Promise<CalendarConnection | undefined> {
-    const doc = await this.firestore.collection(COLLECTION).doc(DOC_ID).get();
-    return doc.exists ? connectionFromFirestore(doc.data() ?? {}) : undefined;
+  async get(userId: string): Promise<CalendarConnection | undefined> {
+    const doc = await this.firestore.collection(COLLECTION).doc(userId).get();
+    return doc.exists ? connectionFromFirestore(userId, doc.data() ?? {}) : undefined;
   }
 
   async save(connection: CalendarConnection): Promise<CalendarConnection> {
-    await this.firestore.collection(COLLECTION).doc(DOC_ID).set(removeUndefinedDeep(connection));
+    await this.firestore.collection(COLLECTION).doc(connection.userId).set(removeUndefinedDeep(connection));
     return connection;
   }
 
-  async disconnect(): Promise<CalendarConnection | undefined> {
-    const existing = await this.get();
+  async disconnect(userId: string): Promise<CalendarConnection | undefined> {
+    const existing = await this.get(userId);
     if (!existing) {
       return undefined;
     }
@@ -29,9 +28,10 @@ export class FirestoreCalendarConnectionRepository implements CalendarConnection
   }
 }
 
-function connectionFromFirestore(data: Record<string, unknown>): CalendarConnection {
+function connectionFromFirestore(userId: string, data: Record<string, unknown>): CalendarConnection {
   return {
-    id: "primary",
+    id: getString(data.id) ?? userId,
+    userId: getString(data.userId) ?? userId,
     provider: "google",
     connected: data.connected === true,
     refreshToken: getString(data.refreshToken),

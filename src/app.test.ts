@@ -33,6 +33,10 @@ const testEnv: AppEnv = {
   STRIPE_WEBHOOK_SECRET: undefined,
   STRIPE_PRICE_PERSONAL_MONTHLY: undefined,
   STRIPE_PRICE_PERSONAL_CALL_MINUTE_OVERAGE: undefined,
+  GOOGLE_OAUTH_CLIENT_ID: undefined,
+  GOOGLE_OAUTH_CLIENT_SECRET: undefined,
+  GOOGLE_OAUTH_REDIRECT_URI: undefined,
+  GOOGLE_OAUTH_STATE_SECRET: undefined,
   RETELL_INBOUND_WEBHOOK_VERIFY: false
 };
 
@@ -344,6 +348,54 @@ describe("app", () => {
       });
   });
 
+  it("accepts privacy-safe product analytics and rejects private content attributes", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .post("/v1/analytics/events")
+      .set(auth())
+      .send({
+        events: [{
+          sessionId: "session-test-123",
+          eventName: "screen_viewed",
+          screen: "home",
+          action: "open",
+          result: "success",
+          sequence: 1,
+          appVersion: "0.1.0",
+          buildType: "debug",
+          attributes: {
+            calls_count: 2,
+            topics_count: 1,
+            has_active_call: false
+          },
+          occurredAt: "2026-06-02T12:00:00.000Z"
+        }]
+      })
+      .expect(202)
+      .expect(({ body }) => {
+        expect(body.accepted).toBe(1);
+      });
+
+    await request(app)
+      .post("/v1/analytics/events")
+      .set(auth())
+      .send({
+        events: [{
+          sessionId: "session-test-123",
+          eventName: "screen_viewed",
+          screen: "search",
+          attributes: {
+            search_query: "private medical appointment"
+          }
+        }]
+      })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("unsafe_analytics_attribute");
+      });
+  });
+
   it("does not create Stripe setup sessions when Stripe is not configured", async () => {
     const app = createTestApp();
 
@@ -595,6 +647,78 @@ describe("app", () => {
         expect(body.callers[0].displayName).toBe("Greg Floyd");
         expect(body.callers[0].organization).toBe("Floyd Landscaping");
         expect(body.callers[0].memories.some((memory: { text: string }) => memory.text.includes("Schedule landscaping"))).toBe(true);
+      });
+  });
+
+  it("scopes call history to the authenticated user's assistant number", async () => {
+    const app = createTestApp();
+    await assignDefaultRoute(app, "maya", "+15550001111", "Maya", "+15559990001");
+    await assignDefaultRoute(app, "noah", "+15550002222", "Noah", "+15559990002");
+
+    await request(app)
+      .post("/webhooks/retell/events")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_analyzed",
+        call: {
+          call_id: "call_maya_private",
+          direction: "inbound",
+          from_number: "+15551230000",
+          to_number: "+15559990001",
+          agent_id: "agent_default",
+          call_status: "ended",
+          transcript: "Maya's caller asked about the basement.",
+          call_analysis: {
+            call_summary: "Caller asked Maya about the basement.",
+            custom_analysis_data: {
+              caller_name: "Greg",
+              caller_intent: "Discuss basement work.",
+              urgency: "normal"
+            }
+          }
+        }
+      })
+      .expect(204);
+
+    await request(app)
+      .post("/webhooks/retell/events")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_analyzed",
+        call: {
+          call_id: "call_noah_private",
+          direction: "inbound",
+          from_number: "+15553334444",
+          to_number: "+15559990002",
+          agent_id: "agent_default",
+          call_status: "ended",
+          transcript: "Noah's caller asked about recruiting.",
+          call_analysis: {
+            call_summary: "Caller asked Noah about recruiting.",
+            custom_analysis_data: {
+              caller_name: "Sam",
+              caller_intent: "Discuss recruiting.",
+              urgency: "low"
+            }
+          }
+        }
+      })
+      .expect(204);
+
+    await request(app)
+      .get("/v1/calls")
+      .set(auth("maya", "+15550001111", "Maya"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.calls.map((call: { providerCallId: string }) => call.providerCallId)).toEqual(["call_maya_private"]);
+      });
+
+    await request(app)
+      .get("/v1/calls")
+      .set(auth("noah", "+15550002222", "Noah"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.calls.map((call: { providerCallId: string }) => call.providerCallId)).toEqual(["call_noah_private"]);
       });
   });
 
@@ -1157,6 +1281,17 @@ describe("app", () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.result.syncedCount).toBe(1);
+        expect(body.result.phoneNumberCount).toBe(1);
+      });
+
+    await request(app)
+      .get("/v1/contacts/status")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status.syncedCount).toBe(1);
+        expect(body.status.phoneNumberCount).toBe(1);
+        expect(body.status.lastSyncedAt).toEqual(expect.any(String));
       });
 
     const inboundResponse = await request(app)
@@ -1323,6 +1458,32 @@ describe("app", () => {
       .get("/v1/calendar/connect-url")
       .set(auth())
       .expect(400);
+  });
+
+  it("requires a signed Google Calendar OAuth state before linking an account", async () => {
+    const app = createTestApp({
+      ...testEnv,
+      GOOGLE_OAUTH_CLIENT_ID: "client-id",
+      GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
+      GOOGLE_OAUTH_REDIRECT_URI: "https://example.com/oauth/google/calendar/callback",
+      GOOGLE_OAUTH_STATE_SECRET: "state-secret"
+    });
+
+    await request(app)
+      .get("/v1/calendar/connect-url")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.url).toContain("state=");
+        expect(body.url).toContain("calendar.freebusy");
+      });
+
+    await request(app)
+      .get("/oauth/google/calendar/callback?code=fake-code")
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("google_oauth_state_missing");
+      });
   });
 
   it("returns unavailable from calendar tools until Google Calendar is connected", async () => {

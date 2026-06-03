@@ -30,6 +30,7 @@ $env:RETELL_API_KEY = "<retell-api-key>"
 $env:RETELL_DEFAULT_AGENT_ID = "agent_f01f598fee49ba8e238f3124bc"
 $env:RETELL_DEFAULT_FROM_NUMBER = "+19143593659"
 $env:FIREBASE_PROJECT_ID = "phone-agent-43313"
+$env:PERSISTENCE_DRIVER = "firestore"
 $env:STRIPE_PUBLISHABLE_KEY = "<stripe-publishable-key>"
 $env:STRIPE_SECRET_KEY = "<stripe-secret-key>"
 $env:STRIPE_WEBHOOK_SECRET = "<stripe-webhook-signing-secret>"
@@ -40,6 +41,7 @@ $env:BILLING_DEFAULT_SPENDING_CAP_CENTS = "2500"
 $env:RATE_LIMIT_WINDOW_MS = "60000"
 $env:RATE_LIMIT_MAX_REQUESTS = "120"
 $env:WEBHOOK_RATE_LIMIT_MAX_REQUESTS = "600"
+$env:GOOGLE_OAUTH_STATE_SECRET = "<managed-oauth-state-secret>"
 ```
 
 Then deploy:
@@ -163,6 +165,17 @@ Attach at least one operator-owned notification channel in Cloud Monitoring befo
 
 Operational triage steps are documented in `docs/operations-runbook.md`.
 
+## Configure Firestore TTL
+
+Production deployments use Firestore-backed rate-limit buckets so API and webhook limits apply across Cloud Run instances. Configure Firestore TTL on:
+
+```text
+Collection group: rateLimitBuckets
+TTL field: expiresAt
+```
+
+This removes expired limiter buckets automatically. Keep edge throttling through Cloud Armor, API Gateway, or equivalent as a separate public-beta requirement.
+
 ## Billing reconciliation
 
 Run this after Stripe catalog changes, webhook changes, manual Stripe cleanup, or billing incidents:
@@ -181,7 +194,7 @@ The command checks every local `BillingAccount` against Stripe customers and Per
 - Configure Firebase Phone Auth for production SMS/voice verification, Android app credentials, and explicit SMS region policy.
 - Keep Retell webhook endpoints public but signature-verified.
 - Add structured alerting for webhook failures and 5xx responses.
-- Add Cloud Armor or API Gateway rate limiting before public launch. The app has process-level limits only as defense in depth.
+- Add Cloud Armor or API Gateway rate limiting before public launch. The app has shared Firestore-backed backend limits as defense in depth, but edge controls are still required.
 - Add billing reconciliation and webhook replay dashboards before live billing.
 - Verify Stripe webhook event idempotency in test mode using duplicate delivery and retry scenarios before enabling live mode.
 - Rotate the Retell API key because it was pasted into chat during setup.

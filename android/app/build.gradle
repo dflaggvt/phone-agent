@@ -3,15 +3,53 @@ plugins {
     id "org.jetbrains.kotlin.android"
     id "org.jetbrains.kotlin.plugin.compose"
     id "com.google.devtools.ksp"
+    id "com.google.dagger.hilt.android"
     id "com.google.gms.google-services"
     id "com.google.firebase.crashlytics"
 }
 
+def phoneAgentSigningProperties = new Properties()
+def phoneAgentSigningPropertiesFile = [
+        rootProject.file("signing.properties"),
+        file("../signing.properties")
+].find { it.exists() }
+if (phoneAgentSigningPropertiesFile != null) {
+    phoneAgentSigningPropertiesFile.withInputStream { phoneAgentSigningProperties.load(it) }
+}
+
+def phoneAgentSigningValue = { name ->
+    def envValue = System.getenv(name)
+    if (envValue) {
+        return envValue
+    }
+    def propertyValue = phoneAgentSigningProperties.getProperty(name)
+    if (propertyValue) {
+        return propertyValue
+    }
+    def bomSafeEntry = phoneAgentSigningProperties.find {
+        it.key.toString().replace("\uFEFF", "") == name
+    }
+    return bomSafeEntry?.value
+}
+
+def phoneAgentKeystorePath = phoneAgentSigningValue("PHONE_AGENT_KEYSTORE_PATH")
+def phoneAgentKeystorePassword = phoneAgentSigningValue("PHONE_AGENT_KEYSTORE_PASSWORD")
+def phoneAgentKeyAlias = phoneAgentSigningValue("PHONE_AGENT_KEY_ALIAS")
+def phoneAgentKeyPassword = phoneAgentSigningValue("PHONE_AGENT_KEY_PASSWORD")
+
 def phoneAgentReleaseSigningReady =
-        System.getenv("PHONE_AGENT_KEYSTORE_PATH") &&
-        System.getenv("PHONE_AGENT_KEYSTORE_PASSWORD") &&
-        System.getenv("PHONE_AGENT_KEY_ALIAS") &&
-        System.getenv("PHONE_AGENT_KEY_PASSWORD")
+        phoneAgentKeystorePath &&
+        phoneAgentKeystorePassword &&
+        phoneAgentKeyAlias &&
+        phoneAgentKeyPassword
+
+def phoneAgentReleaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains("release")
+}
+
+if (phoneAgentReleaseTaskRequested && !phoneAgentReleaseSigningReady) {
+    throw new GradleException("Release signing is required. Set PHONE_AGENT_* env vars or create ignored android/signing.properties.")
+}
 
 android {
     namespace "com.phoneagent.app"
@@ -23,6 +61,7 @@ android {
         targetSdk 35
         versionCode 2
         versionName "0.1.1-internal"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField "String", "BACKEND_BASE_URL", "\"https://phone-agent-47585065917.us-central1.run.app\""
         buildConfigField "String", "PHONE_AGENT_NUMBER", "\"+19143593659\""
@@ -45,12 +84,11 @@ android {
 
     signingConfigs {
         release {
-            def keystorePath = System.getenv("PHONE_AGENT_KEYSTORE_PATH")
             if (phoneAgentReleaseSigningReady) {
-                storeFile file(keystorePath)
-                storePassword System.getenv("PHONE_AGENT_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("PHONE_AGENT_KEY_ALIAS")
-                keyPassword System.getenv("PHONE_AGENT_KEY_PASSWORD")
+                storeFile file(phoneAgentKeystorePath)
+                storePassword phoneAgentKeystorePassword
+                keyAlias phoneAgentKeyAlias
+                keyPassword phoneAgentKeyPassword
             }
         }
     }
@@ -83,13 +121,25 @@ dependencies {
     implementation "androidx.compose.ui:ui-graphics"
     implementation "androidx.compose.ui:ui-tooling-preview"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7"
     implementation "androidx.room:room-runtime:2.6.1"
     implementation "androidx.room:room-ktx:2.6.1"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    implementation "com.google.dagger:hilt-android:2.56.2"
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    implementation "com.squareup.retrofit2:retrofit:2.11.0"
     implementation platform("com.google.firebase:firebase-bom:34.6.0")
     implementation "com.google.firebase:firebase-auth"
     implementation "com.google.firebase:firebase-messaging"
     implementation "com.google.firebase:firebase-crashlytics"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20240303"
+    androidTestImplementation platform("androidx.compose:compose-bom:2024.09.03")
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4"
     ksp "androidx.room:room-compiler:2.6.1"
+    ksp "com.google.dagger:hilt-android-compiler:2.56.2"
     debugImplementation "androidx.compose.ui:ui-tooling"
+    debugImplementation "androidx.compose.ui:ui-test-manifest"
 }

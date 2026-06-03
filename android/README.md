@@ -11,7 +11,7 @@ Native Android control surface for the Phone Agent backend.
 - Registers an Android FCM token after Firebase sign-in and receives privacy-safe push notifications for assistant events.
 - Includes first-pass local rule toggles, transfer approvals, FCM-triggered live refresh, and deployment settings.
 
-This is not yet the full production app. Persistent rules and the final Play release pipeline are still pending. Push notifications use FCM data messages with private-safe payloads; the app does not run periodic notification polling as a fallback. Contact sync is optional and only uploads minimal address-book identity data after the user grants Android Contacts permission.
+The production Android UI is Kotlin + Jetpack Compose. Persistent rules and the final Play promotion workflow are still pending. Push notifications use FCM data messages with private-safe payloads; the app does not run periodic notification polling. Contact sync is optional and only uploads minimal address-book identity data after the user grants Android Contacts permission.
 
 ## Release build
 
@@ -21,6 +21,14 @@ Release signing is configured from environment variables so keystores and passwo
 - `PHONE_AGENT_KEYSTORE_PASSWORD`
 - `PHONE_AGENT_KEY_ALIAS`
 - `PHONE_AGENT_KEY_PASSWORD`
+
+For local release builds, the same keys may be placed in ignored `android/signing.properties`. Production CI should prefer managed secrets. Release builds fail fast if neither the environment variables nor `android/signing.properties` are present, because unsigned release bundles are not Play-ready.
+
+The current local upload key is stored outside the repo under:
+
+```text
+%USERPROFILE%\.phone-agent\secrets\phone-agent-upload.p12
+```
 
 Build an internal-test app bundle:
 
@@ -33,6 +41,8 @@ Output:
 ```text
 app/build/outputs/bundle/release/app-release.aab
 ```
+
+Before public launch, enroll this upload certificate with Google Play App Signing or replace it with the production upload key chosen for the Play account. Do not lose the upload key; future Play releases must use the same upload key unless Google Play key reset is used.
 
 ## Build
 

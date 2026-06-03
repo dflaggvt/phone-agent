@@ -9,6 +9,13 @@ coverage/
 # Android
 android/.gradle/
 android/local.properties
+android/signing.properties
 android/app/build/
+android/*.hprof
 *.apk
 *.aab
+*.jks
+*.keystore
+
+# Generated release packets and public-download artifacts
+release/

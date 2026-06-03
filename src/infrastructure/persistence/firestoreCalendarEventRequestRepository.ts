@@ -17,6 +17,7 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
     const now = new Date();
     const request: CalendarEventRequest = {
       id: randomUUID(),
+      userId: input.userId,
       action: input.action ?? "create",
       status: "pending",
       providerCallId: input.providerCallId,
@@ -38,45 +39,60 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
     return request;
   }
 
-  async get(id: string): Promise<CalendarEventRequest | undefined> {
+  async get(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
     await this.expirePending();
     const doc = await this.collection().doc(id).get();
-    return doc.exists ? requestFromFirestore(doc.id, doc.data() ?? {}) : undefined;
+    const request = doc.exists ? requestFromFirestore(doc.id, doc.data() ?? {}) : undefined;
+    return request?.userId === userId ? request : undefined;
   }
 
-  async listPending(now = new Date()): Promise<CalendarEventRequest[]> {
+  async listPending(userId: string, now = new Date()): Promise<CalendarEventRequest[]> {
     await this.expirePending(now);
-    const snapshot = await this.collection().where("status", "==", "pending").limit(25).get();
-    return snapshot.docs.map((doc) => requestFromFirestore(doc.id, doc.data())).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const snapshot = await this.collection()
+      .where("userId", "==", userId)
+      .where("status", "==", "pending")
+      .limit(25)
+      .get();
+    return snapshot.docs
+      .map((doc) => requestFromFirestore(doc.id, doc.data()))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async listRecent(limit = 25): Promise<CalendarEventRequest[]> {
+  async listRecent(userId: string, limit = 25): Promise<CalendarEventRequest[]> {
     await this.expirePending();
-    const snapshot = await this.collection().orderBy("createdAt", "desc").limit(limit).get();
+    const snapshot = await this.collection()
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
     return snapshot.docs.map((doc) => requestFromFirestore(doc.id, doc.data()));
   }
 
-  async listCreatedForCaller(callerNumber?: string, limit = 10): Promise<CalendarEventRequest[]> {
-    const recent = await this.listRecent(50);
+  async listCreatedForCaller(userId: string, callerNumber?: string, limit = 10): Promise<CalendarEventRequest[]> {
+    const recent = await this.listRecent(userId, 50);
     return recent
       .filter((request) => Boolean(request.createdEventId))
       .filter((request) => !callerNumber || request.callerNumber === callerNumber)
       .slice(0, limit);
   }
 
-  async findCreatedByEventId(eventId: string): Promise<CalendarEventRequest | undefined> {
+  async findCreatedByEventId(userId: string, eventId: string): Promise<CalendarEventRequest | undefined> {
     await this.expirePending();
-    const snapshot = await this.collection().where("createdEventId", "==", eventId).limit(1).get();
+    const snapshot = await this.collection()
+      .where("userId", "==", userId)
+      .where("createdEventId", "==", eventId)
+      .limit(1)
+      .get();
     const doc = snapshot.docs[0];
     return doc ? requestFromFirestore(doc.id, doc.data()) : undefined;
   }
 
-  async accept(id: string): Promise<CalendarEventRequest | undefined> {
-    return this.decide(id, "accepted");
+  async accept(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
+    return this.decide(id, userId, "accepted");
   }
 
-  async decline(id: string): Promise<CalendarEventRequest | undefined> {
-    return this.decide(id, "declined");
+  async decline(id: string, userId: string): Promise<CalendarEventRequest | undefined> {
+    return this.decide(id, userId, "declined");
   }
 
   async markCreated(id: string, event: { eventId?: string; htmlLink?: string }): Promise<CalendarEventRequest | undefined> {
@@ -92,7 +108,7 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
   }
 
   async expirePending(now = new Date()): Promise<void> {
-    const pending = await this.collection().where("status", "==", "pending").limit(25).get();
+    const pending = await this.collection().where("status", "==", "pending").limit(100).get();
     const batch = this.firestore.batch();
     let updateCount = 0;
     for (const doc of pending.docs) {
@@ -107,7 +123,7 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
     }
   }
 
-  private async decide(id: string, status: Extract<CalendarEventRequestStatus, "accepted" | "declined">): Promise<CalendarEventRequest | undefined> {
+  private async decide(id: string, userId: string, status: Extract<CalendarEventRequestStatus, "accepted" | "declined">): Promise<CalendarEventRequest | undefined> {
     const docRef = this.collection().doc(id);
     return this.firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(docRef);
@@ -115,6 +131,9 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
         return undefined;
       }
       const existing = requestFromFirestore(snapshot.id, snapshot.data() ?? {});
+      if (existing.userId !== userId) {
+        return undefined;
+      }
       if (existing.status !== "pending") {
         return existing;
       }
@@ -125,7 +144,8 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
   }
 
   private async updateStatus(id: string, input: Partial<CalendarEventRequest>): Promise<CalendarEventRequest | undefined> {
-    const existing = await this.get(id);
+    const doc = await this.collection().doc(id).get();
+    const existing = doc.exists ? requestFromFirestore(doc.id, doc.data() ?? {}) : undefined;
     if (!existing) {
       return undefined;
     }
@@ -142,6 +162,7 @@ export class FirestoreCalendarEventRequestRepository implements CalendarEventReq
 function requestFromFirestore(id: string, data: Record<string, unknown>): CalendarEventRequest {
   return {
     id: getString(data.id) ?? id,
+    userId: getString(data.userId) ?? "",
     action: requestAction(data.action),
     status: requestStatus(data.status),
     providerCallId: getString(data.providerCallId),

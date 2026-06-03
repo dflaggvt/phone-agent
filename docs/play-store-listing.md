@@ -30,7 +30,7 @@ The product is currently in private/internal testing. Some features may require 
 Use the release notes in:
 
 ```text
-release/play/internal-test-v0.1.1/release-notes/en-US/default.txt
+docs/play-release-notes/internal-test-v0.1.1.md
 ```
 
 ## App Access Instructions For Review/Testers

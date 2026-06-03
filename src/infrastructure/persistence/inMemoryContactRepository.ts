@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type {
   Contact,
   ContactRepository,
+  ContactSyncStatus,
   ContactSyncResult,
   SyncContactInput
 } from "../../domain/contacts/contact.js";
@@ -63,6 +64,20 @@ export class InMemoryContactRepository implements ContactRepository {
 
   async countForUser(userId: string): Promise<number> {
     return [...this.contacts.values()].filter((contact) => contact.userId === userId).length;
+  }
+
+  async statusForUser(userId: string): Promise<ContactSyncStatus> {
+    const contacts = [...this.contacts.values()].filter((contact) => contact.userId === userId);
+    return {
+      syncedCount: contacts.length,
+      phoneNumberCount: contacts.reduce((count, contact) => count + contact.phoneNumbers.length, 0),
+      lastSyncedAt: contacts.reduce<Date | undefined>((latest, contact) => {
+        if (!latest || contact.lastSyncedAt.getTime() > latest.getTime()) {
+          return contact.lastSyncedAt;
+        }
+        return latest;
+      }, undefined)
+    };
   }
 }
 

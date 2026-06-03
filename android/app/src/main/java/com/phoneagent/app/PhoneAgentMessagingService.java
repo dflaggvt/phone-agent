@@ -41,11 +41,11 @@ public class PhoneAgentMessagingService extends FirebaseMessagingService {
             return;
         }
         createNotificationChannel();
-        String title = safe(data.get("title"), "Phone Agent");
-        String body = safe(data.get("body"), "You have a new assistant update.");
-        String target = safe(data.get("target"), "assistant");
-        String priority = safe(data.get("priority"), "normal");
-        String notificationId = safe(data.get("notification_id"), target + body);
+        String title = valueOrDefault(data.get("title"), "Phone Agent");
+        String body = valueOrDefault(data.get("body"), "You have a new assistant update.");
+        String target = valueOrDefault(data.get("target"), "assistant");
+        String priority = valueOrDefault(data.get("priority"), "normal");
+        String notificationId = valueOrDefault(data.get("notification_id"), target + body);
 
         Intent openIntent = new Intent(this, ComposeActivity.class);
         openIntent.setAction(NotificationActionReceiver.ACTION_OPEN_NOTIFICATION);
@@ -72,15 +72,15 @@ public class PhoneAgentMessagingService extends FirebaseMessagingService {
     private void sendPushRefresh(Map<String, String> data) {
         Intent refreshIntent = new Intent(ComposeActivity.ACTION_PUSH_REFRESH);
         refreshIntent.setPackage(getPackageName());
-        refreshIntent.putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_TARGET, safe(data.get("target"), ""));
-        refreshIntent.putExtra("type", safe(data.get("type"), ""));
-        refreshIntent.putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, safe(data.get("notification_id"), ""));
+        refreshIntent.putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_TARGET, valueOrDefault(data.get("target"), ""));
+        refreshIntent.putExtra("type", valueOrDefault(data.get("type"), ""));
+        refreshIntent.putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, valueOrDefault(data.get("notification_id"), ""));
         sendBroadcast(refreshIntent);
     }
 
     private void addNotificationActions(Notification.Builder builder, Map<String, String> data, int notificationId) {
-        String type = safe(data.get("type"), "");
-        String target = safe(data.get("target"), "");
+        String type = valueOrDefault(data.get("type"), "");
+        String target = valueOrDefault(data.get("target"), "");
         if ("live_transfer_request".equals(type)) {
             String approvalId = lastPathSegment(target);
             if (approvalId.length() == 0) {
@@ -170,7 +170,7 @@ public class PhoneAgentMessagingService extends FirebaseMessagingService {
         return Notification.PRIORITY_DEFAULT;
     }
 
-    private String safe(String value, String fallback) {
-        return value == null || value.length() == 0 ? fallback : value;
+    private String valueOrDefault(String value, String defaultValue) {
+        return value == null || value.length() == 0 ? defaultValue : value;
     }
 }

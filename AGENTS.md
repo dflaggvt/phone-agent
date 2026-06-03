@@ -54,8 +54,10 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - Avoid logging raw communication content in application logs.
 - Treat notifications as product objects. Create privacy-safe `NotificationEvent` records instead of scattering ad hoc push/local notification text across the app.
 - Default notification payloads must not expose transcripts, assistant notes, sensitive topics, or detailed calendar descriptions on the lock screen.
+- Treat product analytics as first-party, privacy-safe product infrastructure. Analytics should be dense enough to understand activation, engagement, retention, reliability, and conversion, but must never include transcripts, summaries, assistant-note text, live-answer text, search query text, contact contents, calendar descriptions, payment details, raw provider payloads, or secrets.
+- Use shared production rate-limit storage for scaled deployments. In-memory rate limits are acceptable for local development and tests only.
 - Version prompts, classification schemas, extraction schemas, and routing policies when they affect user-visible behavior.
-- Build fallback paths for provider failures, model failures, notification failures, transfer failures, classification failures, and permission denials.
+- Build explicit, observable failure paths for provider failures, model failures, notification failures, transfer failures, classification failures, and permission denials. Do not hide broken dependencies behind fake success or silent runtime migrations.
 
 ## Documentation Standards
 
@@ -68,12 +70,15 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - Keep `docs/open-questions.md` current as assumptions are answered or new risks emerge.
 - Keep `docs/implementation-plan.md` current when build sequencing changes.
 - Keep `docs/mobile-ux-blueprint.md` current when Android/mobile navigation, screen hierarchy, visual system, notification behavior, empty/error states, or user flows change.
+- Update `docs/technical-design.md`, `docs/product-requirements.md`, and `docs/production-readiness.md` when authentication boundaries, tenant scoping, analytics collection, rate limiting, billing gates, or provider side effects change.
 - Keep `docs/monetization.md` current when pricing, billing, metering, payment provider behavior, spending caps, paid-resource gates, or cost assumptions change.
 
 ## Mobile UX Standards
 
 - Treat `docs/mobile-ux-blueprint.md` as the source of truth for production mobile screen and flow design.
-- The production Android UI direction is Kotlin + Jetpack Compose. Treat the legacy Java activity as prototype scaffolding during migration, not the long-term UX foundation.
+- The production Android UI is Kotlin + Jetpack Compose. Do not reintroduce Java Activity UI surfaces or programmatic Android view hierarchies.
+- Use MVVM for Android production code: Compose renders immutable state, ViewModels expose `StateFlow`, repositories coordinate backend/cache work, and Activities stay focused on Android integration edges.
+- Use Hilt for dependency injection and Retrofit/OkHttp for backend REST calls. Do not add new raw `HttpURLConnection` app API paths.
 - Prefer reusable Compose design-system components and previewable fixture states over one-off programmatic layouts.
 - Mobile UX documentation must include measurable details: dimensions, typography, spacing, counts, timing thresholds, loading/error states, QA viewports, and acceptance criteria.
 - Keep the production mobile app centered on the blueprint IA: Home, Topics, Inbox, Assistant, and Search unless the blueprint changes first.
@@ -81,6 +86,7 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - Every primary screen needs loading, empty, error, offline, and stale-data behavior where applicable.
 - Verify significant Android UI changes with screenshots on a connected device or emulator before calling the work done.
 - The app should feel calm, minimal, and executive, not like an internal admin panel or call-center tool.
+- Do not use destructive Room migrations. Schema changes require explicit migrations or a deliberate cache reset path reviewed as product behavior.
 
 ## Testing Expectations
 
@@ -91,6 +97,7 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - Test idempotency for repeated provider webhooks.
 - Test authorization on every user-owned and thread-scoped resource.
 - Test privacy, sharing, and retention behavior for recordings, transcripts, summaries, documents, and topic memory.
+- Test analytics privacy validation, cross-user data isolation, signed OAuth/account-linking state, rate limiting, and paid side-effect gates when those areas change.
 
 ## Security Expectations
 

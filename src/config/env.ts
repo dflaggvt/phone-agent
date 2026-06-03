@@ -62,6 +62,7 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: optionalNonEmptyString,
   GOOGLE_OAUTH_CLIENT_SECRET: optionalNonEmptyString,
   GOOGLE_OAUTH_REDIRECT_URI: optionalNonEmptyString,
+  GOOGLE_OAUTH_STATE_SECRET: optionalNonEmptyString,
   RETELL_INBOUND_WEBHOOK_VERIFY: z
     .enum(["true", "false"])
     .default("true")

@@ -119,17 +119,17 @@ Scope:
 
 Implementation tasks:
 
-- Add provider-neutral user configuration with owned phone number, Retell forwarding number, Retell agent ID, live transfer number, plan, usage limits, and onboarding status. Status: in progress.
-- Add assistant profile model with onboarding-required assistant name plus post-activation defaults for greeting style, disclosure style, warmth, brevity, proactivity, transfer policy, calendar policy, and unknown caller policy. Status: in progress.
-- Add optional Android contact sync and backend contact resolver so first-time callers can be identified from the user's address book. Status: in progress.
+- Add provider-neutral user configuration with owned phone number, Retell forwarding number, Retell agent ID, live transfer number, plan, usage limits, and onboarding status. Status: implemented for authenticated user config, route lookup, billing state, onboarding state, and assistant profile; remaining work is self-serve provider-number provisioning at scale.
+- Add assistant profile model with onboarding-required assistant name plus post-activation defaults for greeting style, disclosure style, warmth, brevity, proactivity, transfer policy, calendar policy, and unknown caller policy. Status: implemented for backend model, onboarding capture, Android editing, and voice-context rendering.
+- Add optional Android contact sync and backend contact resolver so first-time callers can be identified from the user's address book. Status: implemented for backend sync/resolution and production Compose contact sync UI; disconnect/delete controls are pending.
 - Replace account bootstrap and per-user API-token auth with Firebase Auth ID-token verification. Status: implemented.
 - Remove development-only phone verification fallback. Phone ownership must come from Firebase Phone Auth before assistant-number provisioning. Status: implemented.
 - Add Retell number provisioning adapter for purchase/update/list without leaking Retell payloads into the domain. Status: pending.
 - Resolve inbound Retell calls by forwarding number instead of hard-coded user ID. Status: implemented.
-- Replace single-user onboarding assumptions with user-derived setup state. Status: in progress.
+- Replace single-user onboarding assumptions with user-derived setup state. Status: implemented for Firebase-authenticated users, per-user phone routing, billing state, assistant profile, and onboarding status.
 - Remove API-token beta auth from the mobile product path. Client APIs require verified Firebase ID tokens. Status: implemented.
-- Add usage ledger and billing guardrails for call minutes, OpenAI classification calls, and monthly limits. Status: in progress.
-- Add billing account, payment method, spending cap, rating, and billing-state gates before paid phone/AI infrastructure. Status: in progress.
+- Add usage ledger and billing guardrails for call minutes, OpenAI classification calls, and monthly limits. Status: implemented for idempotent call-minute/classification usage and runtime/provisioning gates; detailed cost ledger is pending.
+- Add billing account, payment method, spending cap, rating, and billing-state gates before paid phone/AI infrastructure. Status: implemented for billing account, hosted card setup, spending caps, active/cap checks, and paid side-effect gates; full rated usage and invoice mirror are pending.
 - Add agent behavior eval fixtures and script for natural greeting, disclosure, privacy, emergency handling, transfer policy, calendar limits, and no internal-label leakage. Status: in progress.
 
 Exit criteria:
@@ -205,13 +205,42 @@ Exit criteria:
 - Paid provider side effects are blocked when billing is inactive, past due, canceled, or over cap.
 - Billing failures are recoverable without manual Firestore edits.
 
+## Phase 2.67: Multi-User Safety And Go-Live Hardening
+
+Scope:
+
+- Enforce authenticated user boundaries on every user-facing read.
+- Keep paid provider actions scoped to the authenticated user and assigned assistant number.
+- Make calendar OAuth, calendar writes, call history, and product analytics production-safe for many users.
+- Replace per-instance abuse controls with shared infrastructure where possible.
+- Keep consumer UI free of backend provider names.
+
+Implementation tasks:
+
+- Scope Google Calendar OAuth connections, free/busy checks, create/update requests, and activity lists by `userId`. Status: implemented.
+- Sign Google OAuth state with an HMAC and reject callbacks without verified state. Status: implemented.
+- Scope call history to the authenticated user's assigned assistant number at the repository/query layer. Status: implemented.
+- Keep Retell/voice-provider tool calls from reading calendar state unless `phone_agent_user_id` is present in call context. Status: implemented.
+- Add `ProductAnalyticsEvent` domain model, repository abstraction, Firestore persistence, client ingestion endpoint, Android event capture, and privacy validation. Status: implemented.
+- Add durable Firestore-backed rate limit buckets for production Cloud Run deployments, with in-memory fallback for local/test. Status: implemented.
+- Update environment configuration for `PERSISTENCE_DRIVER`, rate limits, and `GOOGLE_OAUTH_STATE_SECRET`. Status: implemented.
+- Add regression tests for analytics privacy validation, route-scoped call history, OAuth state enforcement, and existing rate limits. Status: implemented.
+
+Exit criteria:
+
+- One user's calls, calendar connection, calendar activity, analytics, notes, topics, and live actions cannot appear in another user's app session.
+- OAuth account linking requires a signed, unexpired user-scoped state.
+- Abuse controls work across scaled backend instances when Firestore persistence is enabled.
+- Engagement telemetry supports product decisions without storing communication content.
+- Backend route ownership starts moving out of `src/app.ts` without changing public URLs. Status: implemented for shared route helpers, client validation schemas, billing routes, Stripe billing return pages, and analytics ingestion; provider webhooks and live voice tool routes remain in the composition root until raw-body/signature handling is split under dedicated tests.
+
 ## Phase 2.7: Production Mobile UX Facelift
 
 Scope:
 
 - Establish the mobile UX blueprint as the source of truth for Android screens and flows.
 - Redesign the app around the ideal product IA: Topics, Inbox, Home, Assistant, and Search, with Home as the default center tab.
-- Migrate the Android UI foundation from the prototype Java view hierarchy to Kotlin and Jetpack Compose.
+- Retire the prototype Java view hierarchy and keep the Android UI foundation in Kotlin and Jetpack Compose.
 - Make topic threads the durable product surface and Inbox the review/recent activity surface.
 - Add production-quality empty, loading, offline, stale, error, and deep-link states.
 - Improve setup, forwarding, assistant notes, calendar, people memory, topic detail, communication detail, and live-call action flows.
@@ -221,9 +250,12 @@ Implementation tasks:
 
 - Create `docs/mobile-ux-blueprint.md`. Status: implemented.
 - Add Kotlin and Jetpack Compose to the Android project. Status: implemented.
-- Add a Compose launcher activity with a reusable app shell, top bar, status pill, atmospheric background, and five-item bottom navigation. Status: implemented.
-- Replace ad hoc Android screen construction with reusable Compose shell and UI components. Status: in progress; core shell, cards, rows, buttons, fields, chips, detail frames, error states, and centralized Material 3 theme tokens are implemented, but broader component extraction from the launcher activity is still pending.
-- Add Room-backed local cache for user summary, onboarding, billing, topics, calls, topic suggestions, notifications, and active-call snapshot. Status: in progress; initial schema and Compose startup hydration are being added, with repository extraction and stale-state badges pending.
+- Remove the legacy Java Activity from the production Android app. Status: implemented.
+- Add a Compose launcher activity with a reusable app shell, top bar, assistant presence control, atmospheric background, and five-item bottom navigation. Status: implemented.
+- Add Hilt, Retrofit, OkHttp, ViewModel, and StateFlow as the Android production architecture foundation. Status: implemented for application graph, backend API client, repository boundary, extracted app-state ViewModel, named repository mutation commands, typed Android request models, typed response envelope parsers, and notification-action API posts.
+- Keep Android framework integrations out of the app shell where practical. Status: in progress; contact-provider reads and product analytics have been extracted from `ComposeActivity` into focused Android integration services while Firebase phone auth remains Activity-bound because it requires an Activity callback surface.
+- Replace ad hoc Android screen construction with reusable Compose shell and UI components. Status: in progress; core shell, cards, rows, buttons, fields, chips, detail frames, error states, centralized Material 3 theme tokens, extracted shared Compose components, extracted screen composables, and extracted Compose previews are implemented; remaining work is adding focused screen ViewModels where individual surfaces grow beyond simple state rendering.
+- Add Room-backed local cache for user summary, onboarding, billing, topics, calls, topic suggestions, notifications, and active-call snapshot. Status: in progress; schema, Compose startup hydration, and repository-owned `AppSnapshot` cache hydration/persistence are implemented, while user-visible stale-state badges remain pending.
 - Apply compact-density UI pass across the Compose app shell and shared components. Status: implemented; current density uses `16dp` gutters, `10dp` feed gaps, `12dp` card padding, shorter topic imagery, compact quick-action grids, slimmer search chips, and `44-46dp` primary controls while preserving accessible tap targets.
 - Add icon-based bottom navigation with accessible labels. Status: implemented.
 - Build production Home dashboard with recent calls, call actions, and horizontally browsable topic cards. Status: implemented for the Compose launcher.
@@ -231,9 +263,11 @@ Implementation tasks:
 - Build production Topics list and topic detail. Status: implemented for image-led topic list and basic topic detail; structured edit/correction controls are pending.
 - Build production Live control surface. Status: partial; active-call status and assistant metrics are implemented, but live answer/transfer cards need full Compose parity.
 - Build production assistant notes flow. Status: partial; Compose can create general or caller-scoped notes, but note listing, archive, and topic-scoped note selection are pending.
-- Build production More hub and nested management flows. Status: pending.
+- Build production Profile/Settings surface opened from the header presence/avatar control. Status: implemented for account identity, assistant, forwarding, billing, calendar, notifications, privacy, diagnostics, and logout; deeper nested management screens remain pending.
+- Add first-party privacy-safe product analytics from Android into backend `ProductAnalyticsEvent` records. Status: implemented for session/action/screen events, high-fidelity safe attributes, backend validation, and tests; warehouse export and dashboards are pending.
 - Add Compose previews and fixture states for the core screens. Status: implemented for Home, Topics, Review, Assistant, Search, Topic detail, Call detail, Forwarding, and Add note.
-- Add screenshot/golden testing after the first Compose component set stabilizes. Status: pending.
+- Add Android unit tests for display/snapshot/request model behavior. Status: initial pure Kotlin coverage implemented for call rows, topic summaries, contact status, forwarding digits, corrupted cache parsing, contact sync serialization, and analytics sanitization.
+- Add screenshot/golden testing after the first Compose component set stabilizes. Status: in progress; deterministic Compose fixture state exists and Android instrumentation screenshot smoke tests now compile as the foundation before full golden baselines.
 - Add screenshot-based QA across representative Android viewports. Status: partial; connected-device screenshots have been captured for Home, Assistant, Forwarding, Topic detail, Search, and Call detail on the paired Samsung device.
 
 Exit criteria:

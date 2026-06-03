@@ -111,6 +111,14 @@ This document tracks unresolved product, technical, legal, and business question
 - How should refunds be handled for failed transfers, bad call experiences, provider outages, or mistaken AI actions?
 - Which billing details can appear on invoices without exposing sensitive caller, topic, transcript, or calendar information?
 
+## Launch Readiness Questions
+
+- What exact event taxonomy and dashboards are required before closed beta: onboarding funnel, first useful call, live action latency, notification action success, billing conversion, churn risk, support burden, and gross margin?
+- What retention period should apply to product analytics events before warehouse export or deletion?
+- Which support workflows need internal tooling before public users can depend on the product: stuck onboarding, failed forwarding, failed payment, wrong caller memory, bad transfer, account deletion, and data export?
+- What Cloud Armor/API Gateway rules should sit in front of the backend in addition to shared backend rate limits?
+- What real-device matrix is enough for Google Play internal testing: carriers, Android versions, screen sizes, notification permission states, and battery/background restrictions?
+
 ## Current Working Assumptions
 
 - `TopicThread` is the core product object.
@@ -125,3 +133,6 @@ This document tracks unresolved product, technical, legal, and business question
 - Public monetization should start as a base subscription with card-on-file, monthly spending caps, overage warnings, and plain-language billing categories.
 - Stripe is the preferred first payment provider, but Phone Agent must own the usage ledger, rating logic, billing gates, and local invoice/payment state mirror.
 - Customer-facing billing should not expose backend provider names, raw token counts, or model names by default.
+- Product analytics should be first-party, privacy-safe, high-fidelity, and content-free.
+- Production backend rate limiting should use shared storage across scaled instances, with edge controls added before closed beta.
+- Calendar OAuth, calendar activity, call history, analytics, notification actions, and paid side effects must be user-scoped.

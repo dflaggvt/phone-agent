@@ -20,5 +20,5 @@ export interface CallRepository {
   upsertFromProvider(input: UpsertCallSessionInput): Promise<CallSession>;
   addEvent(event: Omit<CallEvent, "id">): Promise<CallEvent>;
   listCalls(): Promise<CallSession[]>;
+  listCallsForRoute(phoneNumber: string, limit?: number): Promise<CallSession[]>;
 }
-

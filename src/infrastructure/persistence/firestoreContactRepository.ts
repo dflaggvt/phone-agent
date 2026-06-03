@@ -5,6 +5,7 @@ import type {
   ContactPhoneNumber,
   ContactRepository,
   ContactSyncResult,
+  ContactSyncStatus,
   SyncContactInput
 } from "../../domain/contacts/contact.js";
 import { firestoreDate, removeUndefinedDeep } from "./firestoreClient.js";
@@ -12,6 +13,7 @@ import { normalizePhoneNumber } from "./contactNormalization.js";
 
 const COLLECTION = "contacts";
 const INDEX_COLLECTION = "contactPhoneIndex";
+const STATUS_COLLECTION = "contactSyncStatus";
 
 export class FirestoreContactRepository implements ContactRepository {
   constructor(private readonly firestore: Firestore) {}
@@ -78,6 +80,14 @@ export class FirestoreContactRepository implements ContactRepository {
       syncedCount += 1;
       phoneNumberCount += phoneNumbers.length;
     }
+    batch.set(this.statusCollection().doc(userId), removeUndefinedDeep({
+      userId,
+      syncedCount,
+      phoneNumberCount,
+      lastSyncedAt: syncedAt,
+      updatedAt: syncedAt
+    }));
+    operations += 1;
 
     if (operations > 0) {
       await batch.commit();
@@ -100,8 +110,15 @@ export class FirestoreContactRepository implements ContactRepository {
   }
 
   async countForUser(userId: string): Promise<number> {
-    const snapshot = await this.collection().where("userId", "==", userId).get();
-    return snapshot.size;
+    return (await this.statusForUser(userId)).syncedCount;
+  }
+
+  async statusForUser(userId: string): Promise<ContactSyncStatus> {
+    const status = await this.statusCollection().doc(userId).get();
+    if (status.exists) {
+      return statusFromFirestore(status.data() ?? {});
+    }
+    return { syncedCount: 0, phoneNumberCount: 0 };
   }
 
   private collection() {
@@ -110,6 +127,10 @@ export class FirestoreContactRepository implements ContactRepository {
 
   private indexCollection() {
     return this.firestore.collection(INDEX_COLLECTION);
+  }
+
+  private statusCollection() {
+    return this.firestore.collection(STATUS_COLLECTION);
   }
 }
 
@@ -159,8 +180,20 @@ function isContactPhoneNumber(value: ContactPhoneNumber | undefined): value is C
   return value !== undefined;
 }
 
+function statusFromFirestore(data: Record<string, unknown>): ContactSyncStatus {
+  return {
+    syncedCount: getNumber(data.syncedCount) ?? 0,
+    phoneNumberCount: getNumber(data.phoneNumberCount) ?? 0,
+    lastSyncedAt: firestoreDate(data.lastSyncedAt)
+  };
+}
+
 function getString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function contactId(userId: string, source: string, sourceContactId: string): string {

@@ -34,7 +34,7 @@ export class FirestoreCallerMemoryRepository implements CallerMemoryRepository {
       return callerProfileFromFirestore(doc.id, doc.data());
     }
 
-    return this.migrateLegacyProfileIfPresent(userId, normalized);
+    return undefined;
   }
 
   async listProfiles(userId: string): Promise<CallerProfile[]> {
@@ -138,40 +138,6 @@ export class FirestoreCallerMemoryRepository implements CallerMemoryRepository {
         "If memory seems stale or the caller contradicts it, ask a clarifying question."
       ]
     };
-  }
-
-  private async migrateLegacyProfileIfPresent(userId: string, normalizedPhoneNumber: string): Promise<CallerProfile | undefined> {
-    const legacyDocRef = this.firestore.collection(CALLER_COLLECTION).doc(legacyProfileIdForPhoneNumber(normalizedPhoneNumber));
-    const scopedDocRef = this.firestore.collection(CALLER_COLLECTION).doc(profileIdForPhoneNumber(userId, normalizedPhoneNumber));
-
-    return this.firestore.runTransaction(async (transaction) => {
-      const [legacySnapshot, scopedSnapshot] = await Promise.all([
-        transaction.get(legacyDocRef),
-        transaction.get(scopedDocRef)
-      ]);
-
-      if (scopedSnapshot.exists) {
-        return callerProfileFromFirestore(scopedSnapshot.id, scopedSnapshot.data() ?? {});
-      }
-      if (!legacySnapshot.exists) {
-        return undefined;
-      }
-
-      const legacyProfile = callerProfileFromFirestore(legacySnapshot.id, legacySnapshot.data() ?? {});
-      if (legacyProfile.userId) {
-        return undefined;
-      }
-
-      const migrated: CallerProfile = {
-        ...legacyProfile,
-        id: scopedDocRef.id,
-        userId,
-        updatedAt: new Date()
-      };
-      transaction.set(scopedDocRef, removeUndefinedDeep(migrated));
-      transaction.delete(legacyDocRef);
-      return migrated;
-    });
   }
 }
 
@@ -322,10 +288,6 @@ function addMemory(
 
 function profileIdForPhoneNumber(userId: string, phoneNumber: string): string {
   return `caller_${createHash("sha256").update(`${userId}:${phoneNumber}`).digest("base64url").slice(0, 32)}`;
-}
-
-function legacyProfileIdForPhoneNumber(phoneNumber: string): string {
-  return `caller_${createHash("sha256").update(phoneNumber).digest("base64url").slice(0, 32)}`;
 }
 
 function normalizePhoneNumber(phoneNumber: string): string {

@@ -15,20 +15,24 @@ import android.os.Build;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.phoneagent.app.data.remote.PhoneAgentApi;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.inject.Inject;
+
+import dagger.hilt.android.AndroidEntryPoint;
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
+import okhttp3.ResponseBody;
+import retrofit2.Response;
+
+@AndroidEntryPoint
 public class NotificationActionReceiver extends BroadcastReceiver {
     public static final String ACTION_APPROVE_TRANSFER = "com.phoneagent.app.APPROVE_TRANSFER";
     public static final String ACTION_DECLINE_TRANSFER = "com.phoneagent.app.DECLINE_TRANSFER";
@@ -43,6 +47,10 @@ public class NotificationActionReceiver extends BroadcastReceiver {
     private static final String NOTIFICATION_CHANNEL_ID = "transfer_approvals";
     private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
     private static final Set<String> IN_FLIGHT_ACTIONS = new HashSet<>();
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+
+    @Inject FirebaseAuth firebaseAuth;
+    @Inject PhoneAgentApi api;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -112,7 +120,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         if (FirebaseApp.getApps(context).isEmpty()) {
             return null;
         }
-        return FirebaseAuth.getInstance().getCurrentUser();
+        return firebaseAuth.getCurrentUser();
     }
 
     private void finishAction(
@@ -156,24 +164,10 @@ public class NotificationActionReceiver extends BroadcastReceiver {
     }
 
     private void post(String path, JSONObject payload, String token) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(BuildConfig.BACKEND_BASE_URL + path).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setConnectTimeout(8000);
-        connection.setReadTimeout(8000);
-        connection.setRequestProperty("accept", "application/json");
-        connection.setRequestProperty("authorization", "Bearer " + token);
-        connection.setRequestProperty("x-phone-agent-action-surface", "notification_action");
-        if (payload != null) {
-            connection.setRequestProperty("content-type", "application/json");
-            connection.setDoOutput(true);
-            byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
-            try (OutputStream output = connection.getOutputStream()) {
-                output.write(body);
-            }
-        }
-        int status = connection.getResponseCode();
-        if (status < 200 || status >= 300) {
-            throw new ActionHttpException(status, readError(connection, status));
+        RequestBody body = payload == null ? null : RequestBody.create(payload.toString(), JSON);
+        Response<ResponseBody> response = api.postJsonCall(relativePath(path), "Bearer " + token, body, "notification_action").execute();
+        if (!response.isSuccessful()) {
+            throw new ActionHttpException(response.code(), readError(response));
         }
     }
 
@@ -186,19 +180,25 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         return value == null ? "" : value.toString().trim();
     }
 
-    private String readError(HttpURLConnection connection, int status) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getErrorStream()))) {
-            StringBuilder body = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                body.append(line);
-            }
-            if (body.length() > 0) {
-                return body.toString();
+    private String readError(Response<ResponseBody> response) {
+        try {
+            ResponseBody errorBody = response.errorBody();
+            if (errorBody != null) {
+                String body = errorBody.string();
+                if (body.length() > 0) {
+                    return body;
+                }
             }
         } catch (Exception ignored) {
         }
-        return "HTTP " + status;
+        return "HTTP " + response.code();
+    }
+
+    private String relativePath(String path) {
+        if (path == null) {
+            return "";
+        }
+        return path.startsWith("/") ? path.substring(1) : path;
     }
 
     private String readableFailure(Exception error) {

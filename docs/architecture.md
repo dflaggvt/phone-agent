@@ -23,6 +23,9 @@ flowchart LR
     Docs --> DocumentProvider["Document provider adapter"]
     Manual --> ClientAPI["Client API"]
     AgentMsg --> AgentProvider["Agent-message adapter"]
+    Android --> AnalyticsAPI["Analytics ingestion API"]
+    Android --> RateLimit["Shared rate limiter"]
+    ProviderWebhooks["Provider webhooks"] --> RateLimit
 
     VoiceProvider --> Ingestion["Communication ingestion service"]
     SmsProvider --> Ingestion
@@ -52,6 +55,8 @@ flowchart LR
     Billing --> Provisioning
     Billing --> UsageLedger["Usage ledger + rating"]
     UsageLedger --> BillingProvider["Payment provider<br/>Stripe first"]
+    AnalyticsAPI --> AnalyticsStore["ProductAnalyticsEvent store"]
+    RateLimit --> RateStore["RateLimitBucket store<br/>Firestore TTL"]
     Provisioning --> VoiceProvider
     Identity --> Context
     AssistantProfile["Assistant profile service"] --> Context
@@ -64,6 +69,8 @@ flowchart LR
     Decisions --> DB
     Permissions --> DB
     Events --> DB
+    AnalyticsStore --> DB
+    RateStore --> DB
     Notifications --> Android["Android app<br/>Compose UI"]
     Billing --> Android
     ClientAPI --> AndroidCache["Android Room cache<br/>source-of-display only"]

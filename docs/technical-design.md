@@ -55,6 +55,10 @@ Ideal production primary destinations:
 - Assistant: live-call control, assistant modes, notes, rules, channel health, forwarding, and voice behavior.
 - Search: cross-channel retrieval across topics, people, communications, decisions, tasks, documents, calendar events, and notes.
 
+Profile and Settings are merged into one secondary surface opened from the header avatar/presence control. It is not a bottom-navigation destination. The Profile surface owns account identity, assistant identity, forwarding, billing, calendar, notification preferences, privacy, support, diagnostics, and logout. Logout must confirm intent, sign out of Firebase, clear Room cache for the signed-out user, and return to first-run auth.
+
+Recent calls should follow familiar phone-recents ergonomics: compact rows with caller, number or relationship, timestamp, and direct actions. Summaries stay in detail views and topic memory rather than bloating the call row.
+
 Topic detail should show:
 
 - Timeline.
@@ -74,11 +78,39 @@ The app should feel calm, minimal, and executive. It should not feel like a call
 Android implementation direction:
 
 - The production Android app should use Kotlin and Jetpack Compose.
-- The existing Java `Activity` view hierarchy is prototype scaffolding and should be treated as a migration reference, not the long-term UI foundation.
+- The Android client is Kotlin + Jetpack Compose only. The previous Java `Activity` view hierarchy has been retired and must not be reintroduced as a user-facing path.
+- Android app architecture is MVVM: Compose screens render immutable UI state, `ViewModel` classes own screen/application state through `StateFlow`, repositories coordinate backend/cache operations, and Android framework APIs remain in Activity/service/receiver adapters.
 - Compose should own the consumer app shell, navigation, screen layouts, state rendering, error/loading states, and reusable mobile design system components.
+- Hilt is the dependency-injection boundary for Android. It provides application-scoped API clients, repositories, Room database access, Firebase services where injectable, and ViewModels. New production code should not manually instantiate backend clients or databases inside Activities.
+- Retrofit plus OkHttp is the Android REST stack. Backend API calls should go through typed or centrally wrapped Retrofit services with consistent authorization headers, action-surface headers, timeouts, error handling, and JSON parsing. New code should not use raw `HttpURLConnection` for app API calls.
+- Kotlin coroutines and `StateFlow`/`SharedFlow` are the async and stream primitives for UI state, one-shot UI events, and repository operations.
 - Android-native integrations remain first-class: Firebase Phone Auth, FCM, notification actions, contacts permission, dial intents, app links, browser/payment return flows, Crashlytics, and future Play Billing or platform APIs where needed.
 - Compose UI state should be driven by authenticated backend APIs and privacy-safe FCM refresh events. The app should not reintroduce periodic polling as a fallback for live call state.
+- Room is a source-of-display cache, not the source of truth. Schema changes require explicit migrations or a deliberate cache reset path; debug and release builds must not use destructive migration fallback.
 - UI fixtures and Compose previews should be used for pixel review, with screenshot/golden tests added as the design system stabilizes.
+
+Current Android module boundaries:
+
+- `ComposeActivity` owns Android integration edges: Firebase auth callbacks, runtime permission decisions, dial/browser intents, push refresh broadcasts, lifecycle routing, and app-shell action wiring. It should delegate provider reads, analytics submission, backend requests, and cache work to injectable collaborators.
+- `PhoneAgentViewModel` owns immutable app UI state through `StateFlow` and delegates backend reads/writes to `PhoneAgentRepository`.
+- `PhoneAgentRepository` owns authenticated `AppSnapshot` loading, endpoint-specific response parsing, Room cache reads/writes, and named mutation commands such as contact sync, assistant profile update, topic creation, agent note creation, billing activation, push token registration, and product analytics submission.
+- `PhoneAgentRequests` owns provider-neutral Android request models and the narrow JSON serialization required by the existing backend contract. Compose screens and Activity action handlers should not construct endpoint-specific JSON bodies.
+- `PhoneAgentResponses` owns typed Android response parsers for backend envelope shapes. Repository code should ask those parsers for display/domain models rather than scattering `optJSONObject` and `optJSONArray` response parsing through app code.
+- `AndroidContactReader` owns Android `ContactsContract` access and transforms device rows into privacy-limited `DeviceContactInput` records. Activity code should only request permission and call the reader.
+- `PhoneAgentAnalyticsTracker` owns session IDs, event sequencing, safe Android build/device metadata, Firebase ID token retrieval, and privacy-safe analytics submission. UI code should call named tracking operations and never build analytics payload JSON directly.
+- `PhoneAgentState` owns provider-neutral UI state, navigation state, tab definitions, display models, and JSON-to-display adapters.
+- `PhoneAgentScreens` owns the app shell, first-run screens, primary tabs, detail screens, profile/settings, forwarding, billing, and contact-sync UI.
+- `PhoneAgentComponents` owns reusable Compose product components such as work cards, call rows, topic image cards, buttons, chips, form fields, settings rows, and compact list scaffolding.
+- `PhoneAgentPreviews` owns preview fixture state and screen previews for design review.
+- Remaining Android cleanup should promote backend response parsing from manual JSON adapters toward generated or typed DTOs where it meaningfully improves safety, and add focused screen ViewModels where individual surfaces grow beyond simple rendering, rather than expanding `ComposeActivity`.
+
+Backend route organization:
+
+- `src/app.ts` remains the composition root for infrastructure construction, middleware order, provider webhooks, and high-risk live voice tool routes.
+- Shared Express helpers, auth middleware, redaction helpers, and validation schemas should live under `src/routes/*` once they are reused by more than one route group.
+- Stable client route groups should be registered from route modules such as billing and analytics instead of continually expanding the app composition root.
+- Route modules may depend on application services and repository interfaces, but they must not instantiate provider clients, persistence drivers, or global infrastructure.
+- Route extraction should preserve existing URL contracts and tests; it is an internal organization change, not a public API change.
 
 Android local cache:
 
@@ -88,7 +120,7 @@ Android local cache:
 - Cached rows should store provider-neutral display fields plus the sanitized backend JSON snapshot needed to reconstruct Compose state. Raw provider payloads, secrets, card data, raw contact books, and unrestricted transcripts should not be expanded into local tables.
 - App launch should hydrate the UI from Room first when an authenticated user has cached data, then perform a source-of-truth refresh from the backend. FCM data messages, notification actions, app launch, explicit refresh, and navigation-triggered refreshes update Room after successful API reads.
 - Logout must clear the local Room cache for the signed-out user. Future multi-account support should partition Room records by authenticated user ID before multiple signed-in accounts are allowed on one device.
-- Room migrations must be explicit. Destructive migration is acceptable only for internal debug builds, never for public production builds.
+- Room migrations must be explicit. Destructive migration is not used in debug or release; cache resets require an intentional reviewed path because local state affects user trust during startup.
 
 Setup state is derived server-side from existing system state so future iOS/web clients can share the same activation logic. Required activation should stay intentionally short: authenticated account, verified phone number, assistant name, assigned assistant number, forwarding guidance/test call, and first useful handled call. Calendar connection, topic creation, assistant notes, relationship tuning, and deeper voice behavior are progressive setup after activation.
 
@@ -286,6 +318,9 @@ Current production-readiness foundation:
 - `CallerProfile` and `CallerMemory` records are user-scoped. Lookups for caller name, relationship, trust level, and prior-call memory must include `userId` plus caller phone number so one user's contact labels cannot leak into another user's assistant context.
 - Voice dynamic variables such as `caller_name`, `caller_context`, `caller_relationship`, and `opening_line` must be rendered from user-scoped caller memory or explicit call/user-note context. Provider adapters must not contain hard-coded caller names.
 - `Contact` records are user-scoped identity hints synced from the mobile address book after explicit Android Contacts permission. They include display name, normalized phone numbers, labels, and source metadata, but not call summaries or inferred memory.
+- Android contact sync is implemented in the production Compose launcher. The client requests `READ_CONTACTS` only after the user taps the Phone contacts sync action, reads `ContactsContract.CommonDataKinds.Phone`, groups rows by Android contact ID, and sends only `source=android_contacts`, `sourceContactId`, `displayName`, and phone number/label pairs to `POST /v1/contacts/sync`. The client must not upload email addresses, postal addresses, notes, photos, organizations, birthdays, contact groups, or raw device contact payloads.
+- Contact sync status is loaded through `GET /v1/contacts/status` and rendered as a channel state in Assistant and Profile/Settings. The production repository stores this as a per-user aggregate status document written during sync so app startup does not scan all synced contacts. Runtime status lookups must not perform best-effort collection-scan migrations; older data should be corrected by an explicit operator migration or by the user resyncing contacts.
+- Product analytics may record permission outcomes and aggregate counts, but never contact names, phone numbers, labels, or raw payloads. If Android's contacts provider is unavailable or returns an unsupported schema, the client must fail the sync instead of uploading an empty list that would erase previously synced contacts.
 - Inbound caller resolution order is `CallerProfile`/`CallerMemory`, then synced `Contact`, then unknown caller. Contact matches may set `caller_name` and `caller_identity_source=contact` for first-time callers, while `priorCallCount` remains `0`.
 - Custom bootstrap tokens, development verification codes, anonymous default-user access, and hard-coded owner fallback are not production paths.
 
@@ -444,7 +479,15 @@ Core entities:
 - BillingAccount, PaymentMethod, PricePlan, BillableMeter, CostRateCard, RatedUsageEvent, InvoiceMirror, CreditGrant, SpendingLimit.
 - AuditLog, ConsentPolicy, RetentionPolicy.
 
-MVP persistence currently uses Firestore. Firestore is acceptable for early single-user iteration and Cloud Run deploys. Long-term production may move topic and permission modeling to PostgreSQL, with Redis for live state and idempotency, object storage for recordings/documents, and an outbox/event bus for durable events.
+Calendar data must be user-scoped. `CalendarConnection` stores `userId`, provider, connected email, scopes, refresh token reference/value, and timestamps. `CalendarEventRequest` stores `userId`, action, source call, caller metadata, event IDs, status, timing, and error metadata. Free/busy checks, event creation, event updates, activity lists, and OAuth callbacks must always resolve a user before reading or writing calendar state.
+
+Call history queries must be tenant-scoped at the repository or query layer. Route handlers should not fetch global call history and filter in memory for production paths.
+
+Product analytics uses `ProductAnalyticsEvent` records keyed by generated event ID, `userId`, `sessionId`, event name, screen/surface/action/result, object references, safe attributes, client timestamps, and receipt timestamps.
+
+Abuse controls use `RateLimitBucket` records in production persistence. Buckets are keyed by hashed limiter key, include `count`, `resetAt`, `expiresAt`, and `updatedAt`, and should be configured with Firestore TTL on `expiresAt`.
+
+MVP persistence currently uses Firestore. Firestore is acceptable for early controlled beta and Cloud Run deploys. Long-term production may move topic and permission modeling to PostgreSQL, analytics to an event pipeline/warehouse, Redis for live state and idempotency, object storage for recordings/documents, and an outbox/event bus for durable events.
 
 ## API Design
 
@@ -529,6 +572,31 @@ Domain events:
 
 Use an outbox pattern before adding a dedicated queue. Events must be idempotent and replayable where practical.
 
+## Product Analytics
+
+Phone Agent should use first-party, privacy-safe product analytics for app engagement and activation quality. Analytics are separate from audit logs and must never become a store of communication content.
+
+Analytics events are dense and high-fidelity by default:
+
+- `userId`, `sessionId`, `eventName`, `occurredAt`, `receivedAt`, and monotonically increasing client sequence.
+- Screen, surface, tab, action, result, latency, and app version.
+- Object references such as `objectType` and `objectId` when useful.
+- Device class, OS version, network status category, and build type where available.
+- Safe attributes with an allow-listed schema.
+
+Analytics events must not include transcripts, summaries, assistant-note text, live-answer text, search query text, contact book contents, calendar descriptions, payment data, raw provider payloads, or secrets. If a product question requires content analysis, use derived categories or counts produced by backend services, not raw user text.
+
+Initial events:
+
+- `app_opened`, `screen_viewed`, `tab_selected`.
+- `data_refresh_started`, `data_refresh_succeeded`, `data_refresh_failed`.
+- `onboarding_step_viewed`, `onboarding_step_completed`.
+- `call_row_opened`, `call_action_tapped`, `topic_opened`, `topic_created`.
+- `assistant_presence_opened`, `profile_opened`, `logout_requested`, `logout_completed`.
+- `billing_setup_opened`, `forwarding_opened`, `note_created`.
+
+Analytics storage starts in Firestore behind a repository abstraction. Later scale can move event ingestion to Pub/Sub, BigQuery, or a warehouse pipeline without changing the mobile client contract.
+
 ## Error Handling
 
 Fallback behavior:
@@ -590,7 +658,7 @@ Android implementation:
 - Deliver Android push through FCM using data-only, private-safe payloads derived from `NotificationEvent.body`.
 - Android does not run periodic notification polling as a fallback. FCM data messages trigger one-shot source-of-truth refreshes while the app is active, notification deep links fetch fresh state before routing, and app launch/manual navigation refreshes the durable notification center.
 - Deep links route to Assistant live actions, Inbox review queue, Calendar activity, or call detail.
-- Live transfer notification actions are handled by a background Android receiver, not only by `MainActivity`, so `Accept` and `Decline` work when the app process was killed. The receiver refreshes the Firebase ID token, posts the authenticated decision, prevents duplicate in-flight action submits, cancels the original notification, and posts a privacy-safe result notification.
+- Live transfer notification actions are handled by a background Android receiver, independent of the foreground Activity, so `Accept` and `Decline` work when the app process was killed. The receiver refreshes the Firebase ID token, posts the authenticated decision, prevents duplicate in-flight action submits, cancels the original notification, and posts a privacy-safe result notification.
 - Live answer notifications use Android inline reply (`RemoteInput`) so the user can send a short answer directly from the notification shade. The backend stores the answer on the pending request and the voice runtime relays it to the caller.
 - Approval and answer request APIs are expiration-aware and idempotent. A duplicate action returns the current terminal state. An expired request returns a clear `409` conflict with a product-safe error code so Android can show "This request expired." Live answer requests default to a `90s` window so users have time to notice, unlock, and reply while the caller is still on the line.
 - Successful, declined, expired, and failed notification actions are audited without storing answer text, transcripts, caller notes, topic memory, or raw provider payloads.
@@ -626,7 +694,7 @@ Requirements:
 - Store secrets in managed secret storage.
 - Never store raw card data; use payment-provider tokens and hosted/native collection components.
 - Verify provider webhooks.
-- Rate-limit authenticated client APIs, provider webhooks, and Retell tool endpoints. Process-level limits are defense in depth; production launch should add Cloud Armor, API Gateway, or equivalent edge controls.
+- Rate-limit authenticated client APIs, provider webhooks, and Retell tool endpoints. Production Cloud Run deployments should use the shared Firestore-backed limiter so limits apply across scaled instances. Local/test runs may use the in-memory limiter. Public launch should still add Cloud Armor, API Gateway, or equivalent edge controls.
 - Enforce thread-level access control.
 - Track consent/disclosure settings.
 - Mark sensitive information explicitly.
@@ -673,7 +741,7 @@ Initial deployment:
 - Cloud Logging.
 - Artifact Registry and Cloud Build.
 - Retell webhooks.
-- Process-level API/webhook rate limits.
+- Shared API/webhook rate limits with Firestore-backed buckets in production and in-memory buckets for local/test.
 
 Target production:
 

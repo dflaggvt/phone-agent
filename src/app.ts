@@ -20,10 +20,10 @@ import { UserConfigService } from "./application/users/userConfigService.js";
 import { VoiceNumberProvisioningService } from "./application/users/voiceNumberProvisioningService.js";
 import type { AuthVerifier } from "./application/auth/authVerifier.js";
 import type { AppEnv } from "./config/env.js";
-import type { CallSession } from "./domain/calls/callSession.js";
 import { FirebaseAuthVerifier } from "./infrastructure/firebase/firebaseAuthVerifier.js";
 import { FirebaseCloudMessagingPushClient, NoopPushDeliveryClient } from "./infrastructure/firebase/firebaseCloudMessagingPushClient.js";
 import { FirestoreAgentNoteRepository } from "./infrastructure/persistence/firestoreAgentNoteRepository.js";
+import { FirestoreProductAnalyticsEventRepository } from "./infrastructure/persistence/firestoreProductAnalyticsEventRepository.js";
 import { FirestoreAnswerRequestRepository } from "./infrastructure/persistence/firestoreAnswerRequestRepository.js";
 import { FirestoreApprovalRequestRepository } from "./infrastructure/persistence/firestoreApprovalRequestRepository.js";
 import { FirestoreBillingAccountRepository } from "./infrastructure/persistence/firestoreBillingAccountRepository.js";
@@ -37,6 +37,7 @@ import { FirestoreNotificationActionAuditRepository } from "./infrastructure/per
 import { FirestoreNotificationDeliveryRepository } from "./infrastructure/persistence/firestoreNotificationDeliveryRepository.js";
 import { FirestoreNotificationEventRepository } from "./infrastructure/persistence/firestoreNotificationEventRepository.js";
 import { FirestorePushDeviceTokenRepository } from "./infrastructure/persistence/firestorePushDeviceTokenRepository.js";
+import { FirestoreRateLimitStore } from "./infrastructure/persistence/firestoreRateLimitStore.js";
 import { FirestoreTopicSuggestionRepository } from "./infrastructure/persistence/firestoreTopicSuggestionRepository.js";
 import { FirestoreTopicThreadRepository } from "./infrastructure/persistence/firestoreTopicThreadRepository.js";
 import { FirestoreUsageEventRepository } from "./infrastructure/persistence/firestoreUsageEventRepository.js";
@@ -44,6 +45,7 @@ import { FirestoreUserConfigRepository } from "./infrastructure/persistence/fire
 import { FirestoreWebhookEventRepository } from "./infrastructure/persistence/firestoreWebhookEventRepository.js";
 import { createFirestore } from "./infrastructure/persistence/firestoreClient.js";
 import { InMemoryAgentNoteRepository } from "./infrastructure/persistence/inMemoryAgentNoteRepository.js";
+import { InMemoryProductAnalyticsEventRepository } from "./infrastructure/persistence/inMemoryProductAnalyticsEventRepository.js";
 import { InMemoryAnswerRequestRepository } from "./infrastructure/persistence/inMemoryAnswerRequestRepository.js";
 import { InMemoryApprovalRequestRepository } from "./infrastructure/persistence/inMemoryApprovalRequestRepository.js";
 import { InMemoryBillingAccountRepository } from "./infrastructure/persistence/inMemoryBillingAccountRepository.js";
@@ -71,6 +73,8 @@ import {
 } from "./infrastructure/retell/retellClient.js";
 import { RetellWebhookVerifier } from "./infrastructure/retell/retellWebhookVerifier.js";
 import { MissingBillingProviderClient, StripeBillingClient } from "./infrastructure/stripe/stripeBillingClient.js";
+import { analyticsRoutes } from "./routes/analyticsRoutes.js";
+import { billingReturnRoutes, billingRoutes } from "./routes/billingRoutes.js";
 import { HttpError, conflict, notFound, unauthorized } from "./shared/httpErrors.js";
 import type { AppLogger } from "./shared/logger.js";
 import { createRateLimiter } from "./shared/rateLimit.js";
@@ -101,6 +105,9 @@ export function createApp(dependencies: AppDependencies) {
   const agentNoteRepository = firestore
     ? new FirestoreAgentNoteRepository(firestore)
     : new InMemoryAgentNoteRepository();
+  const productAnalytics = firestore
+    ? new FirestoreProductAnalyticsEventRepository(firestore)
+    : new InMemoryProductAnalyticsEventRepository();
   const calendarConnections = firestore
     ? new FirestoreCalendarConnectionRepository(firestore)
     : new InMemoryCalendarConnectionRepository();
@@ -143,6 +150,7 @@ export function createApp(dependencies: AppDependencies) {
   const webhookEvents = firestore
     ? new FirestoreWebhookEventRepository(firestore)
     : new InMemoryWebhookEventRepository();
+  const rateLimitStore = firestore ? new FirestoreRateLimitStore(firestore) : undefined;
   const userConfigs = new UserConfigService({
     users: userConfigRepository,
     defaultConfig: {
@@ -295,7 +303,8 @@ export function createApp(dependencies: AppDependencies) {
     config: {
       clientId: dependencies.env.GOOGLE_OAUTH_CLIENT_ID,
       clientSecret: dependencies.env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirectUri: dependencies.env.GOOGLE_OAUTH_REDIRECT_URI
+      redirectUri: dependencies.env.GOOGLE_OAUTH_REDIRECT_URI,
+      stateSecret: dependencies.env.GOOGLE_OAUTH_STATE_SECRET
     },
     timeoutMs: 60_000,
     pollIntervalMs: 1000
@@ -309,12 +318,12 @@ export function createApp(dependencies: AppDependencies) {
     keyPrefix: "client",
     windowMs: dependencies.env.RATE_LIMIT_WINDOW_MS,
     maxRequests: dependencies.env.RATE_LIMIT_MAX_REQUESTS
-  });
+  }, rateLimitStore);
   const providerRateLimiter = createRateLimiter({
     keyPrefix: "provider",
     windowMs: dependencies.env.RATE_LIMIT_WINDOW_MS,
     maxRequests: dependencies.env.WEBHOOK_RATE_LIMIT_MAX_REQUESTS
-  });
+  }, rateLimitStore);
 
   const healthHandler: RequestHandler = (_req, res) => {
     res.status(200).json({ status: "ok" });
@@ -323,18 +332,7 @@ export function createApp(dependencies: AppDependencies) {
   app.get("/", healthHandler);
   app.get("/healthz", healthHandler);
   app.get("/readyz", healthHandler);
-  app.get("/billing/stripe/success", (_req, res) => {
-    res.status(200).type("html").send(billingReturnPage({
-      title: "Card saved",
-      message: "You can return to Phone Agent and tap Check billing status."
-    }));
-  });
-  app.get("/billing/stripe/cancel", (_req, res) => {
-    res.status(200).type("html").send(billingReturnPage({
-      title: "Card setup canceled",
-      message: "No card was added. You can return to Phone Agent and try again."
-    }));
-  });
+  app.use("/billing", billingReturnRoutes());
 
   const rawJson = express.raw({ type: "application/json", limit: "2mb" });
 
@@ -407,12 +405,18 @@ export function createApp(dependencies: AppDependencies) {
       res.status(200).json({ connected: false, status: "unavailable", message: "Google Calendar OAuth is not configured." });
       return;
     }
-    const status = await calendar.status();
+    const userId = retellToolUserId(request);
+    if (!userId) {
+      res.status(200).json({ connected: false, status: "unavailable", message: "The assistant account could not be verified." });
+      return;
+    }
+    const status = await calendar.status(userId);
     if (!status.connected) {
       res.status(200).json({ connected: false, status: "unavailable", message: "The user's Google Calendar is not connected." });
       return;
     }
     const result = await calendar.checkFreeBusy({
+      userId,
       timeMin: new Date(request.args.time_min),
       timeMax: new Date(request.args.time_max),
       timeZone: request.args.time_zone
@@ -429,8 +433,13 @@ export function createApp(dependencies: AppDependencies) {
       return;
     }
     const args = request.args;
+    const userId = retellToolUserId(request);
+    if (!userId) {
+      res.status(200).json({ status: "unavailable", message: "The assistant account could not be verified. Take a concise message instead." });
+      return;
+    }
     const result = await calendar.createCalendarEvent({
-      userId: request.call?.retell_llm_dynamic_variables?.phone_agent_user_id,
+      userId,
       providerCallId: request.call?.call_id,
       callerNumber: request.call?.from_number,
       callerName: args.caller_name ?? request.call?.retell_llm_dynamic_variables?.caller_name,
@@ -453,8 +462,13 @@ export function createApp(dependencies: AppDependencies) {
       return;
     }
     const args = request.args;
+    const userId = retellToolUserId(request);
+    if (!userId) {
+      res.status(200).json({ status: "unavailable", message: "The assistant account could not be verified. Take a concise message instead." });
+      return;
+    }
     const result = await calendar.updateCalendarEvent({
-      userId: request.call?.retell_llm_dynamic_variables?.phone_agent_user_id,
+      userId,
       providerCallId: request.call?.call_id,
       callerNumber: request.call?.from_number,
       callerName: args.caller_name ?? request.call?.retell_llm_dynamic_variables?.caller_name,
@@ -473,11 +487,12 @@ export function createApp(dependencies: AppDependencies) {
   app.use(express.json({ limit: "1mb" }));
   app.use("/v1", clientRateLimiter);
   app.use("/v1", firebaseAuth({ verifier: authVerifier, users: userConfigs }));
+  app.use("/v1/billing", billingRoutes({ billing, usage }));
+  app.use("/v1/analytics", analyticsRoutes({ productAnalytics }));
 
   app.get("/v1/calls", asyncHandler(async (_req, res) => {
     const userConfig = await userConfigs.getOrCreate(currentUserId(res));
-    const sessions = (await calls.listCalls())
-      .filter((session) => sessionMatchesUserRoute(session, userConfig.phoneRouting.retellPhoneNumber));
+    const sessions = await calls.listCallsForRoute(userConfig.phoneRouting.retellPhoneNumber ?? "");
     res.status(200).json({ calls: sessions });
   }));
 
@@ -532,43 +547,6 @@ export function createApp(dependencies: AppDependencies) {
       }
     });
     res.status(200).json({ user: redactedUserConfig(config) });
-  }));
-
-  app.get("/v1/billing/usage", asyncHandler(async (_req, res) => {
-    res.status(200).json(await usage.currentUsageWithLimits(currentUserId(res)));
-  }));
-
-  app.get("/v1/billing/account", asyncHandler(async (_req, res) => {
-    const account = await billing.getOrCreateAccount(currentUserId(res));
-    res.status(200).json({ account: redactedBillingAccount(account) });
-  }));
-
-  app.post("/v1/billing/checkout-session", asyncHandler(async (_req, res) => {
-    const result = await billing.createSetupSession(currentUserId(res));
-    res.status(200).json({
-      account: redactedBillingAccount(result.account),
-      session: result.session
-    });
-  }));
-
-  app.post("/v1/billing/customer-portal", asyncHandler(async (_req, res) => {
-    res.status(200).json(await billing.createPortalSession(currentUserId(res)));
-  }));
-
-  app.get("/v1/billing/invoices", asyncHandler(async (_req, res) => {
-    const invoices = await billing.listInvoices(currentUserId(res));
-    res.status(200).json({ invoices: invoices.map(redactedBillingInvoice) });
-  }));
-
-  app.patch("/v1/billing/spending-limit", asyncHandler(async (req, res) => {
-    const input = spendingLimitUpdateSchema.parse(req.body);
-    const account = await billing.setSpendingLimit(currentUserId(res), input.monthlySpendingCapCents);
-    res.status(200).json({ account: redactedBillingAccount(account) });
-  }));
-
-  app.post("/v1/billing/activate", asyncHandler(async (_req, res) => {
-    const account = await billing.activateBilling(currentUserId(res));
-    res.status(200).json({ account: redactedBillingAccount(account) });
   }));
 
   app.get("/v1/notifications", asyncHandler(async (req, res) => {
@@ -833,38 +811,39 @@ export function createApp(dependencies: AppDependencies) {
   }));
 
   app.get("/v1/calendar/status", asyncHandler(async (_req, res) => {
-    res.status(200).json(await calendar.status());
+    res.status(200).json(await calendar.status(currentUserId(res)));
   }));
 
   app.get("/v1/calendar/connect-url", asyncHandler(async (_req, res) => {
     if (!calendar.isConfigured()) {
       throw new HttpError(400, "google_calendar_oauth_not_configured", "Google Calendar OAuth credentials are not configured.");
     }
-    res.status(200).json({ url: calendar.getConnectUrl() });
+    res.status(200).json({ url: calendar.getConnectUrl(currentUserId(res)) });
   }));
 
   app.get("/oauth/google/calendar/callback", asyncHandler(async (req, res) => {
     const code = typeof req.query.code === "string" ? req.query.code : undefined;
+    const state = typeof req.query.state === "string" ? req.query.state : undefined;
     if (!code) {
       throw new HttpError(400, "oauth_code_missing", "Google OAuth callback did not include a code.");
     }
-    await calendar.handleCallback(code);
+    await calendar.handleCallback(code, state);
     res.status(200).send("<html><body><h1>Google Calendar connected</h1><p>You can return to Phone Agent.</p></body></html>");
   }));
 
   app.post("/v1/calendar/disconnect", asyncHandler(async (_req, res) => {
-    const connection = await calendar.disconnect();
+    const connection = await calendar.disconnect(currentUserId(res));
     res.status(200).json({ connection: connection ?? null });
   }));
 
   app.get("/v1/calendar/event-requests", asyncHandler(async (_req, res) => {
-    const eventRequests = await calendar.listRecentEventRequests();
+    const eventRequests = await calendar.listRecentEventRequests(currentUserId(res));
     res.status(200).json({ eventRequests });
   }));
 
   app.post("/v1/calendar/event-requests/:eventRequestId/accept", asyncHandler(async (req, res) => {
     const eventRequestId = requireRouteParam(req.params.eventRequestId, "eventRequestId");
-    const eventRequest = await calendar.acceptEventRequest(eventRequestId);
+    const eventRequest = await calendar.acceptEventRequest(eventRequestId, currentUserId(res));
     if (!eventRequest) {
       throw notFound("calendar_event_request_not_found", "Calendar event request was not found.");
     }
@@ -873,7 +852,7 @@ export function createApp(dependencies: AppDependencies) {
 
   app.post("/v1/calendar/event-requests/:eventRequestId/decline", asyncHandler(async (req, res) => {
     const eventRequestId = requireRouteParam(req.params.eventRequestId, "eventRequestId");
-    const eventRequest = await calendar.declineEventRequest(eventRequestId);
+    const eventRequest = await calendar.declineEventRequest(eventRequestId, currentUserId(res));
     if (!eventRequest) {
       throw notFound("calendar_event_request_not_found", "Calendar event request was not found.");
     }
@@ -886,8 +865,8 @@ export function createApp(dependencies: AppDependencies) {
   }));
 
   app.get("/v1/contacts/status", asyncHandler(async (_req, res) => {
-    const count = await contacts.countForUser(currentUserId(res));
-    res.status(200).json({ status: { syncedCount: count } });
+    const status = await contacts.statusForUser(currentUserId(res));
+    res.status(200).json({ status });
   }));
 
   app.post("/v1/contacts/sync", asyncHandler(async (req, res) => {
@@ -1076,10 +1055,6 @@ const userConfigUpdateSchema = z.object({
       monthlyClassificationLimit: z.number().int().nonnegative().optional()
     })
     .optional()
-});
-
-const spendingLimitUpdateSchema = z.object({
-  monthlySpendingCapCents: z.number().int().min(500).max(100000)
 });
 
 const pushTokenRegistrationSchema = z.object({
@@ -1342,19 +1317,6 @@ async function retellToolBillingGate(
   }
 }
 
-function sessionMatchesUserRoute(session: CallSession, retellPhoneNumber?: string): boolean {
-  const normalized = normalizePhoneNumber(retellPhoneNumber);
-  if (!normalized) {
-    return false;
-  }
-  return normalizePhoneNumber(session.toNumber) === normalized || normalizePhoneNumber(session.fromNumber) === normalized;
-}
-
-function normalizePhoneNumber(value?: string): string | undefined {
-  const digits = value?.replace(/\D/g, "");
-  return digits && digits.length > 0 ? digits : undefined;
-}
-
 function redactedUserConfig(config: Awaited<ReturnType<UserConfigService["getOrCreate"]>>) {
   return {
     userId: config.userId,
@@ -1393,68 +1355,6 @@ function redactedNotificationEvent(event: Awaited<ReturnType<NotificationService
     readAt: event.readAt,
     dismissedAt: event.dismissedAt
   };
-}
-
-function redactedBillingAccount(account: Awaited<ReturnType<BillingAccountService["getOrCreateAccount"]>>) {
-  return {
-    userId: account.userId,
-    status: account.status,
-    providerSubscriptionStatus: account.providerSubscriptionStatus,
-    currency: account.currency,
-    monthlySpendingCapCents: account.monthlySpendingCapCents,
-    currentPeriodSpendCents: account.currentPeriodSpendCents,
-    paymentMethod: account.paymentMethod
-      ? {
-        provider: account.paymentMethod.provider,
-        brand: account.paymentMethod.brand,
-        last4: account.paymentMethod.last4,
-        expMonth: account.paymentMethod.expMonth,
-        expYear: account.paymentMethod.expYear,
-        updatedAt: account.paymentMethod.updatedAt
-      }
-      : undefined,
-    createdAt: account.createdAt,
-    updatedAt: account.updatedAt
-  };
-}
-
-function redactedBillingInvoice(invoice: Awaited<ReturnType<BillingAccountService["listInvoices"]>>[number]) {
-  return {
-    id: invoice.id,
-    status: invoice.status,
-    amountDueCents: invoice.amountDueCents,
-    amountPaidCents: invoice.amountPaidCents,
-    currency: invoice.currency,
-    hostedInvoiceUrl: invoice.hostedInvoiceUrl,
-    invoicePdfUrl: invoice.invoicePdfUrl,
-    createdAt: invoice.createdAt
-  };
-}
-
-function billingReturnPage(input: { title: string; message: string }) {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${input.title}</title>
-  <style>
-    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #24113f; color: #fff; }
-    main { min-height: 100vh; display: grid; place-items: center; padding: 32px; box-sizing: border-box; }
-    section { max-width: 420px; }
-    h1 { font-size: 36px; line-height: 1.05; margin: 0 0 16px; }
-    p { color: rgba(255,255,255,.78); font-size: 18px; line-height: 1.45; margin: 0; }
-  </style>
-</head>
-<body>
-  <main>
-    <section>
-      <h1>${input.title}</h1>
-      <p>${input.message}</p>
-    </section>
-  </main>
-</body>
-</html>`;
 }
 
 function errorHandler(logger: AppLogger): ErrorRequestHandler {

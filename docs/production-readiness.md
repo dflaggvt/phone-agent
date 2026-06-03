@@ -2,9 +2,9 @@
 
 ## Current Readiness
 
-Phone Agent is a private alpha. It has real backend deployment, Firebase auth, Retell voice handling, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
+Phone Agent is a private alpha moving toward an internal Google Play test. It has real backend deployment, Firebase auth, Retell voice handling, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, privacy-safe product analytics, user-scoped calendar state, route-scoped call history, durable provider webhook idempotency, shared backend rate limiting, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
 
-Working readiness score: `5/10`.
+Working readiness score: `6/10`.
 
 ## Launch Gates
 
@@ -51,7 +51,7 @@ Status: blocked.
 Required:
 
 - Legal review of call recording, AI disclosure, TCPA/outbound AI limits, privacy policy, terms, refunds, and data deletion.
-- Rate limiting at edge or API gateway.
+- Edge rate limiting at Cloud Armor, API Gateway, or equivalent. The backend now has shared Firestore-backed limits, but edge controls are still required for public beta.
 - Cloud alerting for `5xx`, uptime, latency, webhook failures, billing failures, voice-provider failures, FCM failures, and negative-margin usage.
 - Operator runbooks for failed billing, failed Retell webhooks, stuck onboarding, and user deletion.
 - Secret rotation for keys previously pasted in chat.
@@ -81,22 +81,24 @@ Required:
 | --- | --- | --- | --- | --- |
 | P0 | Legal | Privacy policy, terms, AI disclosure, recording consent, refunds, deletion | Founder + counsel | Pending |
 | P0 | Security | Rotate Retell, OpenAI, Google OAuth, and Stripe keys pasted in chat | Founder/operator | Pending |
-| P0 | Android | Release signing and Play internal test app bundle | Engineering | In progress |
+| P0 | Android | Local upload key and signed release AAB produced; Play Console upload/internal test track still pending | Engineering | Partial |
 | P0 | Reliability | Real-call test matrix for transfer, inline answer, expired actions | Founder + engineering | Pending |
 | P0 | Observability | Cloud alerting for backend uptime, 5xx, and latency is configured; provider/billing-specific monitors still needed | Engineering | Partial |
 | P1 | Billing | Reconciliation schedule and operator review process | Engineering | Partial |
 | P1 | Data | Deletion/export endpoints and retention jobs | Engineering | Pending |
-| P1 | Abuse | Edge rate limiting and SMS/phone auth abuse controls | Engineering | Partial |
+| P1 | Abuse | Backend shared rate limiting implemented; edge controls and SMS/phone auth abuse controls remain | Engineering | Partial |
 | P1 | UX | Production onboarding polish and supportable error states | Design + engineering | Partial |
+| P1 | Analytics | First-party privacy-safe event capture exists; dashboards, retention, and warehouse export remain | Engineering/Product | Partial |
 
 ## Immediate Engineering Tasks
 
-1. Configure Android release signing through environment variables or local Gradle properties.
-2. Add backend process-level rate limiting as a defense-in-depth guard before edge rate limiting.
+1. Upload the signed `android/app/build/outputs/bundle/release/app-release.aab` to Google Play internal testing after Play App Signing/upload-key enrollment.
+2. Configure Firestore TTL for `rateLimitBuckets.expiresAt` and add Cloud Armor/API Gateway edge throttles before closed beta.
 3. Add Cloud Monitoring alert policy documentation and scriptable setup. Completed for uptime, 5xx, and latency; remaining provider/billing alerts need log-based metrics or scheduled jobs.
 4. Create legal/compliance draft checklist for counsel review.
 5. Create release checklist for Play internal testing.
 6. Verify Crashlytics in a non-debug build.
+7. Build product analytics dashboards for activation, refresh failures, notification action completion, billing conversion, and churn risk.
 
 ## Non-Negotiable Production Rules
 

@@ -142,12 +142,17 @@ Scope:
 - Android crash-free onboarding and billing QA.
 - Compliance launch checklist for AI disclosure, call recording consent, privacy policy, terms, refund policy, and data deletion.
 - Production observability: alerts for webhook failures, 5xx spikes, billing failures, transfer failures, and provider cost anomalies.
+- Privacy-safe product analytics for activation, engagement, conversion, reliability, and retention.
+- Shared backend rate limiting across scaled instances, plus edge controls before closed beta.
+- User-scoped calendar OAuth/activity and route-scoped call history.
 
 Exit criteria:
 
 - No known path can double-subscribe or double-charge a user.
 - New paid users cannot trigger paid infrastructure before verified auth, payment method, spending cap, and idempotent provisioning are in place.
 - Provider webhook retries are safe and observable.
+- Calendar, call history, notifications, analytics, and live actions are tenant-scoped and covered by regression tests.
+- Product analytics supports launch decisions without storing private communication content.
 - Operators can reconcile billing and repair failed provider events without editing database documents manually.
 - Launch-blocking legal/compliance items are either complete or explicitly disabled in product scope.
 
