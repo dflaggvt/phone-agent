@@ -1,0 +1,695 @@
+# Technical Design
+
+## System Overview
+
+Phone Agent is a cloud-native, Android-first communication intelligence platform. The initial production path remains forwarded phone calls through Retell, but the durable architecture is cross-channel: every call, SMS, email, document, calendar event, manual note, and future agent-to-agent exchange is normalized into a `CommunicationItem` and optionally attached to a `TopicThread`.
+
+The backend is the system of record. It owns topic memory, communication items, identities, permissions, user rules, summaries, decisions, open questions, tasks, audit logs, and workflow outcomes. Retell is initial voice infrastructure, not the domain core.
+
+The first implementation should remain a modular monolith on Node.js/TypeScript/Express with clear domain boundaries, durable persistence, provider adapters, event-driven seams, and tests. Services can be extracted later when scale, compliance, or team ownership requires it.
+
+## Major Components
+
+- Android app: communication inbox, topic threads, active call surface, call history, decisions, tasks, calendar activity, rules, and settings.
+- Client API: authenticated APIs for Android and future iOS/web clients.
+- Provider webhook APIs: Retell now; future SMS, email, calendar, document, and agent-message providers.
+- Provider abstraction layer: normalizes vendor payloads into domain events and communication items.
+- Communication ingestion service: creates and updates `CommunicationItem` records.
+- Topic thread service: creates, updates, merges, splits, and retrieves persistent topic threads.
+- Topic classification service: assigns communication items to existing or new topics with confidence and evidence.
+- Extraction service: facts, tasks, decisions, open questions, deadlines, conflicts, summaries, and suggested actions.
+- Interruption engine: decides whether to silently record, notify, request answer, request decision, or transfer live.
+- Identity and participant service: users, contacts, callers, external participants, agent identities, and topic-scoped roles.
+- Permission service: thread, participant, channel, artifact, and action authorization.
+- Sharing service: permissioned recap, request, task, document, and decision artifacts via SMS/email/web links.
+- Voice runtime service: Retell-backed live call handling with replaceable voice provider interfaces.
+- Calendar service: free/busy and assistant-owned calendar writes with notifications and audit.
+- Audit and retention service: immutable logs, data retention, deletion, and policy evidence.
+
+## Backend Services
+
+Logical modules:
+
+- `identity`: users, devices, sessions, contacts, external identities.
+- `providers`: voice/SMS/email/calendar/document/agent provider adapters.
+- `communications`: generic communication items and raw-content references.
+- `topics`: topic threads, timeline, participant links, status, and memory.
+- `topic-classification`: topic suggestions, confidence, conflict detection, and extraction.
+- `voice`: inbound call state, Retell webhooks, transfer, live answer, transcripts.
+- `calendar`: free/busy, assistant-created events, update allow-list, calendar activity feed.
+- `permissions`: participant/thread/channel/artifact access rules.
+- `sharing`: permissioned artifacts and external replies.
+- `notifications`: push/local notifications, decision cards, calendar change notifications.
+- `billing`: payment provider integration, billing account state, pricing configuration, usage rating, spending caps, invoices, and paid-action gates.
+- `audit`: access logs, AI decisions, policy decisions, sharing events, retention events.
+
+Each module should own its repository interfaces. Vendor payloads may be retained by reference for audit/debugging, but domain services must not depend on vendor-specific schemas.
+
+## Mobile App
+
+Ideal production primary destinations:
+
+- Home: default center tab for assistant status, recent calls, caller requests, call actions, horizontally browsable topic cards, priorities, decisions, and recent material changes.
+- Topics: durable topic memory for situations such as Basement Project, Kids Sports, Car Lease, Medical Appointments, and Work Recruiting.
+- Inbox: communication stream, review queue, topic suggestions, and unassigned items.
+- Assistant: live-call control, assistant modes, notes, rules, channel health, forwarding, and voice behavior.
+- Search: cross-channel retrieval across topics, people, communications, decisions, tasks, documents, calendar events, and notes.
+
+Topic detail should show:
+
+- Timeline.
+- Participants.
+- Latest updates.
+- Decisions made and pending.
+- Open questions.
+- Tasks.
+- Documents.
+- Suggested actions.
+- Related communications.
+- Share/invite controls.
+- Permissions and audit-visible sharing history.
+
+The app should feel calm, minimal, and executive. It should not feel like a call center dashboard.
+
+Android implementation direction:
+
+- The production Android app should use Kotlin and Jetpack Compose.
+- The existing Java `Activity` view hierarchy is prototype scaffolding and should be treated as a migration reference, not the long-term UI foundation.
+- Compose should own the consumer app shell, navigation, screen layouts, state rendering, error/loading states, and reusable mobile design system components.
+- Android-native integrations remain first-class: Firebase Phone Auth, FCM, notification actions, contacts permission, dial intents, app links, browser/payment return flows, Crashlytics, and future Play Billing or platform APIs where needed.
+- Compose UI state should be driven by authenticated backend APIs and privacy-safe FCM refresh events. The app should not reintroduce periodic polling as a fallback for live call state.
+- UI fixtures and Compose previews should be used for pixel review, with screenshot/golden tests added as the design system stabilizes.
+
+Android local cache:
+
+- The backend remains the system of record for user identity, topics, communications, billing, notifications, live calls, permissions, and assistant state.
+- The Android app should use Room as a local source-of-display cache for authenticated product state: current user summary, onboarding status, billing summary, topics, recent calls, review suggestions, unread notification summaries, and the latest active-call snapshot.
+- Room is not an offline authority. It must not independently decide routing, billing eligibility, sharing, calendar writes, paid side effects, transfer approval, or live answer state.
+- Cached rows should store provider-neutral display fields plus the sanitized backend JSON snapshot needed to reconstruct Compose state. Raw provider payloads, secrets, card data, raw contact books, and unrestricted transcripts should not be expanded into local tables.
+- App launch should hydrate the UI from Room first when an authenticated user has cached data, then perform a source-of-truth refresh from the backend. FCM data messages, notification actions, app launch, explicit refresh, and navigation-triggered refreshes update Room after successful API reads.
+- Logout must clear the local Room cache for the signed-out user. Future multi-account support should partition Room records by authenticated user ID before multiple signed-in accounts are allowed on one device.
+- Room migrations must be explicit. Destructive migration is acceptable only for internal debug builds, never for public production builds.
+
+Setup state is derived server-side from existing system state so future iOS/web clients can share the same activation logic. Required activation should stay intentionally short: authenticated account, verified phone number, assistant name, assigned assistant number, forwarding guidance/test call, and first useful handled call. Calendar connection, topic creation, assistant notes, relationship tuning, and deeper voice behavior are progressive setup after activation.
+
+Android first-run onboarding should consume the shared setup state but present it as a dedicated guided flow rather than a checklist inside the main app shell. Until account, phone verification, assistant name, assistant number, and forwarding instruction viewing are complete, launch should route to the next onboarding screen with bottom navigation hidden. The final test-call and first useful-call review can continue as post-onboarding activation prompts because they depend on external carrier forwarding and real inbound call behavior.
+
+The detailed mobile screen and flow contract is maintained in `docs/mobile-ux-blueprint.md`. Android implementation should follow that blueprint for navigation, primary and nested screens, live-call action states, notification deep links, empty/error states, accessibility, and screenshot-based QA.
+
+## Voice Provider Integration
+
+Retell is the Phase 1 voice runtime. It handles live dialog, speech, transcript, call events, tools, and warm-transfer mechanics while Phone Agent owns context, routing, topic memory, and outcomes.
+
+Required voice concepts:
+
+- Existing mobile number forwarding to an AI-controlled number.
+- Conditional forwarding and unconditional forwarding.
+- Programmable voice webhooks.
+- Inbound call context injection.
+- Call lifecycle events.
+- Live call state.
+- Warm transfer / bridge-to-user.
+- Recording and transcription.
+- Real-time AI conversation loop.
+- Latency-sensitive voice pipeline.
+
+Retell must remain behind a provider adapter. Future replacements include Twilio, Telnyx, Vonage, SIP, OpenAI Realtime, Twilio ConversationRelay, or a custom STT/LLM/TTS pipeline.
+
+## Provider Abstractions
+
+Voice provider interfaces should expose normalized domain types:
+
+- `VoiceProvider`
+- `VoiceCallEvent`
+- `VoiceTranscriptEvent`
+- `VoiceCallRecordingEvent`
+- `VoiceInboundContextRequest`
+- `VoiceTransferRequest`
+
+Cross-channel providers should follow the same pattern:
+
+- `SmsProvider`
+- `EmailProvider`
+- `CalendarProvider`
+- `DocumentProvider`
+- `AgentMessageProvider`
+
+Adapters convert provider payloads into `CommunicationItem` creation/update requests and domain events. Domain modules should never require Retell, Gmail, Google Calendar, Twilio, or Slack payloads directly.
+
+## AI Agent Runtime
+
+The agent runtime should receive compact, permission-filtered context:
+
+- Caller identity and relationship.
+- Relevant topic thread summaries.
+- Active decisions and open questions.
+- Relevant tasks and deadlines.
+- User-authored notes.
+- Topic-level red lines and permissions.
+- Interruption policy hints.
+- Agent behavior contract: natural speaking style, disclosure, privacy limits, emergency handling, transfer/live-answer policy, calendar policy, and outcome expectations.
+
+The live agent may ask questions and call backend tools, but backend policy decides whether actions are allowed. The agent should not autonomously share sensitive information, update non-owned calendar events, create durable memory, or expose thread context to external participants without policy approval.
+
+Retell receives these controls as dynamic variables so the behavior can be evolved without coupling the domain to Retell. Future voice runtimes should receive the same provider-neutral context pack.
+
+## Topic Classification
+
+Every new communication should be classified:
+
+- Who is involved?
+- What is this about?
+- Does it belong to an existing topic?
+- Should a new topic be created?
+- What facts were learned?
+- Were decisions made?
+- Were tasks or deadlines created?
+- Are there conflicts with prior thread state?
+- Does the user need to be interrupted?
+
+Classification output must include confidence, evidence references, model version, and suggested action. Low-confidence attachments should be suggestions, not automatic mutations.
+
+## Communication Item Model
+
+Core fields:
+
+- `id`, `userId`, `channel`, `direction`, `sourceProvider`, `providerItemId`.
+- Sender/caller and recipients/participants.
+- `occurredAt`, `receivedAt`, and optional start/end timestamps.
+- Raw content reference and normalized body/transcript text.
+- Summary.
+- Extracted facts, tasks, decisions, open questions, deadlines, conflicts.
+- Topic associations with confidence and attachment mode.
+- Sensitivity, consent, retention, and sharing flags.
+- Audit metadata.
+
+Supported channels should include `phone_call`, `sms`, `email`, `calendar_event`, `document`, `manual_note`, and `agent_message`.
+
+## Topic Thread Model
+
+Core fields:
+
+- `id`, `userId`, `title`, `description`, `status`.
+- Participants and related contacts.
+- Communication item references.
+- Decisions made and pending.
+- Open questions.
+- Tasks.
+- Documents.
+- Facts and memory.
+- Conflicts/inconsistencies.
+- Suggested next actions.
+- Permissions and sharing rules.
+- Confidence scores for automatic attachments.
+- Retention and audit metadata.
+
+Topic threads are the main product object and a primary security boundary.
+
+## Decisions, Open Questions, And Tasks
+
+Structured topic state should be stored separately from summaries:
+
+- `Decision`: status, selected option, options considered, required approvers, source evidence, deadline.
+- `OpenQuestion`: question, owner, status, due date, answer, source evidence.
+- `Task`: title, assignee, status, due date, source evidence, completion metadata.
+- `Conflict`: claims, sources, severity, recommendation, resolution status.
+
+The system should preserve original wording when useful and avoid inventing commitments.
+
+## Permission Model
+
+Permission layers:
+
+- User-owned data boundary.
+- Thread-level access.
+- Participant role: owner, participant, viewer, contributor, external agent.
+- Channel-level restrictions.
+- Artifact-level sharing.
+- Action permissions for create, update, comment, share, request approval, and agent-to-agent messages.
+- Sensitive information policy.
+
+Topic threads are permission boundaries. A participant in Basement Project cannot access Family Medical or Work Recruiting.
+
+## Sharing And Viral Loop
+
+Sharing must be permissioned, useful, transparent, and trust-building.
+
+Supported artifacts:
+
+- Call recap.
+- Thread summary.
+- Decision request.
+- Task list.
+- Shared follow-up.
+- Approval request.
+- Document request.
+
+External participants may receive SMS/email/web links scoped to one artifact or one thread. They should be able to reply or update within the granted scope without installing the app. The product may later invite them to create their own Phone Agent, but sharing must not be manipulative or spammy.
+
+## Agent-To-Agent Design
+
+Future agent messages should be structured and topic-scoped:
+
+- Topic ID or topic descriptor.
+- Intent.
+- Participants.
+- Facts and requested action.
+- Cost/schedule/risk impact.
+- Required human approval.
+- Attachments.
+- Provenance.
+- Expiration/deadline.
+
+Agent handshakes must verify identity, authority, topic scope, and permissions before any thread context is disclosed.
+
+## Authentication And Authorization
+
+Production requirements:
+
+- OIDC-compatible authentication.
+- Verified phone number ownership.
+- Device-bound refresh tokens.
+- Role/policy-based authorization.
+- Signed provider webhook verification.
+- External participant magic links or passkeys with narrow scopes.
+- Agent-to-agent authentication and signed messages when protocol support exists.
+
+Every user-owned resource needs authorization tests before production exposure.
+
+Current production-readiness foundation:
+
+- `UserConfig` stores user-owned phone configuration, Retell mapping, onboarding state, and billing limits.
+- `AssistantProfile` stores durable user-facing assistant behavior preferences. Retell receives a provider-specific rendering of this profile, but the application owns the canonical profile.
+- Retell inbound calls are resolved by the called forwarding number so one backend can serve multiple users.
+- Android client APIs use Firebase Phone Auth ID tokens. The backend verifies tokens with Firebase Admin and derives user identity from the verified Firebase `uid`.
+- User ID is resolved from auth context for client APIs and from phone-number routing for provider webhooks.
+- `CallerProfile` and `CallerMemory` records are user-scoped. Lookups for caller name, relationship, trust level, and prior-call memory must include `userId` plus caller phone number so one user's contact labels cannot leak into another user's assistant context.
+- Voice dynamic variables such as `caller_name`, `caller_context`, `caller_relationship`, and `opening_line` must be rendered from user-scoped caller memory or explicit call/user-note context. Provider adapters must not contain hard-coded caller names.
+- `Contact` records are user-scoped identity hints synced from the mobile address book after explicit Android Contacts permission. They include display name, normalized phone numbers, labels, and source metadata, but not call summaries or inferred memory.
+- Inbound caller resolution order is `CallerProfile`/`CallerMemory`, then synced `Contact`, then unknown caller. Contact matches may set `caller_name` and `caller_identity_source=contact` for first-time callers, while `priorCallCount` remains `0`.
+- Custom bootstrap tokens, development verification codes, anonymous default-user access, and hard-coded owner fallback are not production paths.
+
+## Multi-User Onboarding And Provisioning
+
+Google Play onboarding must use production authentication from the first public build. The Android app authenticates with Firebase Phone Auth and sends Firebase ID tokens to the backend. The backend verifies those tokens with Firebase Admin before creating or reading any user-owned data. Custom bootstrap tokens, in-app development verification codes, and anonymous default-user access are not production paths.
+
+Android Firebase client configuration must use the standard `google-services.json` plus Google Services Gradle plugin path. The app must not maintain a parallel manual Firebase initialization fallback because phone-auth redirect/verification behavior depends on the generated Firebase resources and merged manifest metadata.
+
+Onboarding states:
+
+- `firebase_authenticated`: Firebase session exists and backend has verified the ID token.
+- `phone_verified`: Firebase Auth phone number is present on the verified token.
+- `account_created`: backend user profile exists for the Firebase `uid`.
+- `phone_captured`: primary mobile number is copied from the verified Firebase phone claim unless the user later adds another verified route.
+- `assistant_profile_configured`: assistant name is saved; deeper behavior preferences may still be defaults.
+- `retell_number_assigned`: the user has a mapped AI forwarding number.
+- `forwarding_instructions_viewed`: carrier-specific setup has been shown.
+- `forwarding_tested`: a call to the user's Retell number was received or manually confirmed.
+- `first_useful_call_reviewed`: the user has seen a meaningful handled call outcome.
+- `payment_method_added`: Stripe or comparable provider has a reusable payment method for the user.
+- `spending_cap_set`: user has accepted or configured a monthly spending cap.
+- `billing_active`: paid usage is allowed for the current period.
+
+Provisioning rules:
+
+- Backend user IDs are derived from Firebase `uid`; client-supplied user IDs are ignored.
+- Assistant-number provisioning requires a verified Firebase phone claim.
+- Public assistant-number provisioning requires billing state `active`, a payment method, and a monthly spending cap unless the user is on an explicit beta/internal bypass.
+- The backend must reject missing, expired, malformed, or wrong-project Firebase ID tokens.
+- Production builds must not expose development verification codes.
+
+- Phone verification and plan eligibility are required before automatic number purchase.
+- A configurable beta allowlist may bypass billing while the product is private.
+- Number purchase must be idempotent per user.
+- A user may have multiple phone routes later, but the MVP supports one primary mobile number and one AI forwarding number.
+
+Retell provisioning adapter responsibilities:
+
+- Purchase a number with optional area code.
+- Assign or update inbound/outbound agent IDs.
+- Set inbound webhook URL.
+- Retrieve/list provider-owned numbers for reconciliation.
+- Return provider-neutral `VoiceNumberAssignment` objects.
+
+Domain services must treat Retell number purchase as an external side effect with cost, audit, retry, and rollback implications.
+
+## Assistant Profile To Retell Translation
+
+The domain stores an assistant profile, not Retell-specific prompt text. A voice provider adapter renders that profile plus call-specific context into:
+
+- `override_agent_id` when a user-specific or template agent is selected.
+- Begin message.
+- Dynamic variables for name, tone, disclosure, transfer policy, calendar policy, memory boundaries, and topic context.
+- Metadata for user ID, assistant profile version, and routing IDs.
+
+This enables future voice providers to receive equivalent behavior without reworking the product model.
+
+## Billing And Cost Controls
+
+Production billing should use Stripe or a comparable billing provider for payment collection and invoicing, while Phone Agent remains the source of truth for usage, cost, rating, policy gates, and spending caps.
+
+Billing architecture:
+
+- `BillingAccountService`: maps users to payment-provider customers, billing state, currency, payment method state, spending caps, and delinquency state.
+- `StripeCatalog`: deployment-time products, Billing Meters, and prices for the Personal monthly plan and tiered assistant-minute overage. Price IDs are runtime configuration, while lookup keys and meter event names remain stable across environments.
+- `PricingService`: resolves effective `PricePlan`, customer-facing meters, rounding rules, credits, and tax display assumptions.
+- `UsageLedger`: records raw usage events with idempotency keys before any payment-provider reporting.
+- `RatingService`: converts raw usage into customer charges and internal estimated cost using versioned price plans and cost rate cards.
+- `MeterPublisher`: sends customer-facing meter events to Stripe with idempotency keys.
+- `BillingWebhookService`: receives Stripe events and mirrors invoice, payment method, payment failure, subscription, dispute, and customer portal state.
+- `WebhookEventLedger`: records provider event IDs, processing status, attempt counts, processed timestamps, and sanitized error codes so webhook handlers are idempotent and replay-safe.
+- `BillingPolicy`: decides whether paid actions are allowed before cost is incurred.
+
+Customer-facing billable dimensions:
+
+- `personal_plan_months`
+- `assistant_call_minutes`
+- Internal `ai_processing_units`
+- Future `sms_segments`, `email_actions`, `document_pages_processed`, and `storage_gb_months`
+
+Internal cost dimensions:
+
+- Voice provider minutes, telephony minutes, STT/TTS minutes, live LLM tokens or provider minutes, classifier requests, input/output tokens, tool calls, calendar writes, SMS segments, document pages, and storage.
+
+Guardrails:
+
+- Payment method required before paid phone-number assignment for public users.
+- User-selected monthly spending cap required before paid usage starts.
+- Default cap: `$40/mo`.
+- Warning thresholds: `50%`, `80%`, and `100%`.
+- Hard stop or degraded fallback when cap is reached.
+- Audit records for expensive or externally visible AI actions.
+- Provider costs tracked separately from customer pricing so gross margin can be monitored.
+- Raw card data must never touch Phone Agent servers.
+- Billing UI must use customer-friendly categories and avoid backend vendor/model names by default.
+
+Runtime billing activation:
+
+- `POST /v1/billing/checkout-session` creates a Stripe-hosted setup session for reusable card collection.
+- `PATCH /v1/billing/spending-limit` stores the user's monthly cap and attempts idempotent Personal subscription activation if a payment method already exists.
+- Stripe `checkout.session.completed` and `payment_method.attached` webhooks mirror payment method state and attempt idempotent subscription activation if a spending cap already exists.
+- `POST /v1/billing/activate` is a client-safe retry endpoint for the mobile app after the user returns from hosted card setup.
+- Subscription IDs and subscription status are mirrored on `BillingAccount`.
+- Paid provisioning checks local billing state, not live Stripe state.
+- Paid provisioning also checks the local current-period spend against the user's monthly cap. If spend is at or above the cap, the account moves to `cap_reached` and paid resource assignment is blocked until the cap increases or the period resets.
+- Live inbound assistant runtime also checks the local billing state when billing gates are enabled. If the account is inactive, past due, canceled, or over cap, the voice provider receives a minimal unavailable response with no caller memory, topic context, calendar context, active user notes, or tool authorization.
+- Retell tool endpoints and approved outbound-call creation use the same local billing gate. When blocked, tool endpoints return a non-sensitive `unavailable` result so the agent can take a concise message instead of creating transfers, live answer prompts, calendar actions, or other paid side effects.
+- Billing blocks create privacy-safe `billing_issue` notification events for the user. These notifications should identify the blocked category and recovery action without exposing transcripts, caller names, topics, provider payloads, card data, or invoice line detail.
+- Stripe webhook processing must be guarded by a durable idempotency ledger keyed by Stripe event ID. Duplicate delivery after a successful event must return success without reapplying side effects. Failed events must remain retryable and record only sanitized error metadata.
+- Stripe Personal subscription creation must use a stable idempotency key per customer/plan, and subscription deletion events must be ignored when they refer to a stale duplicate subscription rather than the mirrored active subscription.
+
+Usage metering:
+
+- `UsageService` creates an idempotent local `UsageEvent` first.
+- A successful local event may be published to Stripe as a Billing Meter event when the user has an active subscription and provider customer ID.
+- Billing meter publishing uses stable event names. The default public subscription publishes `phone_agent_call_minutes`; AI processing remains internal until plan limits or add-ons are introduced.
+- Publishing failures are recorded on the local usage event and must not fail call webhook handling.
+- Reconciliation and retry jobs should later scan unpublished usage events and publish them with the same idempotency keys.
+
+The detailed billing and pricing design lives in `docs/monetization.md`.
+
+## Agent Eval Suite
+
+Agent behavior must be regression-tested before prompt or context changes are deployed.
+
+Eval coverage:
+
+- Natural greeting.
+- AI disclosure.
+- No internal label leakage.
+- Known caller friendliness.
+- Unknown caller identification.
+- Emergency handling.
+- Privacy and memory boundaries.
+- Transfer approval policy.
+- Live user answer policy.
+- Calendar create/update limits.
+- Outcome-oriented closing.
+
+The first suite is deterministic and checks generated Retell context plus prompt/contract fixtures. Later suites should replay real redacted transcripts, run model-in-the-loop scenario tests, and gate deploys on score thresholds.
+
+## Data Model
+
+Core entities:
+
+- User, Device, Contact, Participant, ExternalIdentity.
+- TopicThread, TopicParticipant, TopicPermission, TopicShare.
+- CommunicationItem, CommunicationParticipant, RawContentRef.
+- Decision, OpenQuestion, Task, Conflict, Fact.
+- DocumentReference, CalendarActivity, AgentNote.
+- CallSession, ActiveCall, CallEvent, TranscriptSegment, Recording.
+- CallerProfile, CallerMemory.
+- Notification, ApprovalRequest, AnswerRequest.
+- ProviderAccount, ProviderMapping.
+- BillingAccount, PaymentMethod, PricePlan, BillableMeter, CostRateCard, RatedUsageEvent, InvoiceMirror, CreditGrant, SpendingLimit.
+- AuditLog, ConsentPolicy, RetentionPolicy.
+
+MVP persistence currently uses Firestore. Firestore is acceptable for early single-user iteration and Cloud Run deploys. Long-term production may move topic and permission modeling to PostgreSQL, with Redis for live state and idempotency, object storage for recordings/documents, and an outbox/event bus for durable events.
+
+## API Design
+
+Client API examples:
+
+- `GET /v1/onboarding/status`
+- `GET /v1/communications`
+- `GET /v1/communications/{communicationItemId}`
+- `GET /v1/topics`
+- `POST /v1/topics`
+- `GET /v1/topics/{topicThreadId}`
+- `PATCH /v1/topics/{topicThreadId}`
+- `POST /v1/topics/{topicThreadId}/communications`
+- `DELETE /v1/topics/{topicThreadId}/communications/{communicationItemId}`
+- `POST /v1/topics/{topicThreadId}/decisions`
+- `POST /v1/topics/{topicThreadId}/open-questions`
+- `POST /v1/topics/{topicThreadId}/tasks`
+- `POST /v1/topics/{topicThreadId}/shares`
+- `GET /v1/calls`
+- `GET /v1/calls/active`
+- `GET /v1/callers`
+- `POST /v1/contacts/sync`
+- `GET /v1/contacts/status`
+- `GET /v1/agent-notes`
+- `GET /v1/approval-requests`
+- `GET /v1/answer-requests`
+- `GET /v1/billing/account`
+- `POST /v1/billing/checkout-session`
+- `POST /v1/billing/customer-portal`
+- `POST /v1/billing/activate`
+- `GET /v1/billing/usage`
+- `PATCH /v1/billing/spending-limit`
+- `GET /v1/billing/invoices`
+
+Billing invoice responses must be sanitized: include invoice ID, status, amount, currency, created date, and Stripe-hosted invoice/PDF URLs only. Do not include caller names, topic names, transcripts, calendar descriptions, or provider raw invoice line metadata in the default consumer response.
+
+Current MVP implementation exposes onboarding status, communication inbox, communication item detail, topic create/list/detail, manual communication attachment, and create-only decisions/open questions/tasks. The Android app includes Setup, Communication Inbox, Topics, manual topic creation, manual communication attachment, and a basic topic detail view.
+
+The next implemented slice adds reviewable topic suggestions and communication extraction scaffolding. Suggestions are stored separately from topic associations until accepted by the user. The classifier is provider-neutral and currently uses an OpenAI-backed implementation with structured JSON output. Retell events may trigger this service, but Retell payloads are normalized into communication items first.
+
+Topic detach, update/delete for structured state, permissioned sharing, and full AI classification remain future work.
+
+Provider webhook examples:
+
+- `POST /webhooks/retell/inbound`
+- `POST /webhooks/retell/events`
+- `POST /webhooks/voice/{provider}/events`
+- `POST /webhooks/sms/{provider}/messages`
+- `POST /webhooks/email/{provider}/messages`
+- `POST /webhooks/calendar/{provider}/events`
+- `POST /webhooks/agent/{provider}/messages`
+- `POST /webhooks/billing/stripe`
+
+## Event-Driven Architecture
+
+Domain events:
+
+- `communication.received`
+- `communication.normalized`
+- `communication.summarized`
+- `topic.suggested`
+- `topic.created`
+- `topic.communication_attached`
+- `topic.decision.created`
+- `topic.open_question.created`
+- `topic.task.created`
+- `topic.conflict.detected`
+- `interruption.requested`
+- `sharing.artifact_created`
+- `sharing.artifact_sent`
+- `agent_message.received`
+- `permission.decision_recorded`
+- `audit.logged`
+- `billing.payment_method_added`
+- `billing.spending_cap_updated`
+- `billing.usage_recorded`
+- `billing.cap_warning_reached`
+- `billing.cap_reached`
+- `billing.invoice_paid`
+- `billing.payment_failed`
+- Existing voice events such as `call.received`, `call.completed`, `answer_request.created`, and `call.transfer.requested`.
+
+Use an outbox pattern before adding a dedicated queue. Events must be idempotent and replayable where practical.
+
+## Error Handling
+
+Fallback behavior:
+
+- If topic classification fails, store the communication unassigned and surface it in the inbox.
+- If a topic suggestion cannot be generated confidently, store no suggestion rather than auto-attaching the item.
+- If the extraction scaffold produces low-quality output, keep it on the communication item as low-confidence extracted state and require user review before promoting it into topic decisions, questions, or tasks.
+- If the OpenAI classifier fails, times out, or returns invalid output, log a content-free error and leave the communication unassigned for manual review.
+- Do not log raw transcripts, summaries, or model prompts.
+- If confidence is low, suggest attachment rather than auto-attach.
+- If permission evaluation fails, do not share; notify/audit as needed.
+- If provider ingestion fails, retry with idempotency keys.
+- If Retell or voice runtime fails, fall back to message capture when possible.
+- If calendar write fails, notify the user and preserve a failed activity record.
+- If conflict detection is uncertain, mark as possible conflict and request user review.
+- If billing state is inactive, cap is reached, or payment method is missing, block paid-resource provisioning and paid AI/voice actions before provider calls are made.
+- If Stripe or the payment provider is unavailable, use the local mirrored billing state for enforcement and queue meter publishing for retry.
+
+## Observability
+
+Track:
+
+- Ingestion latency by channel/provider.
+- Topic suggestion acceptance/rejection.
+- Auto-attachment precision.
+- Interruption false positives/false negatives.
+- Voice latency and transfer success.
+- Calendar create/update/failure rate.
+- Sharing artifact sends and external replies.
+- Permission denials and sensitive-data blocks.
+- Audit log completeness.
+- Revenue, cost, gross margin, cap warnings, cap blocks, payment failures, meter publishing retries, and invoice reconciliation errors.
+
+Avoid logging raw communication content in general application logs.
+
+## Notification System
+
+Notifications are domain events before they are Android push/local notifications. The backend should create durable `NotificationEvent` records for user-impacting moments, then delivery adapters render privacy-safe payloads for Android, future iOS, web, email, or SMS.
+
+Core entities:
+
+- `NotificationEvent`: user ID, type, priority, title, private-safe body, optional detailed body, action target, action IDs, expiration, read/dismissed state, source object, and created timestamp.
+- `NotificationPreference`: per-user lock-screen detail level, enabled types, quiet hours, channel preferences, and sensitive-content policy.
+- `NotificationDelivery`: provider-neutral delivery attempt with platform, status, latency, failure reason, and retry metadata.
+- `NotificationActionAudit`: user ID, notification/source object, action, surface, terminal result, latency, sanitized error code, and timestamp.
+
+Default privacy policy:
+
+- `private`: lock-screen and push payloads use generic text only.
+- `summary`: caller/topic/event titles may be included, but not transcripts or assistant notes.
+- `detailed`: richer content allowed only after explicit opt-in and still blocked for sensitive categories.
+
+Android implementation:
+
+- Store notification events in the backend.
+- Expose `GET /v1/notifications` and `POST /v1/notifications/{id}/read`.
+- Expose authenticated push-device registration so each signed-in Android install can upload its current FCM token.
+- Generate events for transfer requests, live answer requests, live call state changes, call summaries, topic suggestions, and calendar changes.
+- Deliver Android push through FCM using data-only, private-safe payloads derived from `NotificationEvent.body`.
+- Android does not run periodic notification polling as a fallback. FCM data messages trigger one-shot source-of-truth refreshes while the app is active, notification deep links fetch fresh state before routing, and app launch/manual navigation refreshes the durable notification center.
+- Deep links route to Assistant live actions, Inbox review queue, Calendar activity, or call detail.
+- Live transfer notification actions are handled by a background Android receiver, not only by `MainActivity`, so `Accept` and `Decline` work when the app process was killed. The receiver refreshes the Firebase ID token, posts the authenticated decision, prevents duplicate in-flight action submits, cancels the original notification, and posts a privacy-safe result notification.
+- Live answer notifications use Android inline reply (`RemoteInput`) so the user can send a short answer directly from the notification shade. The backend stores the answer on the pending request and the voice runtime relays it to the caller.
+- Approval and answer request APIs are expiration-aware and idempotent. A duplicate action returns the current terminal state. An expired request returns a clear `409` conflict with a product-safe error code so Android can show "This request expired." Live answer requests default to a `90s` window so users have time to notice, unlock, and reply while the caller is still on the line.
+- Successful, declined, expired, and failed notification actions are audited without storing answer text, transcripts, caller notes, topic memory, or raw provider payloads.
+- Completing a live action dismisses related unread `NotificationEvent` records by source object so in-app notification history does not remain stale.
+
+Delivery rules:
+
+- FCM payloads must include notification ID, type, priority, safe title, safe body, and deep-link target only.
+- FCM payloads must not include transcripts, caller notes, active user notes, topic memory, calendar descriptions, raw provider payloads, card metadata, or sensitive document content.
+- Android clients must interpret notification targets as product deep links. Live transfer targets open the specific approval and may expose Accept/Decline notification actions. Live answer targets open the specific answer composer. Summary, topic, calendar, and billing targets open their corresponding product surfaces.
+- Failed or invalid FCM tokens are disabled so future sends do not repeatedly fail.
+- Push delivery failure must not prevent durable `NotificationEvent` creation.
+- Expired live request deep links must render an expired state in-app. They must not open a blank Assistant page or leave an actionable notification visible.
+- Every FCM send attempt creates a `NotificationDelivery` record with notification ID, device token ID, provider, status, latency, and sanitized error code. Delivery records are used for support/debugging and alerting, not for lock-screen copy.
+
+Crash/error telemetry:
+
+- Android production builds include Firebase Crashlytics.
+- Crashlytics may record crashes, app version, device class, OS version, and non-sensitive breadcrumbs such as screen/action names.
+- Crash reports must not include transcripts, caller memory, assistant notes, calendar details, phone contact contents, raw notification payloads, card data, or provider secrets.
+
+Future implementation:
+
+- Add APNs for iOS.
+- Add richer delivery attempt analytics, retry policy, quiet hours, and per-type preferences server-side.
+
+## Security And Privacy
+
+Requirements:
+
+- Encrypt data in transit and at rest.
+- Use least-privilege provider scopes.
+- Store secrets in managed secret storage.
+- Never store raw card data; use payment-provider tokens and hosted/native collection components.
+- Verify provider webhooks.
+- Rate-limit authenticated client APIs, provider webhooks, and Retell tool endpoints. Process-level limits are defense in depth; production launch should add Cloud Armor, API Gateway, or equivalent edge controls.
+- Enforce thread-level access control.
+- Track consent/disclosure settings.
+- Mark sensitive information explicitly.
+- Retain raw content by policy and reference it instead of copying broadly.
+- Audit access, sharing, AI decisions, permission decisions, and retention/deletion.
+- Default to not sharing sensitive thread context with external participants.
+
+## Compliance Considerations
+
+Legal review is required for:
+
+- Recording consent.
+- AI disclosure.
+- TCPA and outbound AI.
+- Third-party privacy and inferred facts.
+- Email/SMS consent and retention.
+- External participant sharing.
+- Agent-to-agent identity and authorization.
+- Healthcare, legal, financial, employment, and emergency-related workflows.
+
+## Testing Strategy
+
+Add tests for:
+
+- Provider webhook normalization.
+- Communication item creation.
+- Topic thread repository behavior.
+- Topic classification output parsing.
+- Permission checks.
+- Thread attachment and detachment.
+- Decision/open-question/task extraction.
+- Interruption policy.
+- Sharing policy.
+- Retell adapter contract tests.
+- Authorization on every user-owned resource.
+
+## Deployment Strategy
+
+Initial deployment:
+
+- Cloud Run backend.
+- Firestore MVP persistence.
+- Secret Manager.
+- Cloud Logging.
+- Artifact Registry and Cloud Build.
+- Retell webhooks.
+- Process-level API/webhook rate limits.
+
+Target production:
+
+- Managed PostgreSQL for topic/permission-heavy data.
+- Redis for live call state and idempotency.
+- Object storage for recordings and documents.
+- Event bus or queue.
+- API gateway/WAF/rate limiting.
+- Separate dev/staging/prod projects.
+
+## Local Development Strategy
+
+Local development should include:
+
+- `npm run dev`, `npm test`, `npm run typecheck`.
+- Mock provider adapters.
+- Seeded users, contacts, topic threads, communication items, decisions, questions, and tasks.
+- Provider webhook tunnel for Retell testing.
+- Future local dependencies for PostgreSQL/Redis/object storage when introduced.

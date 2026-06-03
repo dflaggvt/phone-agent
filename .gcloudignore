@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+*.log
+README.md
+docs
+android
+release
+.codex-tools
+.codex-tunnel
+.codex-remote-attachments

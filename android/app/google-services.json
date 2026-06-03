@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "47585065917",
+    "project_id": "phone-agent-43313",
+    "storage_bucket": "phone-agent-43313.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:47585065917:android:8dda3f8da10dc48f22b0d4",
+        "android_client_info": {
+          "package_name": "com.phoneagent.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "47585065917-qogl0tj7b13j9epbkn0m9f06n9v8jk9o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_-TV2F21imUW4ssLqmV1wmyuUMYZZRD4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "47585065917-qogl0tj7b13j9epbkn0m9f06n9v8jk9o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

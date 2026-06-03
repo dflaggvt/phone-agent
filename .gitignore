@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/build/
+*.apk
+*.aab

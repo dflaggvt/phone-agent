@@ -1,0 +1,95 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "org.jetbrains.kotlin.plugin.compose"
+    id "com.google.devtools.ksp"
+    id "com.google.gms.google-services"
+    id "com.google.firebase.crashlytics"
+}
+
+def phoneAgentReleaseSigningReady =
+        System.getenv("PHONE_AGENT_KEYSTORE_PATH") &&
+        System.getenv("PHONE_AGENT_KEYSTORE_PASSWORD") &&
+        System.getenv("PHONE_AGENT_KEY_ALIAS") &&
+        System.getenv("PHONE_AGENT_KEY_PASSWORD")
+
+android {
+    namespace "com.phoneagent.app"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.phoneagent.app"
+        minSdk 26
+        targetSdk 35
+        versionCode 2
+        versionName "0.1.1-internal"
+
+        buildConfigField "String", "BACKEND_BASE_URL", "\"https://phone-agent-47585065917.us-central1.run.app\""
+        buildConfigField "String", "PHONE_AGENT_NUMBER", "\"+19143593659\""
+        buildConfigField "String", "PHONE_AGENT_NUMBER_DISPLAY", "\"+1 (914) 359-3659\""
+    }
+
+    buildFeatures {
+        buildConfig true
+        compose true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("PHONE_AGENT_KEYSTORE_PATH")
+            if (phoneAgentReleaseSigningReady) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("PHONE_AGENT_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("PHONE_AGENT_KEY_ALIAS")
+                keyPassword System.getenv("PHONE_AGENT_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (phoneAgentReleaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+}
+
+dependencies {
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.activity:activity-compose:1.9.3"
+    implementation platform("androidx.compose:compose-bom:2024.09.03")
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-extended"
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.ui:ui-tooling-preview"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
+    implementation "androidx.room:room-runtime:2.6.1"
+    implementation "androidx.room:room-ktx:2.6.1"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    implementation platform("com.google.firebase:firebase-bom:34.6.0")
+    implementation "com.google.firebase:firebase-auth"
+    implementation "com.google.firebase:firebase-messaging"
+    implementation "com.google.firebase:firebase-crashlytics"
+    ksp "androidx.room:room-compiler:2.6.1"
+    debugImplementation "androidx.compose.ui:ui-tooling"
+}

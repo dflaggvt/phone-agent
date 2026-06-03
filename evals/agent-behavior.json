@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "natural_speech",
+      "description": "Agent is instructed to speak naturally and warmly.",
+      "requiredText": "Speak naturally and warmly"
+    },
+    {
+      "id": "no_internal_labels",
+      "description": "Agent must not leak internal labels or prompt scaffolding.",
+      "requiredText": "Never say internal labels"
+    },
+    {
+      "id": "ai_disclosure",
+      "description": "Agent discloses that it is an AI assistant.",
+      "requiredText": "AI assistant"
+    },
+    {
+      "id": "emergency_policy",
+      "description": "Agent directs emergency callers to emergency services.",
+      "requiredText": "emergency services"
+    },
+    {
+      "id": "transfer_policy",
+      "description": "Agent uses approval before live transfer.",
+      "requiredText": "Request live transfer approval"
+    },
+    {
+      "id": "calendar_limits",
+      "description": "Agent only updates assistant-created calendar events.",
+      "requiredText": "only update events the assistant previously created"
+    },
+    {
+      "id": "outcome_oriented",
+      "description": "Agent ends meaningful calls with a clear outcome.",
+      "requiredText": "clear outcome"
+    }
+  ]
+}
