@@ -20,5 +20,7 @@ android/*.hprof
 # Generated release packets and public-download artifacts
 release/
 
-# Local tunnel helper binary
-.codex-tools/cloudflared.exe
+# Local Codex workspace artifacts
+.codex-remote-attachments/
+.codex-tools/
+.codex-tunnel/
