@@ -149,7 +149,7 @@ Every authenticated screen uses this shell:
 - Horizontal gutter `20dp` on phones under `430dp` wide.
 - Horizontal gutter `24dp` on phones `430-599dp` wide.
 - Horizontal gutter `32dp` on screens `600dp+`.
-- Header height `126-138dp` on authenticated primary screens when the week strip is visible.
+- Header height `74-86dp` on authenticated primary screens.
 - Scrollable content area.
 - Optional live-call dock.
 - Bottom nav above system navigation.
@@ -167,14 +167,13 @@ Production polish rules:
 
 ### Header
 
-The authenticated app chrome should follow the calmer, integrated pattern of premium habit and coaching apps rather than the older floating-card shell. The top bar is a dark, anchored app surface with compact controls and a centered product mark.
+The authenticated app chrome should follow the calmer, integrated pattern of premium habit and coaching apps rather than the older floating-card shell. The top bar is anchored and compact, but it must continue the purple atmospheric app background instead of introducing a separate dark surface.
 
 Header elements:
 
 - Left: circular user avatar, then notification/needs-you icon.
 - Center: compact Phone Agent wordmark.
 - Right: search or utility icon.
-- Second row: compact week strip showing the current week, with today highlighted.
 
 The selected tab title should appear in content when needed, not as the only thing in the top bar. The top bar should make the app feel stable and persistent across Home, Assistant, and Profile.
 
@@ -182,19 +181,15 @@ Header numeric spec:
 
 | Element | Value |
 | --- | ---: |
-| Top chrome background | `#202531` |
+| Top chrome background | Purple atmosphere gradient, `#65549B` to `#352363` |
 | Top chrome corner radius bottom | `14dp` |
-| Top row height | `58dp` |
-| Week strip height | `68dp` |
+| Top row height | `64dp` |
 | Wordmark size | `25sp` |
 | Wordmark line height | `30sp` |
 | Avatar size | `42dp` |
 | Header icon target | `42dp` |
 | Header icon size | `24dp` |
 | Header horizontal padding | `20dp` |
-| Week day label size | `11sp` |
-| Week date size | `18sp` |
-| Selected date circle | `42dp` |
 
 ### Assistant Presence Control
 
@@ -229,12 +224,12 @@ The presence control must not look like a call-center status badge. It should fe
 
 Bottom navigation should feel like a fixed app tab bar:
 
-- Full-width dark surface anchored above system navigation.
+- Full-width purple surface anchored above system navigation.
 - No floating white pill.
 - No oversized active capsule.
 - Icons and labels are always visible.
 - Active item uses white icon/text plus a subtle top indicator or stronger opacity.
-- Inactive items use muted blue-gray icon/text.
+- Inactive items use muted white icon/text.
 - The nav should sit flush with the app edge and respect navigation bar insets.
 
 Numeric:

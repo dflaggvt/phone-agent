@@ -70,8 +70,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.DayOfWeek
-import java.time.LocalDate
 @Composable
 internal fun PhoneAgentApp(state: PhoneAgentUiState, actions: AppActions) {
     BackHandler(
@@ -183,15 +181,20 @@ private fun MainShell(state: PhoneAgentUiState, actions: AppActions) {
 private fun TopAppChrome(state: PhoneAgentUiState, actions: AppActions) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = ChromeSurface,
+        color = Color.Transparent,
         shape = RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp),
-        shadowElevation = 8.dp
+        shadowElevation = 0.dp
     ) {
-        Column(Modifier.statusBarsPadding()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(TwilightTop, TwilightMid)))
+        ) {
             Box(
                 Modifier
+                    .statusBarsPadding()
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(64.dp)
                     .padding(horizontal = 20.dp)
             ) {
                 Row(
@@ -223,7 +226,6 @@ private fun TopAppChrome(state: PhoneAgentUiState, actions: AppActions) {
                     modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
-            WeekStrip()
         }
     }
 }
@@ -273,55 +275,6 @@ private fun ChromeIconButton(
             ) {}
         }
     }
-}
-
-@Composable
-private fun WeekStrip(today: LocalDate = LocalDate.now()) {
-    val days = currentWeekDays(today)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(68.dp)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        days.forEach { day ->
-            val selected = day == today
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    day.dayOfWeek.name.take(3),
-                    color = ChromeMuted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(6.dp))
-                Surface(
-                    modifier = Modifier.size(42.dp),
-                    shape = CircleShape,
-                    color = if (selected) Color.White.copy(alpha = 0.92f) else Color.Transparent
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            day.dayOfMonth.toString(),
-                            color = if (selected) Ink else Color.White.copy(alpha = 0.86f),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun currentWeekDays(today: LocalDate): List<LocalDate> {
-    val start = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
-    return (0..6).map { start.plusDays(it.toLong()) }
 }
 
 @Composable
@@ -437,8 +390,8 @@ private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding(),
-        color = ChromeSurface,
-        border = BorderStroke(1.dp, ChromeLine),
+        color = TwilightBottom.copy(alpha = 0.98f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
         shadowElevation = 10.dp
     ) {
         Row(
@@ -464,9 +417,9 @@ private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
                         color = if (active) Color.White else Color.Transparent
                     ) {}
                     Spacer(Modifier.height(8.dp))
-                    Icon(tab.icon, contentDescription = tab.label, tint = if (active) Color.White else ChromeMuted, modifier = Modifier.size(24.dp))
+                    Icon(tab.icon, contentDescription = tab.label, tint = if (active) Color.White else Color.White.copy(alpha = 0.58f), modifier = Modifier.size(24.dp))
                     Spacer(Modifier.height(3.dp))
-                    Text(tab.label, color = if (active) Color.White else ChromeMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(tab.label, color = if (active) Color.White else Color.White.copy(alpha = 0.58f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
