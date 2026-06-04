@@ -53,9 +53,14 @@ internal class BillingViewModel @Inject constructor(
     suspend fun createCheckoutSession(token: String): String =
         repository.createBillingCheckoutSession(token)
 
-    suspend fun activateBilling(token: String) {
+    suspend fun createCustomerPortalSession(token: String): String =
+        repository.createBillingCustomerPortalSession(token)
+
+    suspend fun activateBilling(token: String): BillingAccount =
         repository.activateBilling(token)
-    }
+
+    suspend fun cancelSubscription(token: String): BillingAccount =
+        repository.cancelSubscription(token)
 }
 
 @HiltViewModel

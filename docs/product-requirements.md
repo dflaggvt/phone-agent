@@ -119,6 +119,7 @@ Required account states:
 - Anonymous local install: no server-owned assistant resources yet.
 - Firebase authenticated: verified ID token resolves to one backend user.
 - Phone verified: Firebase phone claim exists and user can continue phone forwarding setup.
+- Mobile-number account recovery: if Google sign-in and phone verification point to different Firebase accounts, the verified mobile-number account should be recovered as the canonical phone account and the user must not see raw provider credential-collision language.
 - Assistant named: user has named the assistant or accepted the default name.
 - Assistant number assigned: a Retell-managed or imported number is mapped to the user.
 - Forwarding configured: carrier forwarding has been tested or manually confirmed.
@@ -145,6 +146,8 @@ Each user needs an `AssistantProfile` that translates product controls into prov
 Onboarding should require only one assistant customization decision: the assistant display name. The default name is `Assistant`, and the user can continue without changing it. This gives the assistant a user-facing identity without forcing the user through personality, policy, or rule decisions before activation.
 
 The main app shell should not be the primary onboarding surface for a new user. Before core setup is complete, the app should route the user into a traditional first-run sequence: value promise, account/phone verification, assistant naming, assistant number assignment, forwarding instructions, and a final test-call prompt. The Today tab should become useful after this sequence, not serve as the setup checklist.
+
+The auth entry step should support Google sign-in and phone-number OTP. A returning user should be able to sign in with Google or with their mobile number and verification code without entering a name again. User display name can be shown or edited later in Profile; it should not be a blocker before authentication. Google sign-in authenticates the account, but the user must still verify the mobile number that the assistant will protect before call routing, assistant-number provisioning, or forwarding setup.
 
 The full customizable fields are:
 
@@ -189,6 +192,8 @@ User-facing billing requirements:
 - Billing screens should explain charges in plain language: assistant call time, AI processing, assistant number, messages, documents, and storage.
 - The app should show current month spend, cap, next reset date, payment method, invoices, and usage by category.
 - Users should be able to pause paid usage and cancel/release an assistant number.
+- Users should be able to cancel their subscription without deleting their account. Canceling should stop new paid assistant work immediately while preserving account history and settings.
+- Users should be able to remove their account from the app. Account removal should cancel paid access, disable device notifications, unmap phone routing, clear local app data, sign the user out, and begin backend deletion or retention workflows for user-owned data.
 
 Internal billing requirements:
 
@@ -335,17 +340,17 @@ Design requirements:
 
 ## Mobile App Experience
 
-The ideal production mobile app should use five primary destinations:
+The ideal production mobile app should use three primary bottom-navigation destinations:
 
-- Home: the default center tab and daily command center. Home should prioritize recent handled calls, caller requests, follow-up actions, important notes, and horizontally browsable topic cards.
-- Topics: persistent real-world situations with memory, decisions, tasks, open questions, documents, people, sharing, and audit.
-- Inbox: recent and untriaged communications, review queue, topic suggestions, and extracted outcomes.
-- Assistant: live-call control, assistant mode, notes, rules, channel health, voice behavior, and forwarding setup.
-- Search: cross-channel memory retrieval across people, topics, decisions, tasks, documents, calls, messages, calendar events, and notes.
+- Home: the default destination and daily command center. Home should prioritize recent handled calls, caller requests, follow-up actions, important notes, needs-you items, and horizontally browsable topic cards. It owns the entry points for all topics, review/triage, call history, and search.
+- Assistant: live-call control, live answer/transfer requests, assistant notes, test call, forwarding, and immediate channel readiness. It should answer "what is my assistant doing now, and what can I tell it?" rather than duplicating settings, billing, review, or long-term history.
+- Profile: account identity, assistant identity, forwarding, billing, calendar, contacts, notifications, privacy, support, diagnostics, and logout.
+
+Topics remain the durable memory product, but they should be surfaced through Home cards and an all-topics drill-in instead of a permanent bottom tab. Review should appear as `Needs you` on Home and become a drill-in only when there are pending items. Search should be a quiet utility launched from Home, not a primary tab, until cross-channel search frequency warrants promoting it.
 
 The UI should feel calm, minimal, and executive. It should not feel like a call center.
 
-Settings should not be a primary bottom tab. The authenticated shell should expose a profile/avatar entry that opens a merged Profile and Settings surface. That surface owns account identity, assistant name/behavior, forwarding, billing, calendar, privacy, notification preferences, support, diagnostics, and logout. Logout must be available from this surface, must require confirmation, and must clear local authenticated cache after signing out.
+The authenticated shell should expose Profile as the stable place for account and configuration. Logout must be available from Profile, must require confirmation, and must clear local authenticated cache after signing out.
 
 Recent calls should use compact rows inspired by familiar phone-recents patterns: caller identity, phone number or relationship, timestamp, and direct actions such as call back, details, note, or topic attachment. Rows should stay provider-neutral and should not show long summaries inline.
 

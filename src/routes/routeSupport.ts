@@ -14,6 +14,12 @@ export function currentUserId(res: express.Response): string {
     : "";
 }
 
+export function currentFirebaseUid(res: express.Response): string | undefined {
+  return typeof res.locals.firebaseUid === "string" && res.locals.firebaseUid.length > 0
+    ? res.locals.firebaseUid
+    : undefined;
+}
+
 export function requireRouteParam(value: string | string[] | undefined, name: string): string {
   if (!value || Array.isArray(value)) {
     throw new HttpError(400, "route_param_missing", `${name} route parameter is required.`);

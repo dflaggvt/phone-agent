@@ -86,4 +86,24 @@ describe("StripeBillingClient", () => {
       }
     );
   });
+
+  it("cancels the mirrored Personal subscription by id", async () => {
+    const cancel = vi.fn().mockResolvedValue({
+      id: "sub_123",
+      status: "canceled"
+    });
+    const billing = new StripeBillingClient("sk_test_fake");
+    (billing as unknown as {
+      client: {
+        subscriptions: { cancel: typeof cancel };
+      };
+    }).client = {
+      subscriptions: { cancel }
+    };
+
+    const subscription = await billing.cancelSubscription({ subscriptionId: "sub_123" });
+
+    expect(subscription).toEqual({ id: "sub_123", status: "canceled" });
+    expect(cancel).toHaveBeenCalledWith("sub_123");
+  });
 });

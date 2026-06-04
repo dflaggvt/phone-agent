@@ -21,15 +21,15 @@ Compose implementation requirements:
 - Treat the app shell, top bar, bottom nav, topic cards, call rows, review cards, assistant action rows, form fields, and empty/error states as first-class components.
 - Use Room as the local source-of-display cache for authenticated state so launch, tab switches, search filters, and offline review can render from trusted last-known backend data before a network refresh completes.
 - Keep screens previewable with fixture data so UI quality can be reviewed without live backend state.
-- Add screenshot/golden testing after the first Compose component set stabilizes. Automated screenshot tests should cover at least Home, Topics, Review, Assistant, Search, topic detail, call detail, and forwarding on a phone-sized viewport. Baselines should include numeric checks for minimum width `320px`, minimum height `600px`, color-bucket variety, luminance spread, and dominant-color ratio before image-file golden comparisons are introduced.
+- Add screenshot/golden testing after the first Compose component set stabilizes. Automated screenshot tests should cover at least Home, Assistant, Profile, all-topics, search, review/needs-you, topic detail, call detail, and forwarding on a phone-sized viewport. Baselines should include numeric checks for minimum width `320px`, minimum height `600px`, color-bucket variety, luminance spread, and dominant-color ratio before image-file golden comparisons are introduced.
 - Continue using connected-device screenshots for final device sanity checks, but do not rely on manual screenshots as the primary path to pixel precision.
 - Do not add Java Activity UI surfaces or programmatic Android view hierarchy screens.
 
 Initial Compose migration slice:
 
 1. Add Kotlin and Jetpack Compose to the Android project.
-2. Introduce a Compose launcher activity with the production shell: atmospheric background, header, assistant presence control, five-item bottom nav, and safe-area handling.
-3. Recreate the core authenticated screens in Compose: Home, Topics, Review, Assistant, Search, topic detail, forwarding, billing entry, and first-run phone onboarding.
+2. Introduce a Compose launcher activity with the production shell: atmospheric background, header, assistant presence control, three-item bottom nav, Home-owned utility entry points, and safe-area handling.
+3. Recreate the core authenticated screens in Compose: Home, Assistant, Profile, all-topics, review/needs-you, search, topic detail, forwarding, billing entry, and first-run phone onboarding.
 4. Move app state and backend orchestration into Hilt ViewModels, repositories, Retrofit/OkHttp API clients, and Room-backed data sources.
 5. Keep the retired Java UI out of the production app. If a missing behavior is discovered, rebuild it in Compose rather than restoring the legacy Activity.
 
@@ -104,48 +104,40 @@ Common situations:
 
 ## Ideal Information Architecture
 
-The ideal mobile app uses `5` bottom navigation destinations:
+The ideal mobile app uses `3` bottom navigation destinations:
 
 1. Home
-2. Topics
-3. Review
-4. Assistant
-5. Search
-
-Profile and Settings are reached from the assistant presence/avatar control in the header. Settings should not consume a primary bottom-nav slot.
-
-### Why This IA
-
-Home is the default center tab and daily command center.
-
-Bottom navigation order:
-
-1. Topics
-2. Review
-3. Home
-4. Assistant
-5. Search
+2. Assistant
+3. Profile
 
 Home is selected by default after onboarding and on normal app launch.
 
-Topics is the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread."
+### Why This IA
 
-Review is the triage queue for items that need correction, organization, or user action. It is not a second call log.
+Home is the daily command center. It owns the first-screen briefing, recent calls, topic cards, decisions, live follow-up items, and the entry points for deeper organization.
 
-Assistant is the live control and configuration surface.
+Assistant is the live control surface. It answers: "What is my assistant doing now, and what can I tell it?" It owns live-call requests, quick context notes, forwarding/test-call actions, and immediate channel readiness. It must not duplicate billing, profile, broad settings, full call history, or long-term topic management.
 
-Search is a first-class memory retrieval tool because the moat is cross-channel context.
+Profile is account and configuration. It owns identity, assistant name/behavior settings, forwarding, billing, calendar, contacts, notification preferences, privacy, support, diagnostics, and logout. The header presence/avatar may also open Profile.
+
+Topics remain the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread." Topics are promoted on Home through image-led cards and opened through a `See all topics` drill-in rather than occupying a permanent tab.
+
+Review is a triage mode called `Needs you` in consumer copy. It is not a second call log. It appears as a Home section and optional drill-in for items that need correction, organization, approval, or user action before they become durable memory.
+
+Search is a utility, not a standing destination in the first release. It is reachable from the Home header and should open as a quiet search surface. Search can become a primary destination later if usage data shows frequent cross-channel memory retrieval.
 
 ### Primary Navigation Rules
 
-- Bottom navigation must have exactly `5` items.
+- Bottom navigation must have exactly `3` items for the current consumer release: Home, Assistant, Profile.
 - Label length must be `4-9` characters.
 - Each item must include an icon and label.
 - Active tab target height: `56dp`.
-- Bottom nav total height: `72dp`.
+- Bottom nav total height: `72-80dp`, integrated with the bottom app chrome rather than rendered as a floating white island.
 - The live-call dock may appear above bottom nav and must not obscure the active tab.
-- Settings, account, billing, privacy, and diagnostics are not bottom-nav items.
-- The assistant presence/avatar control opens Profile and Settings. It should be reachable from every authenticated primary screen.
+- Search must be reachable from Home without competing for a bottom-nav slot.
+- Topics must be reachable from Home topic cards and a `See all topics` affordance.
+- Review/Needs You must be reachable from Home when there are pending items; it should not appear as an empty permanent tab.
+- The assistant presence/avatar control opens Profile. It should be reachable from every authenticated primary screen.
 
 ## Global App Shell
 
@@ -157,7 +149,7 @@ Every authenticated screen uses this shell:
 - Horizontal gutter `20dp` on phones under `430dp` wide.
 - Horizontal gutter `24dp` on phones `430-599dp` wide.
 - Horizontal gutter `32dp` on screens `600dp+`.
-- Header height `56-72dp`.
+- Header height `126-138dp` on authenticated primary screens when the week strip is visible.
 - Scrollable content area.
 - Optional live-call dock.
 - Bottom nav above system navigation.
@@ -175,26 +167,34 @@ Production polish rules:
 
 ### Header
 
+The authenticated app chrome should follow the calmer, integrated pattern of premium habit and coaching apps rather than the older floating-card shell. The top bar is a dark, anchored app surface with compact controls and a centered product mark.
+
 Header elements:
 
-- Left: current section title or compact Phone Agent wordmark.
-- Center: none by default.
-- Right: assistant presence control.
+- Left: circular user avatar, then notification/needs-you icon.
+- Center: compact Phone Agent wordmark.
+- Right: search or utility icon.
+- Second row: compact week strip showing the current week, with today highlighted.
+
+The selected tab title should appear in content when needed, not as the only thing in the top bar. The top bar should make the app feel stable and persistent across Home, Assistant, and Profile.
 
 Header numeric spec:
 
 | Element | Value |
 | --- | ---: |
-| Header min height | `56dp` |
-| Header max height | `72dp` |
-| Title size | `24sp` |
-| Title line height | `30sp` |
-| Title max lines | `1` |
-| Presence control height | `38dp` |
-| Presence control radius | `999dp` |
-| Presence control horizontal padding | `8dp` |
-| Avatar size | `32dp` |
-| Header element gap | `10dp` |
+| Top chrome background | `#202531` |
+| Top chrome corner radius bottom | `14dp` |
+| Top row height | `58dp` |
+| Week strip height | `68dp` |
+| Wordmark size | `25sp` |
+| Wordmark line height | `30sp` |
+| Avatar size | `42dp` |
+| Header icon target | `42dp` |
+| Header icon size | `24dp` |
+| Header horizontal padding | `20dp` |
+| Week day label size | `11sp` |
+| Week date size | `18sp` |
+| Selected date circle | `42dp` |
 
 ### Assistant Presence Control
 
@@ -212,7 +212,7 @@ Presence states:
 | Offline | Offline | Gray/red | Backend unreachable for `30s` |
 | Paused | Paused | Gray | User disabled assistant |
 
-Tapping the presence control opens Profile and Settings. A future long-press may open Assistant Status directly. The old `Active` label should not be the primary visual language; use `Ready` for normal operation.
+In the new top chrome, assistant presence is shown through the avatar ring/dot and concise labels inside Home/Assistant content rather than a large persistent `Active` pill. Tapping the avatar opens Profile and Settings. A future long-press may open Assistant Status directly. The old `Active` label should not be the primary visual language; use `Ready` for normal operation.
 
 Numeric:
 
@@ -224,6 +224,30 @@ Numeric:
 - If the label would overflow, hide the label and keep dot + avatar.
 
 The presence control must not look like a call-center status badge. It should feel like a calm account and assistant affordance.
+
+### Bottom Navigation Chrome
+
+Bottom navigation should feel like a fixed app tab bar:
+
+- Full-width dark surface anchored above system navigation.
+- No floating white pill.
+- No oversized active capsule.
+- Icons and labels are always visible.
+- Active item uses white icon/text plus a subtle top indicator or stronger opacity.
+- Inactive items use muted blue-gray icon/text.
+- The nav should sit flush with the app edge and respect navigation bar insets.
+
+Numeric:
+
+| Element | Value |
+| --- | ---: |
+| Nav background | `#202531` |
+| Nav height before system inset | `76dp` |
+| Item target | `56dp` |
+| Icon size | `24dp` |
+| Label size | `11sp` |
+| Top border | `1dp` at `#323847` |
+| Active indicator | `3dp` high, `28dp` wide |
 
 ### Profile And Settings
 
@@ -441,9 +465,9 @@ Card size targets:
 
 | Card | Target Height | Max Feed Height |
 | --- | ---: | ---: |
-| Today priority | `132dp` | `196dp` |
+| Home priority | `132dp` | `196dp` |
 | Communication | `88dp` | `132dp` |
-| Thread | `116dp` | `168dp` |
+| Topic | `116dp` | `168dp` |
 | Decision | `124dp` | `180dp` |
 | Live call | `160dp` | `240dp` |
 | Person | `68dp` | `104dp` |
@@ -537,35 +561,30 @@ Freshness:
 
 ## Fresh Ideal Navigation
 
-### Bottom Nav Item 3: Home
+### Bottom Nav Item 1: Home
 
 Purpose: daily control center.
 
 Primary question: "What matters now?"
 
-### Bottom Nav Item 2: Topics
+Home owns:
 
-Purpose: durable topic memory.
+- Topic cards and the all-topics drill-in.
+- Recent calls and call detail entry.
+- Needs-you review entry when action is required.
+- Search entry in the header.
 
-Primary question: "What situations am I managing?"
+### Bottom Nav Item 2: Assistant
 
-### Bottom Nav Item 3: Review
+Purpose: live call control, assistant readiness, notes, and immediate channel actions.
 
-Purpose: triage queue for assistant uncertainty and unorganized communication.
+Primary question: "What is my assistant doing now, and what can I tell it?"
 
-Primary question: "What needs my review before it becomes durable memory or action?"
+### Bottom Nav Item 3: Profile
 
-### Bottom Nav Item 4: Assistant
+Purpose: account, setup, billing, identity, privacy, channels, diagnostics, and logout.
 
-Purpose: live call control, assistant configuration, rules, notes, and channel health.
-
-Primary question: "What is my assistant doing and how is it behaving?"
-
-### Bottom Nav Item 5: Search
-
-Purpose: retrieve memory across channels.
-
-Primary question: "What do I know about this person, topic, decision, or communication?"
+Primary question: "How is my assistant/account configured?"
 
 ## Screen 1: Home
 
@@ -1045,7 +1064,7 @@ Pagination:
 - Group by day.
 - Day separator height `32dp`.
 
-### People In Thread
+### People In Topic
 
 Shows participants and access.
 
@@ -1533,7 +1552,7 @@ Onboarding must be a traditional first-run sequence, not a module embedded in th
 ### Steps
 
 1. Welcome.
-2. Account and phone verification.
+2. Continue with phone number.
 3. Name assistant.
 4. Assistant number assigned.
 5. Explain call forwarding.
@@ -1556,8 +1575,8 @@ The first-run flow must assume the user is not Daryl, has no Retell number, has 
 Required screens:
 
 1. Value promise.
-2. Create account.
-3. Verify mobile number.
+2. Continue with phone number.
+3. Verify code.
 4. Name assistant.
 5. Assign assistant number.
 6. Configure forwarding.
@@ -1574,6 +1593,7 @@ Onboarding screen behavior:
 - Use a clear screen title and one primary action per screen.
 - Show at most `1` secondary action on any onboarding screen.
 - Keep each screen to `1` decision or task.
+- Do not ask for the user's display name before authentication. Returning users should be able to sign in with Google or with only their phone number and code; display name can be collected later only when needed.
 - Show setup progress in copy or compact status text, not as a dense checklist.
 - Route back into onboarding after reloads until core setup is complete.
 - The final test-call screen may offer `Open app` after forwarding instructions have been viewed, because the first real handled call depends on carrier behavior and user action outside the app.
@@ -1589,6 +1609,26 @@ Core setup gate:
 - Forwarding instructions viewed.
 
 The app shell can open after the core setup gate is complete. The app should still encourage a test call and first useful handled-call review as post-onboarding activation tasks.
+
+### Account And Billing Controls
+
+Billing screen:
+
+- Show current billing state, monthly cap, and the primary billing action.
+- `Add card` opens hosted payment setup when billing is not active.
+- `Manage billing` opens hosted billing management when billing is active.
+- `Cancel subscription` is visible only when the account has active, past-due, or cap-reached paid state.
+- Tapping `Cancel subscription` must open a confirmation dialog. The destructive confirmation label is `Cancel subscription`.
+- Confirming cancellation calls the backend cancellation endpoint, updates local billing state, and keeps the user signed in.
+- User-facing copy must say cancellation stops new paid assistant work immediately and keeps account history available.
+
+Profile screen:
+
+- `Log out` signs out on this device, clears local cached app data, and preserves the cloud account.
+- `Remove account` is separate from logout and must require a confirmation dialog.
+- The removal confirmation must explain that paid access is canceled, device notifications are disabled, sign-in is removed, and local app data is cleared.
+- Confirming removal calls the backend account-removal endpoint, attempts local Firebase user deletion/sign-out, clears Room cache, clears saved credential state, and returns to the auth screen.
+- Raw provider, Firebase, Stripe, Retell, or database deletion details must not appear in the primary user copy.
 
 ### Name Assistant Screen
 
@@ -1676,10 +1716,14 @@ User-facing copy must not mention internal voice, telephony, webhook, or provide
 
 Production behavior:
 
-- The app uses Firebase Phone Auth to send a real SMS or voice OTP.
+- The app uses Firebase Auth for Google sign-in and Firebase Phone Auth to send a real SMS or voice OTP.
+- Google sign-in authenticates the account, but it does not replace mobile-number verification. If a user starts with Google, the next required setup step is linking and verifying the mobile number that the assistant will protect.
+- Phone verification after Google sign-in must link the phone credential to the existing Firebase user rather than creating a second account.
+- If the verified phone number is already attached to an existing Firebase phone account, the app should recover that existing account and continue setup. The user-facing message should be calm and product-owned, such as `We found your existing account for this mobile number`, rather than Firebase's raw `credential already associated` error.
 - The verification code is never returned by the Phone Agent backend.
 - The setup code must not be displayed in production.
 - The button label is `Send code`.
+- The auth entry screen should offer `Continue with Google` and mobile-number OTP. The phone entry must ask only for the mobile number. It may say `Sign in or create account`, but it must not look like a signup form with name, company, payment, or assistant settings before verification.
 - If Firebase configuration is missing, show a blocking setup error for the build rather than a fake verification path.
 
 Retell/provider details must not be visible on this screen. The app should explain behavior in user language.
@@ -2074,7 +2118,8 @@ Required copy:
 
 Primary action:
 
-- `Add card`
+- `Add card` while billing is incomplete.
+- `Manage billing` once billing is active.
 
 Secondary action:
 
@@ -2089,6 +2134,8 @@ Acceptance criteria:
 - The screen must not imply unlimited usage.
 - Failed payment setup returns to the same screen with recoverable error copy.
 - Returning from the browser does not trap the user; the screen offers an explicit refresh/retry path.
+- Returning from the browser after card setup must automatically check billing status, activate billing when eligible, and refresh Profile/Billing state from the backend. Manual `Check billing status` remains a recovery action, not the primary happy path.
+- Active billing must open the provider-hosted customer portal from `Manage billing`; it must not restart the first-time card setup flow.
 
 ### Billing Settings Screen
 
@@ -2224,7 +2271,7 @@ Offline behavior:
 Android cache behavior:
 
 - Cached state comes from Room and must be labeled stale when the last successful backend refresh is older than `5m` for live surfaces or `30m` for historical surfaces.
-- Startup should render cached Home, Topics, Review, Assistant, and Search data in under `500ms` when a signed-in user has previous data.
+- Startup should render cached Home, Assistant, and Profile shell data in under `500ms` when a signed-in user has previous data. Cached all-topics, needs-you review, and search drill-ins should also open from Room cache without waiting for network refresh.
 - A failed startup refresh must not replace a useful cached app shell with a setup failure screen. The user should stay in the app with a recoverable stale/offline message.
 - Live transfer approval, live answer, billing activation, calendar writes, sharing, and paid-resource provisioning cannot execute from cache; those actions require a fresh authenticated backend response.
 
@@ -2273,10 +2320,10 @@ Track without raw communication content.
 Events:
 
 - App opened.
-- Today priority viewed.
+- Home priority viewed.
 - Priority action taken.
-- Thread opened.
-- Thread created.
+- Topic opened.
+- Topic created.
 - Communication opened.
 - Topic suggestion accepted.
 - Topic suggestion dismissed.
@@ -2335,7 +2382,7 @@ Never include:
 | --- | ---: | ---: |
 | Cold launch to shell | `1200ms` | `2500ms` |
 | Tab switch | `100ms` | `250ms` |
-| Today data load | `800ms` | `2500ms` |
+| Home data load | `800ms` | `2500ms` |
 | Topic detail cached | `500ms` | `1200ms` |
 | Topic detail network | `1200ms` | `3000ms` |
 | Search cached | `700ms` | `1500ms` |
@@ -2373,16 +2420,16 @@ Formula:
 
 Core screens:
 
-1. Today.
-2. Topics.
-3. Topic detail.
-4. Review.
-5. Communication detail.
-6. Assistant.
-7. Live call state.
+1. Home.
+2. Assistant.
+3. Profile.
+4. All topics.
+5. Topic detail.
+6. Needs-you review.
+7. Communication detail.
 8. Search.
 9. Onboarding/forwarding.
-10. Privacy/settings.
+10. Billing/privacy/settings detail.
 
 ### Zero-Tolerance Failures
 
@@ -2407,7 +2454,7 @@ Scope:
 - Onboarding must be consumer-safe. It must not show stored crash text, HTTP details, provider names, stack traces, or internal setup diagnostics on the welcome screen.
 - Bottom navigation must include an icon and label for each destination. The visual target remains `56dp` high per item inside a `72dp` nav.
 - Placeholder letter icons such as `[T]`, `[I]`, or single-letter call actions are not acceptable in consumer builds.
-- Home stays centered as the default tab and keeps first-screen focus on topic image cards, compact recent calls, and needs-attention items.
+- Home is the default tab and keeps first-screen focus on topic image cards, compact recent calls, and needs-you items.
 - Empty topic cards should be visually inviting but shorter than populated topic cards so Home can show recent calls and the first attention item on common phone screens.
 - Call detail must read as a calm record, not a transcript dump. Summary, outcomes, and transcript should be separated into clear cards with high-contrast text on card surfaces.
 - Call detail keeps bottom navigation hidden while the detail is open, but the back action must return to the originating tab without losing the app shell.
@@ -2427,19 +2474,20 @@ Acceptance criteria:
 
 Build:
 
-- Today.
-- Topics.
-- Review.
+- Home.
 - Assistant.
-- Search.
-- Profile/settings entry.
+- Profile.
+- All-topics drill-in.
+- Needs-you review drill-in.
+- Search utility.
 - Global status pill.
 - Live call dock.
 
 Exit:
 
-- `5` bottom-nav destinations work.
-- Status pill opens health sheet.
+- `3` bottom-nav destinations work.
+- Topics, Needs You, and Search open from Home without becoming permanent tabs.
+- Status pill opens Profile or an assistant health surface.
 - Live dock can appear on all screens.
 
 ### Phase B: Core Objects

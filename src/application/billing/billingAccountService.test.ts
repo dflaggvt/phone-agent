@@ -229,6 +229,55 @@ describe("BillingAccountService", () => {
       status: "cap_reached"
     }));
   });
+
+  it("cancels local paid access and mirrors subscription cancellation", async () => {
+    const billingAccounts = new InMemoryBillingAccountRepository();
+    const userRepository = new InMemoryUserConfigRepository();
+    const users = new UserConfigService({
+      users: userRepository,
+      defaultConfig: {
+        userId: "unused",
+        billing: {
+          retellNumberProvisioningAllowed: true
+        }
+      }
+    });
+    const service = new BillingAccountService({
+      billingAccounts,
+      users,
+      provider: new EventOnlyBillingProvider({ id: "evt_unused", type: "noop", data: { object: {} } } as unknown as Stripe.Event),
+      webhookEvents: new InMemoryWebhookEventRepository(),
+      defaultSpendingCapCents: 4000,
+      billingRequiredForProvisioning: true,
+      prices: {
+        personalMonthlyPriceId: "price_monthly",
+        personalCallMinuteOveragePriceId: "price_overage"
+      }
+    });
+    await users.getOrCreate("user_123");
+    await billingAccounts.upsert({
+      userId: "user_123",
+      providerCustomerId: "cus_123",
+      providerSubscriptionId: "sub_123",
+      providerSubscriptionStatus: "active",
+      status: "active",
+      paymentMethod: {
+        provider: "stripe",
+        providerPaymentMethodId: "pm_123",
+        updatedAt: new Date()
+      }
+    });
+
+    const account = await service.cancelSubscription("user_123");
+
+    expect(account.status).toBe("canceled");
+    expect(account.providerSubscriptionStatus).toBe("canceled");
+    await expect(userRepository.get("user_123")).resolves.toEqual(expect.objectContaining({
+      billing: expect.objectContaining({
+        retellNumberProvisioningAllowed: false
+      })
+    }));
+  });
 });
 
 class EventOnlyBillingProvider implements BillingProviderClient {
@@ -275,6 +324,10 @@ class EventOnlyBillingProvider implements BillingProviderClient {
 
   async ensurePayAsYouGoSubscription(): Promise<BillingSubscription> {
     return { id: "sub_123", status: "active" };
+  }
+
+  async cancelSubscription(): Promise<BillingSubscription> {
+    return { id: "sub_123", status: "canceled" };
   }
 
   async publishMeterEvent(): Promise<{ identifier: string }> {

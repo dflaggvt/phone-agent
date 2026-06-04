@@ -8,7 +8,7 @@
 - Track for first release: Internal testing.
 - Target audience: adults.
 - Ads: no ads.
-- Login required: yes, phone-number sign-in.
+- Login required: yes, Google sign-in or phone-number sign-in. Mobile number verification is still required before call routing.
 - Paid features: yes, pay-as-you-go assistant usage with a spending cap.
 
 ## Short Description
@@ -35,14 +35,15 @@ docs/play-release-notes/internal-test-v0.1.1.md
 
 ## App Access Instructions For Review/Testers
 
-Phone Agent requires phone-number sign-in. Internal testers should:
+Phone Agent supports Google sign-in and phone-number sign-in. Internal testers should:
 
 1. Install the internal test build.
-2. Sign in with their mobile phone number.
-3. Complete guided onboarding.
-4. Add a test payment method when prompted.
-5. Follow the in-app forwarding instructions.
-6. Place a test call to the assigned assistant number.
+2. Continue with Google or sign in with their mobile phone number.
+3. Verify the protected mobile number when prompted.
+4. Complete guided onboarding.
+5. Add a test payment method when prompted.
+6. Follow the in-app forwarding instructions.
+7. Place a test call to the assigned assistant number.
 
 If Google review requires access without a personal phone number, create a dedicated reviewer test phone number in Firebase Authentication and document it in the Play Console app access field. Do not include reviewer credentials in source control.
 

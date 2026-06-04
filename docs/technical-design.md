@@ -47,15 +47,13 @@ Each module should own its repository interfaces. Vendor payloads may be retaine
 
 ## Mobile App
 
-Ideal production primary destinations:
+Ideal production primary bottom-navigation destinations:
 
-- Home: default center tab for assistant status, recent calls, caller requests, call actions, horizontally browsable topic cards, priorities, decisions, and recent material changes.
-- Topics: durable topic memory for situations such as Basement Project, Kids Sports, Car Lease, Medical Appointments, and Work Recruiting.
-- Inbox: communication stream, review queue, topic suggestions, and unassigned items.
-- Assistant: live-call control, assistant modes, notes, rules, channel health, forwarding, and voice behavior.
-- Search: cross-channel retrieval across topics, people, communications, decisions, tasks, documents, calendar events, and notes.
+- Home: default destination for recent calls, caller requests, call actions, horizontally browsable topic cards, needs-you items, priorities, decisions, and entry points into all topics, review/triage, call history, and search.
+- Assistant: live-call control, live answer/transfer requests, assistant notes, test call, forwarding readiness, and immediate channel state. It should not duplicate profile, billing, broad settings, full call history, or long-term topic management.
+- Profile: account identity, assistant identity, forwarding, billing, calendar, contacts, notification preferences, privacy, support, diagnostics, and logout.
 
-Profile and Settings are merged into one secondary surface opened from the header avatar/presence control. It is not a bottom-navigation destination. The Profile surface owns account identity, assistant identity, forwarding, billing, calendar, notification preferences, privacy, support, diagnostics, and logout. Logout must confirm intent, sign out of Firebase, clear Room cache for the signed-out user, and return to first-run auth.
+Topics, Review/Needs You, Search, and Inbox/history remain production surfaces, but they are Home-owned drill-ins or utilities rather than permanent bottom-navigation destinations. Logout must confirm intent, sign out of Firebase, clear Room cache for the signed-out user, and return to first-run auth.
 
 Recent calls should follow familiar phone-recents ergonomics: compact rows with caller, number or relationship, timestamp, and direct actions. Summaries stay in detail views and topic memory rather than bloating the call row.
 
@@ -99,7 +97,7 @@ Current Android module boundaries:
 - `PhoneAgentResponses` owns typed Android response parsers for backend envelope shapes. Repository code should ask those parsers for display/domain models rather than scattering `optJSONObject` and `optJSONArray` response parsing through app code.
 - `AndroidContactReader` owns Android `ContactsContract` access and transforms device rows into privacy-limited `DeviceContactInput` records. Activity code should only request permission and call the reader.
 - `PhoneAgentAnalyticsTracker` owns session IDs, event sequencing, safe Android build/device metadata, Firebase ID token retrieval, and privacy-safe analytics submission. UI code should call named tracking operations and never build analytics payload JSON directly.
-- `PhoneOnboardingCoordinator` owns Firebase Phone Auth callback orchestration and assistant-name completion because Firebase phone verification requires an Activity surface.
+- `PhoneOnboardingCoordinator` owns Firebase Phone Auth callback orchestration and assistant-name completion because Firebase phone verification requires an Activity surface. The first auth step is phone-only; it must not require or overwrite user display name before the backend identifies whether the user is new, returning, or incomplete.
 - `BillingCoordinator`, `FcmRegistrationCoordinator`, and `ContactSyncCoordinator` own browser/payment launch, FCM token registration, and Android contact-sync orchestration respectively.
 - `PhoneAgentState` owns provider-neutral UI state, navigation state, tab definitions, display models, and JSON-to-display adapters.
 - `PhoneAgentScreens` owns the app shell, first-run screens, primary tabs, detail screens, profile/settings, forwarding, billing, and contact-sync UI.
@@ -130,7 +128,7 @@ Android local cache:
 
 Setup state is derived server-side from existing system state so future iOS/web clients can share the same activation logic. Required activation should stay intentionally short: authenticated account, verified phone number, assistant name, assigned assistant number, forwarding guidance/test call, and first useful handled call. Calendar connection, topic creation, assistant notes, relationship tuning, and deeper voice behavior are progressive setup after activation.
 
-Android first-run onboarding should consume the shared setup state but present it as a dedicated guided flow rather than a checklist inside the main app shell. Until account, phone verification, assistant name, assistant number, and forwarding instruction viewing are complete, launch should route to the next onboarding screen with bottom navigation hidden. The final test-call and first useful-call review can continue as post-onboarding activation prompts because they depend on external carrier forwarding and real inbound call behavior.
+Android first-run onboarding should consume the shared setup state but present it as a dedicated guided flow rather than a checklist inside the main app shell. The auth entry supports Firebase Google sign-in and Firebase Phone Auth. Google sign-in creates or opens the account, while phone verification links the protected mobile number to the same Firebase user. The protected mobile number is the account-recovery anchor for the phone product: if a user signs in with Google and verifies a phone number that is already attached to an existing Firebase phone account, the app should recover that existing phone account instead of exposing Firebase's raw credential-collision error. Until account, phone verification, assistant name, assistant number, and forwarding instruction viewing are complete, launch should route to the next onboarding screen with bottom navigation hidden. The final test-call and first useful-call review can continue as post-onboarding activation prompts because they depend on external carrier forwarding and real inbound call behavior.
 
 The detailed mobile screen and flow contract is maintained in `docs/mobile-ux-blueprint.md`. Android implementation should follow that blueprint for navigation, primary and nested screens, live-call action states, notification deep links, empty/error states, accessibility, and screenshot-based QA.
 
@@ -332,7 +330,7 @@ Current production-readiness foundation:
 
 ## Multi-User Onboarding And Provisioning
 
-Google Play onboarding must use production authentication from the first public build. The Android app authenticates with Firebase Phone Auth and sends Firebase ID tokens to the backend. The backend verifies those tokens with Firebase Admin before creating or reading any user-owned data. Custom bootstrap tokens, in-app development verification codes, and anonymous default-user access are not production paths.
+Google Play onboarding must use production authentication from the first public build. The Android app authenticates with Firebase Google sign-in or Firebase Phone Auth and sends Firebase ID tokens to the backend. The backend verifies those tokens with Firebase Admin before creating or reading any user-owned data. Custom bootstrap tokens, in-app development verification codes, and anonymous default-user access are not production paths.
 
 Android Firebase client configuration must use the standard `google-services.json` plus Google Services Gradle plugin path. The app must not maintain a parallel manual Firebase initialization fallback because phone-auth redirect/verification behavior depends on the generated Firebase resources and merged manifest metadata.
 
@@ -430,6 +428,7 @@ Runtime billing activation:
 - `PATCH /v1/billing/spending-limit` stores the user's monthly cap and attempts idempotent Personal subscription activation if a payment method already exists.
 - Stripe `checkout.session.completed` and `payment_method.attached` webhooks mirror payment method state and attempt idempotent subscription activation if a spending cap already exists.
 - `POST /v1/billing/activate` is a client-safe retry endpoint for the mobile app after the user returns from hosted card setup.
+- `POST /v1/billing/cancel-subscription` cancels the mirrored provider subscription when present, sets local billing state to `canceled`, disables paid assistant-number provisioning, and immediately blocks new paid assistant work.
 - Subscription IDs and subscription status are mirrored on `BillingAccount`.
 - Paid provisioning checks local billing state, not live Stripe state.
 - Paid provisioning also checks the local current-period spend against the user's monthly cap. If spend is at or above the cap, the account moves to `cap_reached` and paid resource assignment is blocked until the cap increases or the period resets.
@@ -438,6 +437,12 @@ Runtime billing activation:
 - Billing blocks create privacy-safe `billing_issue` notification events for the user. These notifications should identify the blocked category and recovery action without exposing transcripts, caller names, topics, provider payloads, card data, or invoice line detail.
 - Stripe webhook processing must be guarded by a durable idempotency ledger keyed by Stripe event ID. Duplicate delivery after a successful event must return success without reapplying side effects. Failed events must remain retryable and record only sanitized error metadata.
 - Stripe Personal subscription creation must use a stable idempotency key per customer/plan, and subscription deletion events must be ignored when they refer to a stale duplicate subscription rather than the mirrored active subscription.
+
+Account removal:
+
+- `DELETE /v1/account` is authenticated and destructive. It cancels paid access, disables active device push tokens, unmaps phone routing, marks `UserConfig.accountStatus` as `deleted`, attempts Firebase user deletion through the auth admin adapter, and returns a minimal success response.
+- Deleted accounts must be rejected by authenticated client middleware with `account_removed`.
+- Full hard deletion of user-owned communication records should run behind this endpoint according to retention policy. Until purge jobs are complete, deleted user data must remain inaccessible through client APIs and unavailable to voice-provider context injection.
 
 Usage metering:
 
@@ -528,9 +533,11 @@ Client API examples:
 - `POST /v1/billing/checkout-session`
 - `POST /v1/billing/customer-portal`
 - `POST /v1/billing/activate`
+- `POST /v1/billing/cancel-subscription`
 - `GET /v1/billing/usage`
 - `PATCH /v1/billing/spending-limit`
 - `GET /v1/billing/invoices`
+- `DELETE /v1/account`
 
 Billing invoice responses must be sanitized: include invoice ID, status, amount, currency, created date, and Stripe-hosted invoice/PDF URLs only. Do not include caller names, topic names, transcripts, calendar descriptions, or provider raw invoice line metadata in the default consumer response.
 

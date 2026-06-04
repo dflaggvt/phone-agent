@@ -118,9 +118,13 @@ class ComposeActivity : ComponentActivity() {
                     actions = AppActions(
                         selectTab = ::selectTab,
                         refresh = { scope.launch { loadData(forceStatus = true) } },
+                        startGoogleSignin = onboardingCoordinator::startGoogleAuth,
                         startSignup = onboardingCoordinator::startPhoneAuth,
                         verifyCode = onboardingCoordinator::verifyPhoneCode,
                         saveAssistantName = onboardingCoordinator::saveAssistantName,
+                        openTopics = ::openTopics,
+                        openReview = ::openReview,
+                        openSearch = ::openSearch,
                         openTopic = ::openTopic,
                         openCall = ::openCall,
                         openAddNote = ::openAddNote,
@@ -138,8 +142,10 @@ class ComposeActivity : ComponentActivity() {
                         back = ::backToTab,
                         openForwarding = ::openForwarding,
                         openBilling = ::openBilling,
-                        openCheckout = billingCoordinator::openCheckout,
+                        openCheckout = billingCoordinator::openBillingManagement,
                         activateBilling = billingCoordinator::activateBilling,
+                        cancelSubscription = billingCoordinator::cancelSubscription,
+                        removeAccount = ::removeAccount,
                         signOut = ::signOut,
                         dial = ::dial,
                         createTopic = ::createTopic,
@@ -159,6 +165,20 @@ class ComposeActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onPause() {
+        if (::billingCoordinator.isInitialized) {
+            billingCoordinator.onHostPause()
+        }
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::billingCoordinator.isInitialized) {
+            billingCoordinator.onHostResume()
+        }
     }
 
     override fun onDestroy() {
@@ -218,6 +238,21 @@ class ComposeActivity : ComponentActivity() {
         track("tab_selected", screen = tab.label.lowercase(), action = "select", objectType = "tab", objectId = tab.label.lowercase())
     }
 
+    private fun openTopics() {
+        uiState = uiState.copy(screen = Screen.Topics, error = null)
+        track("topics_opened", screen = "topics", action = "open")
+    }
+
+    private fun openReview() {
+        uiState = uiState.copy(screen = Screen.Review, error = null)
+        track("review_opened", screen = "review", action = "open")
+    }
+
+    private fun openSearch() {
+        uiState = uiState.copy(screen = Screen.Search, error = null)
+        track("search_opened", screen = "search", action = "open")
+    }
+
     private fun openTopic(topicId: String) {
         uiState = uiState.copy(screen = Screen.TopicDetail(topicId))
         track("topic_opened", screen = "topic_detail", action = "open", objectType = "topic", objectId = topicId)
@@ -234,7 +269,7 @@ class ComposeActivity : ComponentActivity() {
     }
 
     private fun openProfileSettings() {
-        uiState = uiState.copy(screen = Screen.ProfileSettings)
+        uiState = uiState.copy(screen = Screen.Main, selectedTab = Tab.Profile, error = null)
         track("profile_opened", screen = "profile", action = "open")
     }
 
@@ -309,9 +344,29 @@ class ComposeActivity : ComponentActivity() {
 
     private fun signOut() {
         track("logout_completed", screen = "profile", action = "logout", result = "success")
+        onboardingCoordinator.clearCredentialState()
         firebaseAuth?.signOut()
         scope.launch { viewModel.clearCache() }
         uiState = PhoneAgentUiState(screen = Screen.Auth, status = "Setup")
+    }
+
+    private fun removeAccount() {
+        scope.launch {
+            try {
+                uiState = uiState.copy(loading = true, status = "Removing", error = null)
+                viewModel.removeAccount(requireToken())
+                track("account_removed", screen = "profile", action = "delete", result = "success")
+                runCatching { firebaseAuth?.currentUser?.delete()?.await() }
+                onboardingCoordinator.clearCredentialState()
+                firebaseAuth?.signOut()
+                viewModel.clearCache()
+                uiState = PhoneAgentUiState(screen = Screen.Auth, status = "Setup")
+                toast("Account removed.")
+            } catch (error: Exception) {
+                uiState = uiState.copy(loading = false, status = "Profile", error = readableError(error))
+                track("account_remove_failed", screen = "profile", action = "delete", result = "failed")
+            }
+        }
     }
 
     private suspend fun hydrateFromCache(): Boolean {
@@ -335,7 +390,7 @@ class ComposeActivity : ComponentActivity() {
                     TopicCreateRequest(title = title.trim(), description = description.trim().ifBlank { null })
                 )
                 toast("Topic created")
-                uiState = uiState.copy(loading = false, screen = Screen.Main, selectedTab = Tab.Topics)
+                uiState = uiState.copy(loading = false, screen = Screen.Topics)
                 loadData(forceStatus = true)
             } catch (error: Exception) {
                 uiState = uiState.copy(loading = false, error = readableError(error))

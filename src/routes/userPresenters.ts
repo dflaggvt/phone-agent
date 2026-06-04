@@ -3,6 +3,8 @@ import type { UserConfigService } from "../application/users/userConfigService.j
 export function redactedUserConfig(config: Awaited<ReturnType<UserConfigService["getOrCreate"]>>) {
   return {
     userId: config.userId,
+    accountStatus: config.accountStatus,
+    deletedAt: config.deletedAt,
     displayName: config.displayName,
     auth: {
       firebaseUid: config.auth.firebaseUid,

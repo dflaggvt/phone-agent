@@ -21,6 +21,7 @@ The customer should not need to understand provider names, token math, or teleco
 - Preserve trust: no surprise bills, no hidden auto-escalation, and clear controls.
 - Let users set a monthly spending cap before the assistant can generate meaningful variable cost.
 - Use billing status as a policy gate for paid actions, not merely as a reporting feature.
+- Let users cancel the subscription without deleting the account. Cancellation should stop new paid assistant work immediately and preserve history/settings unless the user separately removes the account.
 
 ## Recommended Initial Pricing Model
 
@@ -33,6 +34,7 @@ Initial beta defaults:
 - Warning thresholds: `50%`, `80%`, and `100%` of cap.
 - Hard stop at cap unless the user increases it.
 - Grace behavior at cap: assistant can still show history and settings, but new AI-handled calls should be blocked, routed to a plain fallback message, or handled only if the provider supports a no-cost fallback.
+- Cancellation behavior: set local billing state to `canceled`, cancel the provider subscription when one exists, disable paid resource provisioning, and block new paid assistant work. Do not erase account history unless the user separately chooses account removal.
 
 Recommended paid launch pricing:
 
@@ -256,6 +258,8 @@ Onboarding billing screen:
 - Secondary link: `How usage is billed`.
 - The billing screen is included in first-run onboarding only when the backend returns billing as a required activation step.
 - The app should allow the user to set the cap before or after adding a card; the backend activates billing once both are present.
+- Returning from Stripe-hosted card setup must trigger an authenticated billing activation and source-of-truth refresh automatically. The user should not have to know that "Check billing status" is required after adding a card.
+- Once billing is active, the primary action should change to `Manage billing` and open the provider-hosted customer portal. `Add card` is only for payment-required or incomplete billing states.
 
 Settings billing screen:
 
@@ -267,6 +271,7 @@ Settings billing screen:
 - Change cap.
 - Pause paid usage.
 - Cancel assistant number.
+- Manage billing opens the provider-hosted customer portal for payment method, invoice, and subscription management.
 
 Do not show raw provider names in the default billing UI. Advanced diagnostics may show provider-specific cost only to internal admins.
 

@@ -19,6 +19,8 @@ export class InMemoryUserConfigRepository implements UserConfigRepository {
     const next: UserConfig = existing
       ? {
         ...existing,
+        accountStatus: input.accountStatus ?? existing.accountStatus,
+        deletedAt: input.deletedAt ?? existing.deletedAt,
         displayName: input.displayName ?? existing.displayName,
         auth: { ...existing.auth, ...input.auth },
         assistantProfile: {

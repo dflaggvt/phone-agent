@@ -100,6 +100,26 @@ export class BillingAccountService {
     return this.activateIfReady(account);
   }
 
+  async cancelSubscription(userId: string): Promise<BillingAccount> {
+    const account = await this.getOrCreateAccount(userId);
+    if (account.providerSubscriptionId && account.providerSubscriptionStatus !== "canceled") {
+      await this.dependencies.provider.cancelSubscription({
+        subscriptionId: account.providerSubscriptionId
+      });
+    }
+    await this.dependencies.users.upsert({
+      userId,
+      billing: {
+        retellNumberProvisioningAllowed: false
+      }
+    });
+    return this.dependencies.billingAccounts.upsert({
+      userId,
+      providerSubscriptionStatus: "canceled",
+      status: "canceled"
+    });
+  }
+
   async handleStripeWebhook(rawBody: string, signature: string | string[] | undefined): Promise<{ handled: boolean; type: string }> {
     const event = this.dependencies.provider.constructWebhookEvent(rawBody, signature);
     const claim = await this.dependencies.webhookEvents.startProcessing({

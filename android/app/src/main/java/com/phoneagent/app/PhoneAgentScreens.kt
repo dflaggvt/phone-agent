@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CreditCard
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material3.AlertDialog
@@ -67,11 +70,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.DayOfWeek
+import java.time.LocalDate
 @Composable
 internal fun PhoneAgentApp(state: PhoneAgentUiState, actions: AppActions) {
     BackHandler(
         enabled = when (state.screen) {
-            Screen.Forwarding, Screen.Billing, Screen.ProfileSettings, Screen.PhoneContacts -> true
+            Screen.Topics, Screen.Review, Screen.Search, Screen.Forwarding, Screen.Billing, Screen.ProfileSettings, Screen.PhoneContacts -> true
             is Screen.TopicDetail -> true
             is Screen.CallDetail -> true
             is Screen.AddNote -> true
@@ -93,6 +98,9 @@ internal fun PhoneAgentApp(state: PhoneAgentUiState, actions: AppActions) {
             is Screen.CodeEntry -> CodeScreen(state, screen.verificationId, actions)
             Screen.AssistantName -> AssistantNameScreen(state, actions)
             Screen.Main -> MainShell(state, actions)
+            Screen.Topics -> TopicsDetailScreen(state, actions)
+            Screen.Review -> ReviewDetailScreen(state, actions)
+            Screen.Search -> SearchDetailScreen(state, actions)
             Screen.Forwarding -> ForwardingScreen(state, actions)
             Screen.Billing -> BillingScreen(state, actions)
             Screen.ProfileSettings -> ProfileSettingsScreen(state, actions)
@@ -156,16 +164,14 @@ private fun StartupIssueScreen(state: PhoneAgentUiState, actions: AppActions) {
 
 @Composable
 private fun MainShell(state: PhoneAgentUiState, actions: AppActions) {
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Header(state.selectedTab.label, state, actions.refresh, actions.openProfileSettings)
+    Column(Modifier.fillMaxSize()) {
+        TopAppChrome(state, actions)
         AnimatedContent(state.selectedTab, modifier = Modifier.weight(1f), label = "tab") { tab ->
             Box(Modifier.fillMaxSize()) {
                 when (tab) {
                     Tab.Home -> HomeScreen(state, actions)
-                    Tab.Topics -> TopicsScreen(state, actions)
-                    Tab.Review -> ReviewScreen(state, actions)
                     Tab.Assistant -> AssistantScreen(state, actions)
-                    Tab.Search -> SearchScreen(state, actions)
+                    Tab.Profile -> ProfileTabScreen(state, actions)
                 }
             }
         }
@@ -174,7 +180,160 @@ private fun MainShell(state: PhoneAgentUiState, actions: AppActions) {
 }
 
 @Composable
-private fun Header(title: String, state: PhoneAgentUiState, onRefresh: () -> Unit, onPresenceClick: () -> Unit = {}, showRefresh: Boolean = true, showPresence: Boolean = true) {
+private fun TopAppChrome(state: PhoneAgentUiState, actions: AppActions) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = ChromeSurface,
+        shape = RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp),
+        shadowElevation = 8.dp
+    ) {
+        Column(Modifier.statusBarsPadding()) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ChromeAvatar(state, actions.openProfileSettings)
+                    ChromeIconButton(
+                        icon = Icons.Filled.Notifications,
+                        contentDescription = "Needs you",
+                        showDot = state.notifications.isNotEmpty() || state.suggestions.isNotEmpty(),
+                        onClick = actions.openReview
+                    )
+                }
+                Text(
+                    "Phone Agent",
+                    color = Color.White,
+                    fontSize = 25.sp,
+                    lineHeight = 30.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                ChromeIconButton(
+                    icon = Icons.Filled.Search,
+                    contentDescription = "Search",
+                    onClick = actions.openSearch,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
+            }
+            WeekStrip()
+        }
+    }
+}
+
+@Composable
+private fun ChromeAvatar(state: PhoneAgentUiState, onClick: () -> Unit) {
+    val presence = presenceState(state)
+    Surface(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        shape = CircleShape,
+        color = Color(0xFF8FA2B8),
+        border = BorderStroke(2.dp, presence.color.copy(alpha = 0.82f))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                state.user.initials.ifBlank { "PA" },
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChromeIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    showDot: Boolean = false,
+    onClick: () -> Unit
+) {
+    Box(modifier.size(42.dp), contentAlignment = Alignment.Center) {
+        IconButton(onClick = onClick, modifier = Modifier.fillMaxSize()) {
+            Icon(icon, contentDescription = contentDescription, tint = Color.White.copy(alpha = 0.86f), modifier = Modifier.size(24.dp))
+        }
+        if (showDot) {
+            Surface(
+                modifier = Modifier
+                    .size(8.dp)
+                    .align(Alignment.TopEnd),
+                shape = CircleShape,
+                color = Critical
+            ) {}
+        }
+    }
+}
+
+@Composable
+private fun WeekStrip(today: LocalDate = LocalDate.now()) {
+    val days = currentWeekDays(today)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(68.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        days.forEach { day ->
+            val selected = day == today
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    day.dayOfWeek.name.take(3),
+                    color = ChromeMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    color = if (selected) Color.White.copy(alpha = 0.92f) else Color.Transparent
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            day.dayOfMonth.toString(),
+                            color = if (selected) Ink else Color.White.copy(alpha = 0.86f),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun currentWeekDays(today: LocalDate): List<LocalDate> {
+    val start = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
+    return (0..6).map { start.plusDays(it.toLong()) }
+}
+
+@Composable
+private fun Header(
+    title: String,
+    state: PhoneAgentUiState,
+    onRefresh: () -> Unit,
+    onPresenceClick: () -> Unit = {},
+    showRefresh: Boolean = true,
+    showPresence: Boolean = true,
+    onSearchClick: (() -> Unit)? = null
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -204,6 +363,11 @@ private fun Header(title: String, state: PhoneAgentUiState, onRefresh: () -> Uni
         }
         if (showPresence) {
             AssistantPresence(state, onPresenceClick)
+        }
+        if (onSearchClick != null) {
+            IconButton(onClick = onSearchClick) {
+                Icon(Icons.Filled.Search, contentDescription = "Search", tint = Color.White.copy(alpha = 0.86f))
+            }
         }
         if (showRefresh) {
             IconButton(onClick = onRefresh) {
@@ -272,24 +436,37 @@ private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        color = Color.White.copy(alpha = 0.94f),
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = 6.dp
+            .navigationBarsPadding(),
+        color = ChromeSurface,
+        border = BorderStroke(1.dp, ChromeLine),
+        shadowElevation = 10.dp
     ) {
-        Row(Modifier.height(66.dp).padding(6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            Modifier
+                .height(76.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Tab.entries.forEach { tab ->
                 val active = tab == selected
-                Surface(
-                    modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).clickable { onSelect(tab) },
-                    color = if (active) TwilightBottom else Color.Transparent,
-                    shape = RoundedCornerShape(16.dp)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect(tab) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        Icon(tab.icon, contentDescription = tab.label, tint = if (active) Color.White else Muted)
-                        Text(tab.label, color = if (active) Color.White else Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Surface(
+                        modifier = Modifier.size(width = 28.dp, height = 3.dp),
+                        shape = CircleShape,
+                        color = if (active) Color.White else Color.Transparent
+                    ) {}
+                    Spacer(Modifier.height(8.dp))
+                    Icon(tab.icon, contentDescription = tab.label, tint = if (active) Color.White else ChromeMuted, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.height(3.dp))
+                    Text(tab.label, color = if (active) Color.White else ChromeMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -298,14 +475,37 @@ private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
 
 @Composable
 private fun AuthScreen(state: PhoneAgentUiState, actions: AppActions) {
-    var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    OnboardingFrame(title = "Your phone should only ring when it should.", state = state) {
-        OutlinedTextField(name, { name = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
+    val needsPhoneForGoogleAccount = state.user.id.isNotBlank() && !state.onboarding.phoneVerified
+    OnboardingFrame(
+        title = if (needsPhoneForGoogleAccount) "Verify your mobile number." else "Sign in or create your account.",
+        state = state
+    ) {
+        Text(
+            if (needsPhoneForGoogleAccount) {
+                "Add the mobile number your assistant will protect and route calls for."
+            } else {
+                "Use Google for your account, then verify the mobile number your assistant will protect."
+            },
+            color = Muted,
+            fontSize = 15.sp,
+            lineHeight = 20.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        if (!needsPhoneForGoogleAccount) {
+            PrimaryButton(
+                if (state.loading) "Opening Google" else "Continue with Google",
+                Icons.Filled.AccountCircle,
+                enabled = !state.loading,
+                onClick = actions.startGoogleSignin
+            )
+            Spacer(Modifier.height(10.dp))
+            Text("or continue with phone", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+        }
         OutlinedTextField(phone, { phone = it }, label = { Text("Mobile number") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        PrimaryButton(if (state.loading) "Sending code" else "Send code", Icons.AutoMirrored.Filled.Send, enabled = !state.loading) { actions.startSignup(name, phone) }
+        PrimaryButton(if (state.loading) "Sending code" else "Send code", Icons.AutoMirrored.Filled.Send, enabled = !state.loading) { actions.startSignup(phone) }
     }
 }
 
@@ -351,7 +551,9 @@ private fun OnboardingFrame(title: String, state: PhoneAgentUiState, content: @C
 @Composable
 private fun HomeScreen(state: PhoneAgentUiState, actions: AppActions) {
     ScreenList {
-        item { SectionLabel("Tracked topics") }
+        item {
+            SectionHeader("Tracked topics", "See all", actions.openTopics)
+        }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (state.topics.isEmpty()) {
@@ -369,7 +571,13 @@ private fun HomeScreen(state: PhoneAgentUiState, actions: AppActions) {
                 item { CallRow(call, actions) }
             }
         }
-        item { SectionLabel("Needs attention") }
+        item {
+            SectionHeader(
+                value = "Needs you",
+                actionLabel = if (state.suggestions.isEmpty() && state.notifications.isEmpty()) null else "Review",
+                onAction = actions.openReview
+            )
+        }
         if (state.suggestions.isEmpty() && state.notifications.isEmpty()) {
             item { QuietCard("Nothing waiting", "Your assistant will place decisions, questions, and topic suggestions here.") }
         } else {
@@ -380,76 +588,110 @@ private fun HomeScreen(state: PhoneAgentUiState, actions: AppActions) {
 }
 
 @Composable
-private fun TopicsScreen(state: PhoneAgentUiState, actions: AppActions) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    ScreenList {
-        item {
-            Text("Real-world situations with memory, decisions, questions, tasks, and communications.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+private fun SectionHeader(value: String, actionLabel: String? = null, onAction: () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            SectionLabel(value)
         }
-        item { SectionLabel("Active topics") }
-        if (state.topics.isEmpty()) {
-            item { TopicImageCard(null, actions) }
-        } else {
-            state.topics.forEach { item { TopicWideCard(it, actions) } }
-        }
-        item { SectionLabel("Create") }
-        item {
-            WorkCard {
-                Text("Create topic", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
-                Text("Start a topic for a project, family situation, appointment, trip, vendor, or decision.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(title, { title = it }, label = { Text("Topic title") }, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(description, { description = it }, label = { Text("Description, optional") }, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
-                PrimaryButton("Create topic", Icons.Filled.Add) { actions.createTopic(title, description) }
+        if (actionLabel != null) {
+            TextButton(onClick = onAction, modifier = Modifier.height(34.dp)) {
+                Text(actionLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-private fun ReviewScreen(state: PhoneAgentUiState, actions: AppActions) {
+private fun TopicsDetailScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    DetailFrame(title = "Topics", state = state, actions = actions) {
+        topicListItems(state, actions, title, { title = it }, description, { description = it })
+    }
+}
+
+@Composable
+private fun ReviewDetailScreen(state: PhoneAgentUiState, actions: AppActions) {
     var filter by remember { mutableStateOf("All") }
-    val liveRequestCount = state.approvalRequests.size + state.answerRequests.size
-    ScreenList {
-        item {
-            Text("Review is where calls, topic suggestions, and live requests get cleaned up before they become memory.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+    DetailFrame(title = "Needs you", state = state, actions = actions) {
+        reviewItems(state, actions, filter, { filter = it })
+    }
+}
+
+private fun LazyListScope.topicListItems(
+    state: PhoneAgentUiState,
+    actions: AppActions,
+    title: String,
+    onTitleChange: (String) -> Unit,
+    description: String,
+    onDescriptionChange: (String) -> Unit
+) {
+    item {
+        Text("Real-world situations with memory, decisions, questions, tasks, and communications.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+    }
+    item { SectionLabel("Active topics") }
+    if (state.topics.isEmpty()) {
+        item { TopicImageCard(null, actions) }
+    } else {
+        state.topics.forEach { item { TopicWideCard(it, actions) } }
+    }
+    item { SectionLabel("Create") }
+    item {
+        WorkCard {
+            Text("Create topic", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text("Start a topic for a project, family situation, appointment, trip, vendor, or decision.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(title, onTitleChange, label = { Text("Topic title") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(description, onDescriptionChange, label = { Text("Description, optional") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            PrimaryButton("Create topic", Icons.Filled.Add) { actions.createTopic(title, description) }
         }
-        item {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("All", "Topics", "Calls", "Live", "Updates").forEach { label ->
-                    CalmFilterChip(label = label, selected = filter == label, onClick = { filter = label })
-                }
+    }
+}
+
+private fun LazyListScope.reviewItems(
+    state: PhoneAgentUiState,
+    actions: AppActions,
+    filter: String,
+    onFilterChange: (String) -> Unit
+) {
+    val liveRequestCount = state.approvalRequests.size + state.answerRequests.size
+    item {
+        Text("Review is where calls, topic suggestions, and live requests get cleaned up before they become memory.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+    }
+    item {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("All", "Topics", "Calls", "Live", "Updates").forEach { label ->
+                CalmFilterChip(label = label, selected = filter == label, onClick = { onFilterChange(label) })
             }
         }
-        if ((filter == "All" || filter == "Topics") && state.suggestions.isNotEmpty()) {
-            item { SectionLabel("Topic suggestions") }
-            state.suggestions.forEach { item { SuggestionCard(it, actions) } }
-        }
-        if ((filter == "All" || filter == "Live") && liveRequestCount > 0) {
-            item { SectionLabel("Live requests") }
-            state.approvalRequests.forEach { item { TransferRequestCard(it, actions) } }
-            state.answerRequests.forEach { item { AnswerRequestCard(it, actions) } }
-        }
-        if ((filter == "All" || filter == "Updates") && state.notifications.isNotEmpty()) {
-            item { SectionLabel("Assistant updates") }
-            state.notifications.forEach { item { QuietCard(it.title, it.body) } }
-        }
-        if ((filter == "All" || filter == "Calls") && state.calls.isNotEmpty()) {
-            item { SectionLabel("Calls to organize") }
-            state.calls.take(12).forEach { item { CallRow(it, actions) } }
-        }
-        if (
-            (filter == "Topics" && state.suggestions.isEmpty()) ||
-            (filter == "Live" && liveRequestCount == 0) ||
-            (filter == "Updates" && state.notifications.isEmpty()) ||
-            (filter == "Calls" && state.calls.isEmpty()) ||
-            (filter == "All" && state.suggestions.isEmpty() && liveRequestCount == 0 && state.notifications.isEmpty() && state.calls.isEmpty())
-        ) {
-            item { QuietCard("Nothing to review", "When the assistant needs cleanup, approval, or organization, it will appear here.") }
-        }
+    }
+    if ((filter == "All" || filter == "Topics") && state.suggestions.isNotEmpty()) {
+        item { SectionLabel("Topic suggestions") }
+        state.suggestions.forEach { item { SuggestionCard(it, actions) } }
+    }
+    if ((filter == "All" || filter == "Live") && liveRequestCount > 0) {
+        item { SectionLabel("Live requests") }
+        state.approvalRequests.forEach { item { TransferRequestCard(it, actions) } }
+        state.answerRequests.forEach { item { AnswerRequestCard(it, actions) } }
+    }
+    if ((filter == "All" || filter == "Updates") && state.notifications.isNotEmpty()) {
+        item { SectionLabel("Assistant updates") }
+        state.notifications.forEach { item { QuietCard(it.title, it.body) } }
+    }
+    if ((filter == "All" || filter == "Calls") && state.calls.isNotEmpty()) {
+        item { SectionLabel("Calls to organize") }
+        state.calls.take(12).forEach { item { CallRow(it, actions) } }
+    }
+    if (
+        (filter == "Topics" && state.suggestions.isEmpty()) ||
+        (filter == "Live" && liveRequestCount == 0) ||
+        (filter == "Updates" && state.notifications.isEmpty()) ||
+        (filter == "Calls" && state.calls.isEmpty()) ||
+        (filter == "All" && state.suggestions.isEmpty() && liveRequestCount == 0 && state.notifications.isEmpty() && state.calls.isEmpty())
+    ) {
+        item { QuietCard("Nothing to review", "When the assistant needs cleanup, approval, or organization, it will appear here.") }
     }
 }
 
@@ -584,44 +826,55 @@ private fun AgentNoteCard(note: AgentNote, actions: AppActions) {
 }
 
 @Composable
-private fun SearchScreen(state: PhoneAgentUiState, actions: AppActions) {
+private fun SearchDetailScreen(state: PhoneAgentUiState, actions: AppActions) {
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
+    DetailFrame(title = "Search", state = state, actions = actions) {
+        searchItems(state, actions, query, { query = it }, category, { category = it })
+    }
+}
+
+private fun LazyListScope.searchItems(
+    state: PhoneAgentUiState,
+    actions: AppActions,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    category: String,
+    onCategoryChange: (String) -> Unit
+) {
     val topics = state.topics.filter { query.isBlank() || it.title.contains(query, true) || it.description.contains(query, true) }
     val calls = state.calls.filter { query.isBlank() || it.displayCaller.contains(query, true) || it.phone.contains(query, true) }
-    ScreenList {
-        item {
-            CalmTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = "Search people, topics, decisions...",
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("All", "Topics", "People", "Calls").forEach {
-                    CalmFilterChip(label = it, selected = it == category, onClick = { category = it })
-                }
+    item {
+        CalmTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            label = "Search people, topics, decisions...",
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+    item {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("All", "Topics", "People", "Calls").forEach {
+                CalmFilterChip(label = it, selected = it == category, onClick = { onCategoryChange(it) })
             }
         }
-        item { SectionLabel("Best matches") }
-        if ((category == "All" || category == "Topics") && topics.isNotEmpty()) {
-            topics.take(4).forEach { item { TopicSearchRow(it, actions) } }
-        }
-        if ((category == "All" || category == "Calls") && calls.isNotEmpty()) {
-            calls.take(4).forEach { item { CallRow(it, actions) } }
-        }
-        if (category == "People") {
-            item { QuietCard("People search is coming", "Synced contacts are used for caller recognition now. Full people search will use caller memory and contact records together.") }
-        }
-        if (
-            (category == "All" && topics.isEmpty() && calls.isEmpty()) ||
-            (category == "Topics" && topics.isEmpty()) ||
-            (category == "Calls" && calls.isEmpty())
-        ) {
-            item { QuietCard("No results yet", "Search becomes more useful as your assistant builds topic memory.") }
-        }
+    }
+    item { SectionLabel("Best matches") }
+    if ((category == "All" || category == "Topics") && topics.isNotEmpty()) {
+        topics.take(4).forEach { item { TopicSearchRow(it, actions) } }
+    }
+    if ((category == "All" || category == "Calls") && calls.isNotEmpty()) {
+        calls.take(4).forEach { item { CallRow(it, actions) } }
+    }
+    if (category == "People") {
+        item { QuietCard("People search is coming", "Synced contacts are used for caller recognition now. Full people search will use caller memory and contact records together.") }
+    }
+    if (
+        (category == "All" && topics.isEmpty() && calls.isEmpty()) ||
+        (category == "Topics" && topics.isEmpty()) ||
+        (category == "Calls" && calls.isEmpty())
+    ) {
+        item { QuietCard("No results yet", "Search becomes more useful as your assistant builds topic memory.") }
     }
 }
 
@@ -667,6 +920,7 @@ private fun ForwardingScreen(state: PhoneAgentUiState, actions: AppActions) {
 
 @Composable
 private fun BillingScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var confirmCancel by remember { mutableStateOf(false) }
     DetailFrame(title = "Billing", state = state, actions = actions) {
         item {
             WorkCard {
@@ -679,12 +933,24 @@ private fun BillingScreen(state: PhoneAgentUiState, actions: AppActions) {
         }
         item {
             WorkCard {
-                PrimaryButton("Add card", Icons.Filled.CreditCard, onClick = actions.openCheckout)
+                val primaryLabel = if (state.billing.status == "active") "Manage billing" else "Add card"
+                PrimaryButton(primaryLabel, Icons.Filled.CreditCard, onClick = actions.openCheckout)
                 Spacer(Modifier.height(6.dp))
                 SecondaryButton("Check billing status", Modifier.fillMaxWidth(), actions.activateBilling)
             }
         }
+        if (state.billing.status == "active" || state.billing.status == "past_due" || state.billing.status == "cap_reached") {
+            item {
+                WorkCard {
+                    Text("Subscription", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Canceling stops new paid assistant work and keeps your account history available.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
+                    Spacer(Modifier.height(8.dp))
+                    SecondaryButton("Cancel subscription", Modifier.fillMaxWidth()) { confirmCancel = true }
+                }
+            }
+        }
     }
+    CancelSubscriptionDialog(confirmCancel, { confirmCancel = false }, actions.cancelSubscription)
 }
 
 @Composable
@@ -848,69 +1114,143 @@ private fun NoteScopeChip(label: String, selected: Boolean, onClick: () -> Unit)
 @Composable
 private fun ProfileSettingsScreen(state: PhoneAgentUiState, actions: AppActions) {
     var confirmLogout by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf(false) }
     DetailFrame(title = "Profile", state = state, actions = actions) {
-        item {
-            WorkCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(Modifier.size(54.dp), shape = CircleShape, color = Soft, border = BorderStroke(1.dp, Line)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(state.user.initials.ifBlank { "PA" }, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(state.user.displayName.ifBlank { "Phone Agent user" }, color = Ink, fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold)
-                        Text(state.user.phoneNumber.ifBlank { "Verified phone" }, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(assistantStatusSentence(state), color = Muted, fontSize = 13.sp)
+        profileItems(state, actions, { confirmLogout = true }, { confirmRemove = true })
+    }
+    LogoutDialog(confirmLogout, { confirmLogout = false }, actions.signOut)
+    RemoveAccountDialog(confirmRemove, { confirmRemove = false }, actions.removeAccount)
+}
+
+@Composable
+private fun ProfileTabScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var confirmLogout by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf(false) }
+    ScreenList {
+        profileItems(state, actions, { confirmLogout = true }, { confirmRemove = true })
+    }
+    LogoutDialog(confirmLogout, { confirmLogout = false }, actions.signOut)
+    RemoveAccountDialog(confirmRemove, { confirmRemove = false }, actions.removeAccount)
+}
+
+private fun LazyListScope.profileItems(
+    state: PhoneAgentUiState,
+    actions: AppActions,
+    onLogoutClick: () -> Unit,
+    onRemoveAccountClick: () -> Unit
+) {
+    item {
+        WorkCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(Modifier.size(54.dp), shape = CircleShape, color = Soft, border = BorderStroke(1.dp, Line)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(state.user.initials.ifBlank { "PA" }, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-            }
-        }
-        item { SectionLabel("Account") }
-        item {
-            WorkCard {
-                SettingsRow("Assistant", state.user.assistantName.ifBlank { "Assistant" }, Icons.Filled.Person) { actions.selectTab(Tab.Assistant) }
-                SettingsRow("Forward calls", state.user.assistantNumberDisplay, Icons.Filled.SettingsPhone, actions.openForwarding)
-                SettingsRow("Billing", state.billing.display, Icons.Filled.CreditCard, actions.openBilling)
-            }
-        }
-        item { SectionLabel("Channels and trust") }
-        item {
-            WorkCard {
-                SettingsRow("Calendar", "User-scoped connection", Icons.Filled.CalendarMonth) { actions.selectTab(Tab.Assistant) }
-                SettingsRow("Phone contacts", state.contactSync.summary, Icons.Filled.Person, actions.openPhoneContacts)
-                SettingsRow("Notifications", "Private by default", Icons.Filled.Notifications) { actions.selectTab(Tab.Assistant) }
-                SettingsRow("Privacy", "Memory, consent, and sharing", Icons.Filled.Security) { actions.selectTab(Tab.Assistant) }
-            }
-        }
-        item { SectionLabel("Support") }
-        item {
-            WorkCard {
-                SettingsRow("Diagnostics", "Version ${BuildConfig.VERSION_NAME}", Icons.Filled.Settings) { actions.refresh() }
-                Spacer(Modifier.height(8.dp))
-                SecondaryButton("Log out", Modifier.fillMaxWidth()) {
-                    confirmLogout = true
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(state.user.displayName.ifBlank { "Phone Agent user" }, color = Ink, fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold)
+                    Text(state.user.phoneNumber.ifBlank { "Verified phone" }, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(assistantStatusSentence(state), color = Muted, fontSize = 13.sp)
                 }
             }
         }
     }
+    item { SectionLabel("Account") }
+    item {
+        WorkCard {
+            SettingsRow("Assistant", state.user.assistantName.ifBlank { "Assistant" }, Icons.Filled.Person) { actions.selectTab(Tab.Assistant) }
+            SettingsRow("Forward calls", state.user.assistantNumberDisplay, Icons.Filled.SettingsPhone, actions.openForwarding)
+            SettingsRow("Billing", state.billing.display, Icons.Filled.CreditCard, actions.openBilling)
+        }
+    }
+    item { SectionLabel("Channels and trust") }
+    item {
+        WorkCard {
+            SettingsRow("Calendar", "User-scoped connection", Icons.Filled.CalendarMonth) { actions.selectTab(Tab.Assistant) }
+            SettingsRow("Phone contacts", state.contactSync.summary, Icons.Filled.Person, actions.openPhoneContacts)
+            SettingsRow("Notifications", "Private by default", Icons.Filled.Notifications) { actions.selectTab(Tab.Assistant) }
+            SettingsRow("Privacy", "Memory, consent, and sharing", Icons.Filled.Security) { actions.selectTab(Tab.Assistant) }
+        }
+    }
+    item { SectionLabel("Support") }
+    item {
+        WorkCard {
+            SettingsRow("Diagnostics", "Version ${BuildConfig.VERSION_NAME}", Icons.Filled.Settings) { actions.refresh() }
+            Spacer(Modifier.height(8.dp))
+            SecondaryButton("Log out", Modifier.fillMaxWidth(), onLogoutClick)
+            Spacer(Modifier.height(8.dp))
+            SecondaryButton("Remove account", Modifier.fillMaxWidth(), onRemoveAccountClick)
+        }
+    }
+}
 
-    if (confirmLogout) {
+@Composable
+private fun CancelSubscriptionDialog(show: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    if (show) {
         AlertDialog(
-            onDismissRequest = { confirmLogout = false },
+            onDismissRequest = onDismiss,
+            title = { Text("Cancel subscription?") },
+            text = { Text("This stops new paid assistant work immediately. Your account, history, and settings remain available.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDismiss()
+                    onConfirm()
+                }) {
+                    Text("Cancel subscription", color = Critical, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Keep subscription")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun LogoutDialog(show: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    if (show) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
             title = { Text("Log out?") },
             text = { Text("This signs you out on this phone and clears local cached app data. Your Phone Agent account and history stay in the cloud.") },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmLogout = false
-                    actions.signOut()
+                    onDismiss()
+                    onConfirm()
                 }) {
                     Text("Log out", color = Critical, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmLogout = false }) {
+                TextButton(onClick = onDismiss) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun RemoveAccountDialog(show: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    if (show) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Remove account?") },
+            text = { Text("This cancels paid access, disables this phone's notifications, removes your sign-in, and clears local app data. This cannot be undone in the app.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDismiss()
+                    onConfirm()
+                }) {
+                    Text("Remove account", color = Critical, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Keep account")
                 }
             }
         )

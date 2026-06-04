@@ -7,9 +7,13 @@ import org.json.JSONObject
 internal fun previewActions() = AppActions(
     selectTab = {},
     refresh = {},
-    startSignup = { _, _ -> },
+    startGoogleSignin = {},
+    startSignup = {},
     verifyCode = { _, _ -> },
     saveAssistantName = {},
+    openTopics = {},
+    openReview = {},
+    openSearch = {},
     openTopic = {},
     openCall = {},
     openAddNote = {},
@@ -29,6 +33,8 @@ internal fun previewActions() = AppActions(
     openBilling = {},
     openCheckout = {},
     activateBilling = {},
+    cancelSubscription = {},
+    removeAccount = {},
     signOut = {},
     dial = {},
     createTopic = { _, _ -> },
@@ -76,13 +82,13 @@ private fun HomePreview() {
 @Preview(showBackground = true, widthDp = 393, heightDp = 873)
 @Composable
 private fun TopicsPreview() {
-    PhoneAgentTheme { PhoneAgentApp(previewState(Tab.Topics), previewActions()) }
+    PhoneAgentTheme { PhoneAgentApp(previewState(screen = Screen.Topics), previewActions()) }
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 873)
 @Composable
 private fun ReviewPreview() {
-    PhoneAgentTheme { PhoneAgentApp(previewState(Tab.Review), previewActions()) }
+    PhoneAgentTheme { PhoneAgentApp(previewState(screen = Screen.Review), previewActions()) }
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 873)
@@ -94,7 +100,13 @@ private fun AssistantPreview() {
 @Preview(showBackground = true, widthDp = 393, heightDp = 873)
 @Composable
 private fun SearchPreview() {
-    PhoneAgentTheme { PhoneAgentApp(previewState(Tab.Search), previewActions()) }
+    PhoneAgentTheme { PhoneAgentApp(previewState(screen = Screen.Search), previewActions()) }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 873)
+@Composable
+private fun ProfilePreview() {
+    PhoneAgentTheme { PhoneAgentApp(previewState(Tab.Profile), previewActions()) }
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 873)

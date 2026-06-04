@@ -285,6 +285,58 @@ describe("app", () => {
       });
   });
 
+  it("lets an authenticated user cancel paid subscription state", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .post("/v1/billing/cancel-subscription")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.account.status).toBe("canceled");
+        expect(body.account.providerSubscriptionStatus).toBe("canceled");
+      });
+
+    await request(app)
+      .get("/v1/billing/account")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.account.status).toBe("canceled");
+      });
+  });
+
+  it("removes an authenticated account and blocks subsequent access", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .post("/v1/push-tokens")
+      .set(auth())
+      .send({
+        token: "fcm_token_12345678901234567890",
+        platform: "android",
+        deviceId: "device_123",
+        appVersion: "0.1.1"
+      })
+      .expect(200);
+
+    await request(app)
+      .delete("/v1/account")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.removed).toBe(true);
+      });
+
+    await request(app)
+      .get("/v1/me")
+      .set(auth())
+      .expect(403)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("account_removed");
+      });
+  });
+
   it("registers Android push tokens and sends privacy-safe FCM data payloads", async () => {
     const pushDelivery = new FakePushDeliveryClient();
     const app = createTestApp(testEnv, pushDelivery);

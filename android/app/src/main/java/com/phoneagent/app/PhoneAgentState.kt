@@ -1,11 +1,9 @@
 package com.phoneagent.app
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.json.JSONArray
 import org.json.JSONObject
@@ -43,6 +41,9 @@ internal sealed interface Screen {
     data class CodeEntry(val verificationId: String) : Screen
     data object AssistantName : Screen
     data object Main : Screen
+    data object Topics : Screen
+    data object Review : Screen
+    data object Search : Screen
     data object Forwarding : Screen
     data object Billing : Screen
     data object ProfileSettings : Screen
@@ -53,19 +54,21 @@ internal sealed interface Screen {
 }
 
 internal enum class Tab(val label: String, val icon: ImageVector) {
-    Topics("Topics", Icons.Filled.Menu),
-    Review("Review", Icons.AutoMirrored.Filled.Assignment),
     Home("Home", Icons.Filled.Home),
     Assistant("Assistant", Icons.Filled.Headphones),
-    Search("Search", Icons.Filled.Search)
+    Profile("Profile", Icons.Filled.Person)
 }
 
 internal data class AppActions(
     val selectTab: (Tab) -> Unit,
     val refresh: () -> Unit,
-    val startSignup: (String, String) -> Unit,
+    val startGoogleSignin: () -> Unit,
+    val startSignup: (String) -> Unit,
     val verifyCode: (String, String) -> Unit,
     val saveAssistantName: (String) -> Unit,
+    val openTopics: () -> Unit,
+    val openReview: () -> Unit,
+    val openSearch: () -> Unit,
     val openTopic: (String) -> Unit,
     val openCall: (String) -> Unit,
     val openAddNote: (String) -> Unit,
@@ -85,6 +88,8 @@ internal data class AppActions(
     val openBilling: () -> Unit,
     val openCheckout: () -> Unit,
     val activateBilling: () -> Unit,
+    val cancelSubscription: () -> Unit,
+    val removeAccount: () -> Unit,
     val signOut: () -> Unit,
     val dial: () -> Unit,
     val createTopic: (String, String) -> Unit,
@@ -158,11 +163,13 @@ internal data class DataFreshness(
 }
 
 internal data class UserSummary(val json: JSONObject) {
-    val id: String = json.optString("id")
+    val id: String = json.optString("id").ifBlank { json.optString("userId") }
     val displayName: String = json.optString("displayName")
     val assistantName: String = json.optString("assistantName", "Assistant")
     private val auth: JSONObject? = json.optJSONObject("auth")
+    val email: String = auth?.optString("email").orEmpty()
     val phoneNumber: String = auth?.optString("phoneNumber").orEmpty()
+    val phoneVerified: Boolean = auth?.optString("phoneVerificationStatus") == "verified" || auth?.optString("primaryPhoneVerifiedAt").orEmpty().isNotBlank()
     private val phoneRouting: JSONObject? = json.optJSONObject("phoneRouting")
     val assistantNumber: String = phoneRouting?.optString("retellPhoneNumber").orEmpty()
     val assistantNumberDisplay: String = assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER_DISPLAY }
@@ -180,6 +187,7 @@ internal data class BillingAccount(val json: JSONObject) {
         "active" -> "Billing ready"
         "payment_method_added" -> "Card added"
         "cap_reached" -> "Cap reached"
+        "canceled" -> "Canceled"
         else -> "Payment needed"
     }
     val capDisplay: String = "${'$'}${capCents / 100}/mo"
@@ -191,6 +199,9 @@ internal data class BillingAccount(val json: JSONObject) {
 
 internal data class OnboardingStatus(val json: JSONObject) {
     val ready: Boolean = json.optBoolean("readyForBetaUse", false)
+    private val activation: JSONObject? = json.optJSONObject("activation")
+    val phoneVerified: Boolean = activation?.optBoolean("phoneVerified") ?: false
+    val assistantProfileConfigured: Boolean = activation?.optBoolean("assistantProfileConfigured") ?: false
 
     companion object {
         val empty = OnboardingStatus(JSONObject())

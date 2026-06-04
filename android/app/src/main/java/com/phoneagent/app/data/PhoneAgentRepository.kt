@@ -264,8 +264,17 @@ internal class PhoneAgentRepository @Inject constructor(
         return BillingCheckoutSessionResponse.from(postJson(token, "/v1/billing/checkout-session", JSONObject())).url
     }
 
-    suspend fun activateBilling(token: String) {
-        postJson(token, "/v1/billing/activate", JSONObject())
+    suspend fun createBillingCustomerPortalSession(token: String): String =
+        BillingUrlResponse.from(postJson(token, "/v1/billing/customer-portal", JSONObject())).url
+
+    suspend fun activateBilling(token: String): BillingAccount =
+        BillingAccountResponse.from(postJson(token, "/v1/billing/activate", JSONObject())).account
+
+    suspend fun cancelSubscription(token: String): BillingAccount =
+        BillingAccountResponse.from(postJson(token, "/v1/billing/cancel-subscription", JSONObject())).account
+
+    suspend fun removeAccount(token: String) {
+        backendClient.deleteJson(token, "/v1/account")
     }
 
     suspend fun registerPushToken(token: String, request: PushTokenRegistrationRequest) {

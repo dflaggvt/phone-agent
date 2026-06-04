@@ -70,18 +70,17 @@ export class FirestoreCallRepository implements CallRepository {
     if (!normalized) {
       return [];
     }
+    const queryLimit = Math.max(limit, 250);
     const [toSnapshot, fromSnapshot] = await Promise.all([
       this.firestore
         .collection(CALLS_COLLECTION)
         .where("toNumber", "==", normalized)
-        .orderBy("updatedAt", "desc")
-        .limit(limit)
+        .limit(queryLimit)
         .get(),
       this.firestore
         .collection(CALLS_COLLECTION)
         .where("fromNumber", "==", normalized)
-        .orderBy("updatedAt", "desc")
-        .limit(limit)
+        .limit(queryLimit)
         .get()
     ]);
     const byId = new Map<string, CallSession>();

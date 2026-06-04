@@ -28,6 +28,8 @@ export class FirestoreUserConfigRepository implements UserConfigRepository {
     const next: UserConfig = existing
       ? {
         ...existing,
+        accountStatus: input.accountStatus ?? existing.accountStatus,
+        deletedAt: input.deletedAt ?? existing.deletedAt,
         displayName: input.displayName ?? existing.displayName,
         auth: { ...existing.auth, ...input.auth },
         assistantProfile: {
@@ -64,6 +66,8 @@ function userConfigFromFirestore(id: string, data: Record<string, unknown>): Use
   const assistantProfile = getRecord(data.assistantProfile);
   return {
     userId: getString(data.userId) ?? id,
+    accountStatus: getAccountStatus(data.accountStatus),
+    deletedAt: firestoreDate(data.deletedAt),
     displayName: getString(data.displayName) ?? "Phone Agent User",
     auth: {
       firebaseUid: getString(auth?.firebaseUid),
@@ -130,6 +134,10 @@ function getBoolean(value: unknown): boolean | undefined {
 
 function getRetellProvider(value: unknown): "twilio" | "telnyx" | "custom" | undefined {
   return value === "twilio" || value === "telnyx" || value === "custom" ? value : undefined;
+}
+
+function getAccountStatus(value: unknown): UserConfig["accountStatus"] {
+  return value === "deleted" ? "deleted" : "active";
 }
 
 function parseAssistantProfile(value: Record<string, unknown> | undefined): AssistantProfile {

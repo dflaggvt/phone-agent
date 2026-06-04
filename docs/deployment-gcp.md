@@ -143,6 +143,25 @@ After the call, check:
 curl https://phone-agent-xxxxx-uc.a.run.app/v1/calls
 ```
 
+## Configure Firestore indexes
+
+Firestore composite indexes are part of the production deployment, not an optional console fix. Missing indexes can make healthy app routes return HTTP 500, especially startup/onboarding routes that load recent calls and communications.
+
+Deploy the tracked indexes with:
+
+```powershell
+firebase deploy --only firestore:indexes --project phone-agent-43313
+```
+
+The current required composite indexes live in `firestore.indexes.json`:
+
+- `callSessions`: `toNumber ASC`, `updatedAt DESC`
+- `callSessions`: `fromNumber ASC`, `updatedAt DESC`
+- `calendarEventRequests`: `userId ASC`, `createdAt DESC`
+- `productAnalyticsEvents`: `userId ASC`, `receivedAt DESC`
+
+After deploying indexes, verify the mobile startup path or call `/v1/onboarding/status` with a valid authenticated request. A missing index should be treated as a deployment blocker.
+
 ## Configure Cloud Monitoring
 
 Run the monitoring setup after the first successful backend deploy and after service renames:

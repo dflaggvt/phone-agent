@@ -69,7 +69,7 @@ Goal: turn the Android app from a functional beta shell into a consumer-ready co
 Scope:
 
 - Detailed mobile UX blueprint.
-- Today, Topics, Inbox, Assistant, and Search information architecture.
+- Home, Assistant, and Profile primary information architecture, with Topics, Review/Needs You, Search, and history as Home-owned drill-ins/utilities.
 - Production screen hierarchy for setup, forwarding, assistant notes, calendar, people memory, topic detail, communication detail, and live-call actions.
 - Loading, empty, error, offline, stale, and notification deep-link states.
 - Reusable mobile components and visual system.

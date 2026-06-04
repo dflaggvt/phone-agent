@@ -109,7 +109,7 @@ Scope:
 
 - Auth and multi-user domain foundation.
 - Per-user phone number and Retell mapping.
-- Production onboarding state.
+- Production onboarding state with Firebase Google sign-in, Firebase Phone Auth, and mobile-number linking for Google-created accounts.
 - Assistant profile customization and provider-neutral translation into Retell context.
 - Frictionless first-run flow: verify phone, name assistant, assign number, configure forwarding, test first call. This must be a dedicated onboarding sequence with bottom navigation hidden, not an activation checklist embedded in Today.
 - Self-serve Google Play account bootstrap with paid-resource guardrails.
@@ -167,7 +167,7 @@ Implementation tasks:
 - Gate assistant number assignment on payment method plus spending cap for public users. Status: implemented for active billing and current-period cap checks.
 - Add cap warning and cap reached notification events. Status: implemented for privacy-safe `50%`, `80%`, and cap-reached billing issue notifications from the local rated usage ledger.
 - Add Android billing onboarding screen before assistant number assignment. Status: in progress.
-- Add billing settings screen with current spend, cap, payment method, invoices, and pause/cancel actions. Status: partial; billing entry and card/cap status are implemented, while invoice detail, pause, and cancel flows remain pending.
+- Add billing settings screen with current spend, cap, payment method, invoices, and pause/cancel actions. Status: partial; billing entry, card/cap status, hosted billing management, and subscription cancellation are implemented, while richer invoice detail and pause semantics remain pending.
 
 Exit criteria:
 
@@ -239,7 +239,7 @@ Exit criteria:
 Scope:
 
 - Establish the mobile UX blueprint as the source of truth for Android screens and flows.
-- Redesign the app around the ideal product IA: Topics, Inbox, Home, Assistant, and Search, with Home as the default center tab.
+- Redesign the app around the ideal consumer IA: Home, Assistant, and Profile as primary bottom-navigation destinations. Home owns topic cards, recent calls, needs-you review, search entry, and deeper topic/history drill-ins.
 - Retire the prototype Java view hierarchy and keep the Android UI foundation in Kotlin and Jetpack Compose.
 - Make topic threads the durable product surface and Inbox the review/recent activity surface.
 - Add production-quality empty, loading, offline, stale, error, and deep-link states.
@@ -251,17 +251,17 @@ Implementation tasks:
 - Create `docs/mobile-ux-blueprint.md`. Status: implemented.
 - Add Kotlin and Jetpack Compose to the Android project. Status: implemented.
 - Remove the legacy Java Activity from the production Android app. Status: implemented.
-- Add a Compose launcher activity with a reusable app shell, top bar, assistant presence control, atmospheric background, and five-item bottom navigation. Status: implemented.
+- Add a Compose launcher activity with a reusable app shell, top bar, assistant presence control, atmospheric background, and a compact three-item bottom navigation. Status: implemented; current IA is Home, Assistant, Profile.
 - Add Hilt, Retrofit, OkHttp, ViewModel, and StateFlow as the Android production architecture foundation. Status: implemented for application graph, backend API client, repository boundary, extracted app-state ViewModel, named repository mutation commands, typed Android request models, typed response envelope parsers, and notification-action API posts.
 - Keep Android framework integrations out of the app shell where practical. Status: implemented for contact-provider reads, product analytics, Firebase phone auth/onboarding, billing browser launch, FCM registration, and contact-sync orchestration through focused readers/coordinators while keeping Activity as the callback host.
 - Add focused Android screen ViewModels for major surfaces. Status: implemented for Home, Assistant/live-call, Billing, Contacts, and Onboarding derived state/surface commands while the app-level `PhoneAgentViewModel` remains the shared source of truth.
 - Replace ad hoc Android screen construction with reusable Compose shell and UI components. Status: implemented for core shell, cards, rows, buttons, fields, chips, detail frames, error states, centralized Material 3 theme tokens, extracted shared Compose components, extracted screen composables, and extracted Compose previews.
 - Add Room-backed local cache for user summary, onboarding, billing, topics, calls, topic suggestions, notifications, and active-call snapshot. Status: implemented for schema, Compose startup hydration, repository-owned `AppSnapshot` cache hydration/persistence, cached snapshot freshness timestamps, and user-visible stale/offline labels.
 - Apply compact-density UI pass across the Compose app shell and shared components. Status: implemented; current density uses `16dp` gutters, `10dp` feed gaps, `12dp` card padding, shorter topic imagery, compact quick-action grids, slimmer search chips, and `44-46dp` primary controls while preserving accessible tap targets.
-- Add icon-based bottom navigation with accessible labels. Status: implemented.
-- Build production Home dashboard with recent calls, call actions, and horizontally browsable topic cards. Status: implemented for the Compose launcher.
-- Build production Inbox/Review with review queue and filters. Status: implemented for review queue, richer filters, compact call rows, call detail parity, and clearer calls-to-organize workflows; future channel-specific filters remain planned with cross-channel ingestion.
-- Build production Topics list and topic detail. Status: implemented for image-led topic list and basic topic detail; structured edit/correction controls are pending.
+- Add icon-based bottom navigation with accessible labels. Status: implemented for Home, Assistant, and Profile.
+- Build production Home dashboard with recent calls, call actions, horizontally browsable topic cards, search entry, all-topics entry, and needs-you review entry. Status: implemented for the Compose launcher.
+- Build production Inbox/Review with review queue and filters. Status: implemented as a Home-owned needs-you drill-in with richer filters, compact call rows, call detail parity, and clearer calls-to-organize workflows; future channel-specific filters remain planned with cross-channel ingestion.
+- Build production Topics list and topic detail. Status: implemented as Home topic cards plus an all-topics drill-in with image-led topic list and basic topic detail; structured edit/correction controls are pending.
 - Build production Live control surface. Status: implemented for active-call status, assistant metrics, and live answer/transfer card parity for pending live requests.
 - Build production assistant notes flow. Status: implemented for general, caller-scoped, and topic-scoped note creation plus note listing/archive.
 - Build production Profile/Settings surface opened from the header presence/avatar control. Status: implemented for account identity, assistant, forwarding, billing, calendar, notifications, privacy, diagnostics, and logout; deeper nested management screens remain pending.

@@ -39,6 +39,8 @@ export interface AssistantProfile {
 
 export interface UserConfig {
   userId: string;
+  accountStatus: "active" | "deleted";
+  deletedAt?: Date;
   displayName: string;
   auth: UserAuthState;
   assistantProfile: AssistantProfile;
@@ -57,6 +59,8 @@ export interface UserConfig {
 
 export interface UpsertUserConfigInput {
   userId: string;
+  accountStatus?: "active" | "deleted";
+  deletedAt?: Date;
   displayName?: string;
   auth?: UserAuthState;
   assistantProfile?: Partial<AssistantProfile>;
@@ -75,6 +79,8 @@ export function createUserConfig(input: UpsertUserConfigInput & { now?: Date }):
   const now = input.now ?? new Date();
   return {
     userId: input.userId,
+    accountStatus: input.accountStatus ?? "active",
+    deletedAt: input.deletedAt,
     displayName: input.displayName ?? "Phone Agent User",
     auth: input.auth ?? {},
     assistantProfile: createAssistantProfile(input.assistantProfile),

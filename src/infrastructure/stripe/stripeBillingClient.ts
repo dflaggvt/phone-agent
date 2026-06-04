@@ -59,6 +59,9 @@ export interface BillingProviderClient {
     paymentMethodId: string;
     prices: Required<BillingPriceConfig>;
   }): Promise<BillingSubscription>;
+  cancelSubscription(input: {
+    subscriptionId: string;
+  }): Promise<BillingSubscription>;
   publishMeterEvent(input: {
     customerId: string;
     eventName: string;
@@ -211,6 +214,11 @@ export class StripeBillingClient implements BillingProviderClient {
     return { id: subscription.id, status: subscription.status };
   }
 
+  async cancelSubscription(input: { subscriptionId: string }): Promise<BillingSubscription> {
+    const subscription = await this.client.subscriptions.cancel(input.subscriptionId);
+    return { id: subscription.id, status: subscription.status };
+  }
+
   async publishMeterEvent(input: {
     customerId: string;
     eventName: string;
@@ -274,6 +282,10 @@ export class MissingBillingProviderClient implements BillingProviderClient {
   }
 
   async ensurePayAsYouGoSubscription(): Promise<BillingSubscription> {
+    throw badRequest("stripe_not_configured", "Stripe is not configured.");
+  }
+
+  async cancelSubscription(): Promise<BillingSubscription> {
     throw badRequest("stripe_not_configured", "Stripe is not configured.");
   }
 

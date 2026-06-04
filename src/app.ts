@@ -5,6 +5,7 @@ import { pinoHttp } from "pino-http";
 import Retell from "retell-sdk";
 import { ZodError } from "zod";
 import { AgentNoteService } from "./application/agentNotes/agentNoteService.js";
+import { AccountRemovalService, type AuthAccountAdmin } from "./application/accounts/accountRemovalService.js";
 import { LiveAnswerService } from "./application/answerRequests/liveAnswerService.js";
 import { TransferApprovalService } from "./application/approvals/transferApprovalService.js";
 import { BillingAccountService } from "./application/billing/billingAccountService.js";
@@ -20,6 +21,7 @@ import { UserConfigService } from "./application/users/userConfigService.js";
 import { VoiceNumberProvisioningService } from "./application/users/voiceNumberProvisioningService.js";
 import type { AuthVerifier } from "./application/auth/authVerifier.js";
 import type { AppEnv } from "./config/env.js";
+import { FirebaseAccountAdmin, NoopAuthAccountAdmin } from "./infrastructure/firebase/firebaseAccountAdmin.js";
 import { FirebaseAuthVerifier } from "./infrastructure/firebase/firebaseAuthVerifier.js";
 import { FirebaseCloudMessagingPushClient, NoopPushDeliveryClient } from "./infrastructure/firebase/firebaseCloudMessagingPushClient.js";
 import { FirestoreAgentNoteRepository } from "./infrastructure/persistence/firestoreAgentNoteRepository.js";
@@ -75,6 +77,7 @@ import {
 } from "./infrastructure/retell/retellClient.js";
 import { RetellWebhookVerifier } from "./infrastructure/retell/retellWebhookVerifier.js";
 import { MissingBillingProviderClient, StripeBillingClient } from "./infrastructure/stripe/stripeBillingClient.js";
+import { accountRoutes } from "./routes/accountRoutes.js";
 import { agentNoteRoutes } from "./routes/agentNoteRoutes.js";
 import { analyticsRoutes } from "./routes/analyticsRoutes.js";
 import { billingReturnRoutes, billingRoutes } from "./routes/billingRoutes.js";
@@ -90,7 +93,7 @@ import { retellRawRoutes } from "./routes/retellRawRoutes.js";
 import { asyncHandler, rawBody } from "./routes/routeSupport.js";
 import { topicRoutes } from "./routes/topicRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
-import { HttpError, unauthorized } from "./shared/httpErrors.js";
+import { forbidden, HttpError, unauthorized } from "./shared/httpErrors.js";
 import type { AppLogger } from "./shared/logger.js";
 import { createRateLimiter } from "./shared/rateLimit.js";
 import type { PushDeliveryClient } from "./application/notifications/pushDeliveryClient.js";
@@ -99,6 +102,7 @@ export interface AppDependencies {
   env: AppEnv;
   logger: AppLogger;
   authVerifier?: AuthVerifier;
+  authAccountAdmin?: AuthAccountAdmin;
   pushDelivery?: PushDeliveryClient;
 }
 
@@ -182,6 +186,11 @@ export function createApp(dependencies: AppDependencies) {
     }
   });
   const authVerifier = dependencies.authVerifier ?? new FirebaseAuthVerifier(dependencies.env.FIREBASE_PROJECT_ID);
+  const authAccountAdmin = dependencies.authAccountAdmin ?? (
+    dependencies.authVerifier
+      ? new NoopAuthAccountAdmin()
+      : new FirebaseAccountAdmin(dependencies.env.FIREBASE_PROJECT_ID)
+  );
   const billingProvider = dependencies.env.STRIPE_SECRET_KEY
     ? new StripeBillingClient(dependencies.env.STRIPE_SECRET_KEY, dependencies.env.STRIPE_WEBHOOK_SECRET)
     : new MissingBillingProviderClient();
@@ -226,6 +235,12 @@ export function createApp(dependencies: AppDependencies) {
       personalMonthlyPriceId: dependencies.env.STRIPE_PRICE_PERSONAL_MONTHLY,
       personalCallMinuteOveragePriceId: dependencies.env.STRIPE_PRICE_PERSONAL_CALL_MINUTE_OVERAGE
     }
+  });
+  const accountRemoval = new AccountRemovalService({
+    billing,
+    pushDeviceTokens,
+    users: userConfigs,
+    authAccountAdmin
   });
   const retellCallClient = dependencies.env.RETELL_API_KEY
     ? new RetellSdkCallClient(dependencies.env.RETELL_API_KEY)
@@ -382,6 +397,7 @@ export function createApp(dependencies: AppDependencies) {
   app.use("/v1", clientRateLimiter);
   app.use("/v1", firebaseAuth({ verifier: authVerifier, users: userConfigs }));
   app.use("/v1/billing", billingRoutes({ billing, usage }));
+  app.use("/v1", accountRoutes({ accountRemoval }));
   app.use("/v1/analytics", analyticsRoutes({ productAnalytics }));
   app.use("/v1", userRoutes({ userConfigs }));
   app.use("/v1", onboardingRoutes({
@@ -422,6 +438,10 @@ function firebaseAuth(input: {
 
     const authUser = await input.verifier.verifyIdToken(bearerToken);
     const config = await input.users.getOrCreateForFirebaseUser(authUser);
+    if (config.accountStatus === "deleted") {
+      next(forbidden("account_removed", "This Phone Agent account has been removed."));
+      return;
+    }
     res.locals.userId = config.userId;
     res.locals.firebaseUid = authUser.uid;
     next();

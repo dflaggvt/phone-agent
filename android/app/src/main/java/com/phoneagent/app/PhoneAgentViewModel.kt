@@ -43,6 +43,10 @@ internal class PhoneAgentViewModel @Inject constructor(
         repository.clearCache()
     }
 
+    suspend fun removeAccount(token: String) {
+        repository.removeAccount(token)
+    }
+
     suspend fun createTopic(token: String, request: TopicCreateRequest) {
         repository.createTopic(token, request)
     }
@@ -78,15 +82,23 @@ internal class PhoneAgentViewModel @Inject constructor(
             contactSync = snapshot.contactSync,
             contactSyncing = false,
             activeCall = snapshot.activeCall,
-            screen = when {
-                keepScreen -> current.screen
-                current.screen is Screen.Auth ||
-                    current.screen is Screen.CodeEntry ||
-                    current.screen is Screen.Startup ||
-                    current.screen is Screen.StartupIssue -> Screen.Main
-                else -> current.screen
-            },
+            screen = nextScreenAfterSnapshot(snapshot, current, keepScreen),
             error = null
         )
+    }
+
+    private fun nextScreenAfterSnapshot(snapshot: AppSnapshot, current: PhoneAgentUiState, keepScreen: Boolean): Screen {
+        if (keepScreen) return current.screen
+        val shouldRouteOnboarding =
+            current.screen is Screen.Auth ||
+                current.screen is Screen.CodeEntry ||
+                current.screen is Screen.Startup ||
+                current.screen is Screen.StartupIssue
+        if (!shouldRouteOnboarding) return current.screen
+        return when {
+            !snapshot.onboarding.phoneVerified -> Screen.Auth
+            !snapshot.onboarding.assistantProfileConfigured -> Screen.AssistantName
+            else -> Screen.Main
+        }
     }
 }

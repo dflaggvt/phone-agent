@@ -70,7 +70,7 @@ internal fun TopicImageCard(topic: TopicThread?, actions: AppActions) {
             .width(224.dp)
             .height(142.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable { if (topic == null) actions.selectTab(Tab.Topics) else actions.openTopic(topic.id) }
+            .clickable { if (topic == null) actions.openTopics() else actions.openTopic(topic.id) }
     ) {
         Image(painterResource(topicImage(topic)), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))

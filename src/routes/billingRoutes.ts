@@ -10,7 +10,7 @@ export function billingReturnRoutes() {
   router.get("/stripe/success", (_req, res) => {
     res.status(200).type("html").send(billingReturnPage({
       title: "Card saved",
-      message: "You can return to Phone Agent and tap Check billing status."
+      message: "You can return to Phone Agent. Billing will refresh automatically."
     }));
   });
 
@@ -64,6 +64,11 @@ export function billingRoutes(input: {
 
   router.post("/activate", asyncHandler(async (_req, res) => {
     const account = await input.billing.activateBilling(currentUserId(res));
+    res.status(200).json({ account: redactedBillingAccount(account) });
+  }));
+
+  router.post("/cancel-subscription", asyncHandler(async (_req, res) => {
+    const account = await input.billing.cancelSubscription(currentUserId(res));
     res.status(200).json({ account: redactedBillingAccount(account) });
   }));
 

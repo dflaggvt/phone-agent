@@ -112,3 +112,10 @@ internal data class BillingCheckoutSessionResponse(val url: String) {
             BillingCheckoutSessionResponse(json.optJSONObject("session")?.optString("url").orEmpty())
     }
 }
+
+internal data class BillingUrlResponse(val url: String) {
+    companion object {
+        fun from(json: JSONObject): BillingUrlResponse =
+            BillingUrlResponse(json.optString("url"))
+    }
+}

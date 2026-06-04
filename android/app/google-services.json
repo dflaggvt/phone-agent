@@ -14,7 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "47585065917-qogl0tj7b13j9epbkn0m9f06n9v8jk9o.apps.googleusercontent.com",
+          "client_id": "47585065917-0p9c35k68k43anb9s7cpvc8pov33r5sg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phoneagent.app",
+            "certificate_hash": "9e9d2c3d1ad6ec031746a7d0098a222e1ec965fd"
+          }
+        },
+        {
+          "client_id": "47585065917-sla7gcsl3mk7n2629v8sirvhhoql1okt.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

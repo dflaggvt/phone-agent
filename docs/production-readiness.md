@@ -19,6 +19,7 @@ Required:
 - Retell inbound call flow working.
 - Android debug install usable by the founder.
 - Payment method setup and billing gates available in test mode.
+- Subscription cancellation and app-initiated account removal controls available; full retained-record purge jobs still need production hardening.
 - FCM push notification delivery working.
 - Crash reporting included in Android builds.
 

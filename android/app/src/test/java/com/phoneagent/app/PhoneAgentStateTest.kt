@@ -81,6 +81,83 @@ class PhoneAgentStateTest {
     }
 
     @Test
+    fun billingAccountDisplaysActiveBackendStateAsReady() {
+        val billing = BillingAccount(
+            JSONObject(
+                """
+                {
+                  "status": "active",
+                  "providerSubscriptionStatus": "active",
+                  "monthlySpendingCapCents": 2500,
+                  "paymentMethod": {
+                    "provider": "stripe",
+                    "brand": "visa",
+                    "last4": "4242"
+                  }
+                }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals("active", billing.status)
+        assertEquals("Billing ready", billing.display)
+        assertEquals("${'$'}25/mo", billing.capDisplay)
+    }
+
+    @Test
+    fun onboardingStatusExposesPhoneAndAssistantCompletionForAuthRouting() {
+        val status = OnboardingStatus(
+            JSONObject(
+                """
+                {
+                  "readyForBetaUse": false,
+                  "activation": {
+                    "phoneVerified": true,
+                    "assistantProfileConfigured": false
+                  }
+                }
+                """.trimIndent()
+            )
+        )
+
+        assertTrue(status.phoneVerified)
+        assertFalse(status.assistantProfileConfigured)
+        assertFalse(status.ready)
+    }
+
+    @Test
+    fun userSummaryExposesEmailAndPhoneVerificationStatus() {
+        val user = UserSummary(
+            JSONObject(
+                """
+                {
+                  "userId": "firebase_maya",
+                  "displayName": "Maya Chen",
+                  "auth": {
+                    "email": "maya@example.com",
+                    "phoneNumber": "+15550001111",
+                    "phoneVerificationStatus": "verified"
+                  }
+                }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals("firebase_maya", user.id)
+        assertEquals("maya@example.com", user.email)
+        assertTrue(user.phoneVerified)
+    }
+
+    @Test
+    fun phoneCredentialCollisionRecoveryOnlyAppliesWhenGoogleUserNeedsPhone() {
+        val collision = IllegalStateException("This credential is already associated with a different user account.")
+
+        assertTrue(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = true, error = collision))
+        assertFalse(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = false, error = collision))
+        assertFalse(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = true, error = IllegalStateException("Network unavailable.")))
+    }
+
+    @Test
     fun cachedJsonReturnsEmptyObjectForInvalidSnapshots() {
         val parsed = cachedJson("{not valid json")
 

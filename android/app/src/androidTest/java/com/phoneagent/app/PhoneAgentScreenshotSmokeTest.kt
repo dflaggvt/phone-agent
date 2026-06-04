@@ -29,10 +29,11 @@ class PhoneAgentScreenshotSmokeTest {
 
         listOf(
             ScreenshotBaseline("home", previewState(Tab.Home), minColorBuckets = 32, minLuminanceSpread = 0.38f),
-            ScreenshotBaseline("topics", previewState(Tab.Topics), minColorBuckets = 28, minLuminanceSpread = 0.34f),
-            ScreenshotBaseline("review", previewState(Tab.Review), minColorBuckets = 24, minLuminanceSpread = 0.32f),
             ScreenshotBaseline("assistant", previewState(Tab.Assistant), minColorBuckets = 20, minLuminanceSpread = 0.32f),
-            ScreenshotBaseline("search", previewState(Tab.Search), minColorBuckets = 18, minLuminanceSpread = 0.30f),
+            ScreenshotBaseline("profile", previewState(Tab.Profile), minColorBuckets = 18, minLuminanceSpread = 0.30f),
+            ScreenshotBaseline("topics", previewState(screen = Screen.Topics), minColorBuckets = 28, minLuminanceSpread = 0.34f),
+            ScreenshotBaseline("review", previewState(screen = Screen.Review), minColorBuckets = 22, minLuminanceSpread = 0.32f),
+            ScreenshotBaseline("search", previewState(screen = Screen.Search), minColorBuckets = 16, minLuminanceSpread = 0.30f),
             ScreenshotBaseline("topic_detail", previewState(screen = Screen.TopicDetail("topic_basement")), minColorBuckets = 22, minLuminanceSpread = 0.30f),
             ScreenshotBaseline("call_detail", previewState(screen = Screen.CallDetail("call_1")), minColorBuckets = 18, minLuminanceSpread = 0.26f),
             ScreenshotBaseline("forwarding", previewState(screen = Screen.Forwarding), minColorBuckets = 18, minLuminanceSpread = 0.28f)

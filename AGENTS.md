@@ -81,7 +81,7 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - Use Hilt for dependency injection and Retrofit/OkHttp for backend REST calls. Do not add new raw `HttpURLConnection` app API paths.
 - Prefer reusable Compose design-system components and previewable fixture states over one-off programmatic layouts.
 - Mobile UX documentation must include measurable details: dimensions, typography, spacing, counts, timing thresholds, loading/error states, QA viewports, and acceptance criteria.
-- Keep the production mobile app centered on the blueprint IA: Home, Topics, Inbox, Assistant, and Search unless the blueprint changes first.
+- Keep the production mobile app centered on the blueprint IA: Home, Assistant, and Profile as primary bottom-navigation destinations. Topics, Review/Needs You, Search, Inbox/history, and Settings are Home-owned drill-ins or contextual surfaces unless the blueprint changes first.
 - Topic threads should remain visually central; call history should not take over the product shape.
 - Every primary screen needs loading, empty, error, offline, and stale-data behavior where applicable.
 - Verify significant Android UI changes with screenshots on a connected device or emulator before calling the work done.
