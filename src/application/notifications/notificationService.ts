@@ -219,7 +219,7 @@ export class NotificationService {
 
   async createBillingIssue(input: {
     userId: string;
-    code: "billing_payment_required" | "billing_cap_reached";
+    code: string;
     title: string;
     body: string;
   }) {

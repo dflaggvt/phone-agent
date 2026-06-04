@@ -33,11 +33,34 @@ export class FirestoreUsageEventRepository implements UsageEventRepository {
       quantity: input.quantity,
       provider: input.provider,
       sourceId: input.sourceId,
+      customerChargeCents: input.customerChargeCents,
+      internalCostCents: input.internalCostCents,
+      marginCents: input.customerChargeCents !== undefined || input.internalCostCents !== undefined
+        ? (input.customerChargeCents ?? 0) - (input.internalCostCents ?? 0)
+        : undefined,
+      ratingVersion: input.ratingVersion,
       occurredAt: input.occurredAt ?? now,
       createdAt: now
     };
     await this.firestore.collection(COLLECTION).doc(event.id).set(removeUndefinedDeep(event));
     return event;
+  }
+
+  async claimLocalSpendApplication(id: string, appliedAt = new Date()): Promise<UsageEvent | undefined> {
+    const ref = this.firestore.collection(COLLECTION).doc(id);
+    return this.firestore.runTransaction(async (transaction) => {
+      const doc = await transaction.get(ref);
+      if (!doc.exists) {
+        return undefined;
+      }
+      const existing = usageEventFromFirestore(doc.id, doc.data() ?? {});
+      if (existing.localSpendAppliedAt) {
+        return undefined;
+      }
+      const updated = { ...existing, localSpendAppliedAt: appliedAt };
+      transaction.set(ref, removeUndefinedDeep({ localSpendAppliedAt: appliedAt }), { merge: true });
+      return updated;
+    });
   }
 
   async markBillingPublished(id: string, billingMeterEventId: string, publishedAt = new Date()): Promise<UsageEvent | undefined> {
@@ -84,6 +107,11 @@ function usageEventFromFirestore(id: string, data: Record<string, unknown>): Usa
     quantity: typeof data.quantity === "number" ? data.quantity : 0,
     provider: getString(data.provider),
     sourceId: getString(data.sourceId),
+    customerChargeCents: getNumber(data.customerChargeCents),
+    internalCostCents: getNumber(data.internalCostCents),
+    marginCents: getNumber(data.marginCents),
+    ratingVersion: getString(data.ratingVersion),
+    localSpendAppliedAt: firestoreDate(data.localSpendAppliedAt),
     billingMeterEventId: getString(data.billingMeterEventId),
     billingPublishedAt: firestoreDate(data.billingPublishedAt),
     billingPublishError: getString(data.billingPublishError),
@@ -104,4 +132,8 @@ function usageEventType(value: unknown): UsageEventType {
 
 function getString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
 }

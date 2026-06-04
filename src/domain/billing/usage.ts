@@ -12,6 +12,11 @@ export interface UsageEvent {
   quantity: number;
   provider?: string;
   sourceId?: string;
+  customerChargeCents?: number;
+  internalCostCents?: number;
+  marginCents?: number;
+  ratingVersion?: string;
+  localSpendAppliedAt?: Date;
   billingMeterEventId?: string;
   billingPublishedAt?: Date;
   billingPublishError?: string;
@@ -26,6 +31,9 @@ export interface CreateUsageEventInput {
   idempotencyKey?: string;
   provider?: string;
   sourceId?: string;
+  customerChargeCents?: number;
+  internalCostCents?: number;
+  ratingVersion?: string;
   occurredAt?: Date;
 }
 
@@ -37,10 +45,15 @@ export interface UsageSummary {
   classificationRequests: number;
   calendarWrites: number;
   outboundCallAttempts: number;
+  customerChargeCents: number;
+  internalCostCents: number;
+  marginCents: number;
+  grossMarginPercentage?: number;
 }
 
 export interface UsageEventRepository {
   create(input: CreateUsageEventInput): Promise<UsageEvent>;
+  claimLocalSpendApplication(id: string, appliedAt?: Date): Promise<UsageEvent | undefined>;
   markBillingPublished(id: string, billingMeterEventId: string, publishedAt?: Date): Promise<UsageEvent | undefined>;
   markBillingPublishFailed(id: string, error: string): Promise<UsageEvent | undefined>;
   summarizeForUser(userId: string, periodStart: Date, periodEnd: Date): Promise<UsageSummary>;

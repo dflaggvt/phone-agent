@@ -50,6 +50,24 @@ export class FirestoreBillingAccountRepository implements BillingAccountReposito
     return normalized;
   }
 
+  async incrementCurrentPeriodSpend(userId: string, amountCents: number): Promise<BillingAccount | undefined> {
+    const ref = this.collection().doc(userId);
+    return this.firestore.runTransaction(async (transaction) => {
+      const doc = await transaction.get(ref);
+      if (!doc.exists) {
+        return undefined;
+      }
+      const existing = billingAccountFromFirestore(doc.id, doc.data() ?? {});
+      const updated: BillingAccount = {
+        ...existing,
+        currentPeriodSpendCents: Math.max(0, existing.currentPeriodSpendCents + amountCents),
+        updatedAt: new Date()
+      };
+      transaction.set(ref, removeUndefinedDeep(updated));
+      return updated;
+    });
+  }
+
   private collection() {
     return this.firestore.collection(COLLECTION);
   }

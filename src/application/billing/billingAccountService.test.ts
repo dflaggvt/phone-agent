@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 import { InMemoryBillingAccountRepository } from "../../infrastructure/persistence/inMemoryBillingAccountRepository.js";
+import { InMemoryInvoiceMirrorRepository } from "../../infrastructure/persistence/inMemoryInvoiceMirrorRepository.js";
 import { InMemoryUserConfigRepository } from "../../infrastructure/persistence/inMemoryUserConfigRepository.js";
 import { InMemoryWebhookEventRepository } from "../../infrastructure/persistence/inMemoryWebhookEventRepository.js";
 import type {
@@ -127,6 +128,7 @@ describe("BillingAccountService", () => {
 
   it("mirrors paid invoice amount into current period spend", async () => {
     const billingAccounts = new InMemoryBillingAccountRepository();
+    const invoiceMirrors = new InMemoryInvoiceMirrorRepository();
     const service = new BillingAccountService({
       billingAccounts,
       users: new UserConfigService({
@@ -140,11 +142,16 @@ describe("BillingAccountService", () => {
           object: {
             id: "in_123",
             customer: "cus_123",
-            amount_paid: 1900
+            amount_due: 1900,
+            amount_paid: 1900,
+            currency: "usd",
+            status: "paid",
+            created: 1_715_000_000
           }
         }
       } as unknown as Stripe.Event),
       webhookEvents: new InMemoryWebhookEventRepository(),
+      invoiceMirrors,
       defaultSpendingCapCents: 4000,
       billingRequiredForProvisioning: true,
       prices: {
@@ -172,6 +179,13 @@ describe("BillingAccountService", () => {
     await expect(billingAccounts.get("user_123")).resolves.toEqual(expect.objectContaining({
       status: "active",
       currentPeriodSpendCents: 1900
+    }));
+    await expect(invoiceMirrors.getByProviderInvoiceId("in_123")).resolves.toEqual(expect.objectContaining({
+      userId: "user_123",
+      status: "paid",
+      amountDueCents: 1900,
+      amountPaidCents: 1900,
+      currency: "usd"
     }));
   });
 

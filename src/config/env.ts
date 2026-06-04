@@ -46,6 +46,9 @@ const envSchema = z.object({
   BILLING_PLAN: optionalNonEmptyString.default("beta"),
   BILLING_MONTHLY_INCLUDED_MINUTES: optionalNonnegativeInt(300),
   BILLING_MONTHLY_CLASSIFICATION_LIMIT: optionalNonnegativeInt(1000),
+  BILLING_CALL_MINUTE_OVERAGE_CENTS: optionalNonnegativeInt(39),
+  BILLING_ESTIMATED_CALL_MINUTE_COST_CENTS: optionalNonnegativeInt(12),
+  BILLING_CLASSIFICATION_COST_CENTS: optionalNonnegativeInt(1),
   BILLING_REQUIRED_FOR_PROVISIONING: z
     .enum(["true", "false"])
     .default("false")

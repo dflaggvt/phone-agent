@@ -21,7 +21,7 @@ Compose implementation requirements:
 - Treat the app shell, top bar, bottom nav, topic cards, call rows, review cards, assistant action rows, form fields, and empty/error states as first-class components.
 - Use Room as the local source-of-display cache for authenticated state so launch, tab switches, search filters, and offline review can render from trusted last-known backend data before a network refresh completes.
 - Keep screens previewable with fixture data so UI quality can be reviewed without live backend state.
-- Add screenshot/golden testing after the first Compose component set stabilizes.
+- Add screenshot/golden testing after the first Compose component set stabilizes. Automated screenshot tests should cover at least Home, Topics, Review, Assistant, Search, topic detail, call detail, and forwarding on a phone-sized viewport. Baselines should include numeric checks for minimum width `320px`, minimum height `600px`, color-bucket variety, luminance spread, and dominant-color ratio before image-file golden comparisons are introduced.
 - Continue using connected-device screenshots for final device sanity checks, but do not rely on manual screenshots as the primary path to pixel precision.
 - Do not add Java Activity UI surfaces or programmatic Android view hierarchy screens.
 

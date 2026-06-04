@@ -5,6 +5,7 @@ import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
@@ -32,6 +33,13 @@ interface PhoneAgentApi {
         @Url path: String,
         @Header("authorization") authorization: String,
         @Body body: RequestBody,
+        @Header("x-phone-agent-action-surface") actionSurface: String = ACTION_SURFACE
+    ): Response<ResponseBody>
+
+    @DELETE
+    suspend fun deleteJson(
+        @Url path: String,
+        @Header("authorization") authorization: String,
         @Header("x-phone-agent-action-surface") actionSurface: String = ACTION_SURFACE
     ): Response<ResponseBody>
 

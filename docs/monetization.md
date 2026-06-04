@@ -125,7 +125,7 @@ Core entities:
 - `CostMeter`: internal provider cost meter definition.
 - `CostRateCard`: provider/model/SKU unit costs by effective date.
 - `UsageEvent`: raw domain usage event, idempotent and provider-neutral.
-- `RatedUsageEvent`: priced usage event with customer charge and internal estimated cost.
+- `RatedUsageEvent`: priced usage event with customer charge, internal estimated cost, margin, rating version, and local spend application marker.
 - `InvoiceMirror`: local copy of invoice state from the billing provider.
 - `CreditGrant`: promotional, refund, or manual credit.
 - `SpendingLimit`: monthly cap, warning thresholds, and hard-stop policy.
@@ -234,9 +234,13 @@ Usage publishing rules:
 
 - The application records a local `UsageEvent` before publishing anything to Stripe.
 - Each usage event has an idempotency key derived from the domain object, such as a call ID or classification source ID.
+- The local usage record is rated before spend is applied: included minutes, overage minutes, estimated internal cost, customer charge, margin, and `ratingVersion` are stored together.
+- Local spend is applied through an idempotent usage-event claim so duplicate provider webhooks cannot double-count customer spend or duplicate cap warnings.
 - Meter events use Stripe customer ID plus value payload fields expected by the configured Billing Meters.
 - If Stripe is unavailable, the local usage event remains the source of truth and can be retried by a later reconciliation job.
 - Provider callbacks may trigger usage recording, but they must not directly publish billable usage to Stripe.
+- Stripe invoice webhooks are mirrored into sanitized local `InvoiceMirror` records. The app should prefer the local mirror for invoice display and fall back to provider invoice reads only when no mirror exists yet.
+- Cap warning notifications are created at `50%` and `80%` of the monthly spending cap. Cap-reached notifications are created when rated local spend reaches the cap, and paid runtime gates block further paid work.
 
 ## User Experience
 
@@ -355,6 +359,8 @@ Build first:
 - Usage rating service.
 - Stripe meter event publisher.
 - Billing webhook receiver.
+- Local invoice mirror.
+- Proactive cap-warning notifications.
 - Billing status gate before assistant number assignment.
 - Billing status gate before AI-handled live calls where feasible.
 - Mobile billing onboarding screen.

@@ -29,6 +29,11 @@ class PhoneAgentBackendClient @Inject constructor(
         return response.toJson()
     }
 
+    suspend fun deleteJson(token: String, path: String): JSONObject {
+        val response = api.deleteJson(relativePath(path), bearer(token))
+        return response.toJson()
+    }
+
     private fun bearer(token: String): String = "Bearer $token"
 
     private fun relativePath(path: String): String = path.trimStart('/')

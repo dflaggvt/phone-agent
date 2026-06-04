@@ -13,7 +13,8 @@
     "agent:evals": "node scripts/agent-evals.mjs",
     "retell:configure-webhooks": "node scripts/retell-configure-webhooks.mjs",
     "stripe:configure-catalog": "node scripts/stripe-configure-catalog.mjs",
-    "billing:reconcile": "node scripts/billing-reconcile.mjs"
+    "billing:reconcile": "node scripts/billing-reconcile.mjs",
+    "analytics:export": "node scripts/analytics-export.mjs"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.6.0",

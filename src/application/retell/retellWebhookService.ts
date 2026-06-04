@@ -432,6 +432,7 @@ function buildAgentBehaviorContract(profile: AssistantProfile): string {
     "Keep greetings short. Ask one question at a time.",
     "Identify caller, reason, urgency, and desired outcome.",
     "Do not over-explain the product or sound like voicemail.",
+    "Do not mention backend providers, model names, tokens, dynamic variables, or technical routing unless the user explicitly asks.",
     `Use a ${profile.greetingStyle} greeting style with warmth ${profile.warmth}/5 and brevity ${profile.brevity}/5.`,
     "If you need the user, request transfer approval or ask the user a live text question.",
     "Do not invent facts, availability, relationships, decisions, or prior context.",

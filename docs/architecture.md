@@ -81,6 +81,24 @@ flowchart LR
 
 The Android Room cache is intentionally client-side and non-authoritative. It stores last-known provider-neutral display snapshots so the app can render quickly and remain navigable when refreshes fail. Backend APIs remain authoritative for permissions, billing gates, transfer/live-answer actions, sharing, calendar writes, topic mutations, and all paid side effects.
 
+## Backend Route Ownership
+
+`src/app.ts` is the composition root: it constructs infrastructure, configures global middleware, creates rate limiters/parsers, and injects services into route modules. Stable behavior lives in focused route modules. Retell raw-body webhook and tool endpoints are owned by `src/routes/retellRawRoutes.ts`, which preserves the existing public URLs while keeping signature verification, raw-body parsing, billing gates, and live tool request validation together.
+
+```mermaid
+flowchart LR
+    App["src/app.ts<br/>composition root"] --> Middleware["Helmet / CORS / logging"]
+    App --> Parsers["JSON + raw JSON parsers"]
+    App --> Limits["Client and provider rate limiters"]
+    App --> Routes["Focused route modules"]
+    Routes --> ClientRoutes["Client APIs<br/>topics, calls, billing, notifications"]
+    Routes --> RetellRaw["Retell raw routes<br/>webhooks + live tools"]
+    RetellRaw --> Verify["Signature verification"]
+    RetellRaw --> BillingGate["Paid runtime gate"]
+    RetellRaw --> LiveTools["Transfer / live answer / calendar tools"]
+    RetellRaw --> VoiceWebhooks["Inbound + lifecycle handling"]
+```
+
 ## Pay-As-You-Go Billing Flow
 
 ```mermaid

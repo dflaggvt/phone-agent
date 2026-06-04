@@ -109,6 +109,11 @@ export class FirestoreContactRepository implements ContactRepository {
     return contact.exists ? contactFromFirestore(contact.id, contact.data() ?? {}) : undefined;
   }
 
+  async disconnectForUser(userId: string, disconnectedAt = new Date()): Promise<ContactSyncStatus> {
+    await this.syncForUser(userId, [], disconnectedAt);
+    return { syncedCount: 0, phoneNumberCount: 0, lastSyncedAt: disconnectedAt };
+  }
+
   async countForUser(userId: string): Promise<number> {
     return (await this.statusForUser(userId)).syncedCount;
   }

@@ -2,11 +2,15 @@ package com.phoneagent.app.data
 
 import androidx.room.withTransaction
 import com.phoneagent.app.ActiveCall
+import com.phoneagent.app.AgentNote
+import com.phoneagent.app.AnswerRequest
 import com.phoneagent.app.AppNotification
+import com.phoneagent.app.ApprovalRequest
 import com.phoneagent.app.AppSnapshot
 import com.phoneagent.app.BillingAccount
 import com.phoneagent.app.CallRecord
 import com.phoneagent.app.ContactSyncStatus
+import com.phoneagent.app.DataFreshness
 import com.phoneagent.app.OnboardingStatus
 import com.phoneagent.app.TopicSuggestion
 import com.phoneagent.app.TopicThread
@@ -43,8 +47,12 @@ internal class PhoneAgentRepository @Inject constructor(
             calls = CallListResponse.from(getJson(token, "/v1/calls")).calls,
             suggestions = TopicSuggestionListResponse.from(getJson(token, "/v1/topic-suggestions")).suggestions,
             notifications = NotificationListResponse.from(getJson(token, "/v1/notifications?unread=true")).notifications,
+            agentNotes = AgentNoteListResponse.from(getJson(token, "/v1/agent-notes")).notes,
+            approvalRequests = ApprovalRequestListResponse.from(getJson(token, "/v1/approval-requests")).approvalRequests,
+            answerRequests = AnswerRequestListResponse.from(getJson(token, "/v1/answer-requests")).answerRequests,
             contactSync = ContactSyncStatusResponse.from(getJson(token, "/v1/contacts/status")).status,
-            activeCall = ActiveCallResponse.from(getJson(token, "/v1/calls/active")).activeCall
+            activeCall = ActiveCallResponse.from(getJson(token, "/v1/calls/active")).activeCall,
+            dataFreshness = DataFreshness.fresh()
         )
 
     suspend fun readCachedSnapshot(): AppSnapshot? = withContext(Dispatchers.IO) {
@@ -54,6 +62,9 @@ internal class PhoneAgentRepository @Inject constructor(
         val onboarding = dao.singleton(CACHE_ONBOARDING)
         val contactSync = dao.singleton(CACHE_CONTACTS)
         val activeCall = dao.singleton(CACHE_ACTIVE_CALL)
+        val agentNotes = dao.singleton(CACHE_AGENT_NOTES)
+        val approvalRequests = dao.singleton(CACHE_APPROVAL_REQUESTS)
+        val answerRequests = dao.singleton(CACHE_ANSWER_REQUESTS)
         val topics = dao.topics()
         val calls = dao.calls()
         val suggestions = dao.topicSuggestions()
@@ -63,11 +74,29 @@ internal class PhoneAgentRepository @Inject constructor(
             onboarding != null ||
             contactSync != null ||
             activeCall != null ||
+            agentNotes != null ||
+            approvalRequests != null ||
+            answerRequests != null ||
             topics.isNotEmpty() ||
             calls.isNotEmpty() ||
             suggestions.isNotEmpty() ||
             notifications.isNotEmpty()
         if (!hasCachedState) return@withContext null
+        val activeCallValue = activeCall?.json?.let { ActiveCall(cachedJson(it)) }
+        val cachedAt = listOfNotNull(
+            user?.cachedAtEpochMs,
+            billing?.cachedAtEpochMs,
+            onboarding?.cachedAtEpochMs,
+            contactSync?.cachedAtEpochMs,
+            activeCall?.cachedAtEpochMs,
+            agentNotes?.cachedAtEpochMs,
+            approvalRequests?.cachedAtEpochMs,
+            answerRequests?.cachedAtEpochMs,
+            topics.maxOfOrNull { it.cachedAtEpochMs },
+            calls.maxOfOrNull { it.cachedAtEpochMs },
+            suggestions.maxOfOrNull { it.cachedAtEpochMs },
+            notifications.maxOfOrNull { it.cachedAtEpochMs }
+        ).maxOrNull() ?: System.currentTimeMillis()
         AppSnapshot(
             me = user?.json?.let { UserSummary(cachedJson(it)) } ?: UserSummary.empty,
             billing = billing?.json?.let { BillingAccount(cachedJson(it)) } ?: BillingAccount.empty,
@@ -76,8 +105,12 @@ internal class PhoneAgentRepository @Inject constructor(
             calls = calls.map { CallRecord(cachedJson(it.json)) },
             suggestions = suggestions.map { TopicSuggestion(cachedJson(it.json)) },
             notifications = notifications.map { AppNotification(cachedJson(it.json)) },
+            agentNotes = agentNotes?.json?.let { cachedJson(it).optJSONArray("notes").mapJsonObjects(::AgentNote) } ?: emptyList(),
+            approvalRequests = approvalRequests?.json?.let { cachedJson(it).optJSONArray("approvalRequests").mapJsonObjects(::ApprovalRequest) } ?: emptyList(),
+            answerRequests = answerRequests?.json?.let { cachedJson(it).optJSONArray("answerRequests").mapJsonObjects(::AnswerRequest) } ?: emptyList(),
             contactSync = contactSync?.json?.let { ContactSyncStatus(cachedJson(it)) } ?: ContactSyncStatus.empty,
-            activeCall = activeCall?.json?.let { ActiveCall(cachedJson(it)) }
+            activeCall = activeCallValue,
+            dataFreshness = DataFreshness.cached(cachedAt, hasLiveCall = activeCallValue != null)
         )
     }
 
@@ -89,6 +122,15 @@ internal class PhoneAgentRepository @Inject constructor(
             dao.upsertSingleton(CachedSingletonEntity(CACHE_BILLING, snapshot.billing.json.toString(), now))
             dao.upsertSingleton(CachedSingletonEntity(CACHE_ONBOARDING, snapshot.onboarding.json.toString(), now))
             dao.upsertSingleton(CachedSingletonEntity(CACHE_CONTACTS, snapshot.contactSync.json.toString(), now))
+            dao.upsertSingleton(CachedSingletonEntity(CACHE_AGENT_NOTES, JSONObject().put("notes", JSONArray().apply {
+                snapshot.agentNotes.forEach { put(it.json) }
+            }).toString(), now))
+            dao.upsertSingleton(CachedSingletonEntity(CACHE_APPROVAL_REQUESTS, JSONObject().put("approvalRequests", JSONArray().apply {
+                snapshot.approvalRequests.forEach { put(it.json) }
+            }).toString(), now))
+            dao.upsertSingleton(CachedSingletonEntity(CACHE_ANSWER_REQUESTS, JSONObject().put("answerRequests", JSONArray().apply {
+                snapshot.answerRequests.forEach { put(it.json) }
+            }).toString(), now))
             if (snapshot.activeCall == null) {
                 dao.deleteSingleton(CACHE_ACTIVE_CALL)
             } else {
@@ -174,6 +216,9 @@ internal class PhoneAgentRepository @Inject constructor(
         return ContactSyncResultResponse.from(postJson(token, "/v1/contacts/sync", payload)).result
     }
 
+    suspend fun disconnectContacts(token: String): ContactSyncStatus =
+        ContactSyncStatusResponse.from(backendClient.deleteJson(token, "/v1/contacts/sync")).status
+
     suspend fun updateDisplayName(token: String, displayName: String) {
         patchJson(token, "/v1/me/config", JSONObject().put("displayName", displayName))
     }
@@ -193,6 +238,26 @@ internal class PhoneAgentRepository @Inject constructor(
 
     suspend fun createAgentNote(token: String, request: AgentNoteCreateRequest) {
         postJson(token, "/v1/agent-notes", request.toJson())
+    }
+
+    suspend fun archiveAgentNote(token: String, noteId: String) {
+        backendClient.deleteJson(token, "/v1/agent-notes/${pathSegment(noteId)}")
+    }
+
+    suspend fun acceptTransfer(token: String, approvalRequestId: String) {
+        postJson(token, "/v1/approval-requests/${pathSegment(approvalRequestId)}/accept", JSONObject())
+    }
+
+    suspend fun declineTransfer(token: String, approvalRequestId: String) {
+        postJson(token, "/v1/approval-requests/${pathSegment(approvalRequestId)}/decline", JSONObject())
+    }
+
+    suspend fun sendLiveAnswer(token: String, answerRequestId: String, answer: String) {
+        postJson(token, "/v1/answer-requests/${pathSegment(answerRequestId)}/reply", JSONObject().put("answer", answer))
+    }
+
+    suspend fun declineLiveAnswer(token: String, answerRequestId: String) {
+        postJson(token, "/v1/answer-requests/${pathSegment(answerRequestId)}/decline", JSONObject())
     }
 
     suspend fun createBillingCheckoutSession(token: String): String {
@@ -226,11 +291,23 @@ internal class PhoneAgentRepository @Inject constructor(
         const val CACHE_ONBOARDING = "onboarding"
         const val CACHE_ACTIVE_CALL = "active_call"
         const val CACHE_CONTACTS = "contacts"
+        const val CACHE_AGENT_NOTES = "agent_notes"
+        const val CACHE_APPROVAL_REQUESTS = "approval_requests"
+        const val CACHE_ANSWER_REQUESTS = "answer_requests"
     }
 }
 
 private fun JSONObject.putContacts(contacts: List<DeviceContactInput>): JSONObject =
     put("contacts", JSONArray().apply { contacts.forEach { put(it.toJson()) } })
+
+private fun <T> JSONArray?.mapJsonObjects(factory: (JSONObject) -> T): List<T> =
+    if (this == null) {
+        emptyList()
+    } else {
+        (0 until length()).mapNotNull { index ->
+            optJSONObject(index)?.let(factory)
+        }
+    }
 
 private fun pathSegment(value: String): String =
     URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")

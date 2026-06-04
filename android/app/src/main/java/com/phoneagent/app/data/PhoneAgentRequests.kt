@@ -55,11 +55,13 @@ internal data class TopicCreateRequest(
 
 internal data class AgentNoteCreateRequest(
     val text: String,
-    val targetPhoneNumber: String?
+    val targetPhoneNumber: String?,
+    val topic: String?
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("text", text)
         .putOptionalString("targetPhoneNumber", targetPhoneNumber, maxLength = 40)
+        .putOptionalString("topic", topic, maxLength = 200)
 }
 
 internal data class PushTokenRegistrationRequest(

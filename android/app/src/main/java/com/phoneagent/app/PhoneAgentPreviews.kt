@@ -16,8 +16,14 @@ internal fun previewActions() = AppActions(
     openProfileSettings = {},
     openPhoneContacts = {},
     syncPhoneContacts = {},
+    disconnectPhoneContacts = {},
     openSystemSettings = {},
-    saveAgentNote = { _, _ -> },
+    saveAgentNote = { _, _, _ -> },
+    archiveAgentNote = {},
+    acceptTransfer = {},
+    declineTransfer = {},
+    sendLiveAnswer = { _, _ -> },
+    declineLiveAnswer = {},
     back = {},
     openForwarding = {},
     openBilling = {},
@@ -49,6 +55,15 @@ internal fun previewState(selectedTab: Tab = Tab.Home, screen: Screen = Screen.M
         TopicSuggestion(JSONObject("""{"id":"suggestion_1","suggestedTopicTitle":"Dinner Plans","reason":"Theresa's call appears related to recurring family logistics.","confidence":0.91}"""))
     ),
     notifications = listOf(AppNotification(JSONObject("""{"title":"Calendar changed","body":"Addison created one approved event."}"""))),
+    agentNotes = listOf(
+        AgentNote(JSONObject("""{"id":"note_1","status":"active","text":"If Theresa calls, tell her I am leaving around 6:15 and can pick up dinner.","topic":"Family Schedule"}"""))
+    ),
+    approvalRequests = listOf(
+        ApprovalRequest(JSONObject("""{"id":"approval_1","callerName":"Greg","reason":"Contractor says he needs a decision on the plumbing change while he is on-site.","urgency":"high"}"""))
+    ),
+    answerRequests = listOf(
+        AnswerRequest(JSONObject("""{"id":"answer_1","callerName":"Theresa","question":"What state does Daryl live in?","urgency":"normal"}"""))
+    ),
     contactSync = ContactSyncStatus(JSONObject("""{"syncedCount":128,"phoneNumberCount":184,"lastSyncedAt":"2026-06-03T12:30:00.000Z"}"""))
 )
 

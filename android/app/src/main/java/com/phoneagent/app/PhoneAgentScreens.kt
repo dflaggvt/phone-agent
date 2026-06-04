@@ -181,16 +181,27 @@ private fun Header(title: String, state: PhoneAgentUiState, onRefresh: () -> Uni
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            title,
-            color = Color.White,
-            fontSize = 26.sp,
-            lineHeight = 30.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                color = Color.White,
+                fontSize = 26.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (state.dataFreshness.shouldShow) {
+                Text(
+                    state.dataFreshness.displayLabel,
+                    color = Color.White.copy(alpha = 0.74f),
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
         if (showPresence) {
             AssistantPresence(state, onPresenceClick)
         }
@@ -232,6 +243,7 @@ private data class PresenceState(val label: String, val color: Color)
 
 private fun presenceState(state: PhoneAgentUiState): PresenceState {
     return when {
+        state.dataFreshness.state == FreshnessState.Offline -> PresenceState("Offline", Muted)
         state.activeCall != null -> PresenceState("Live", Warning)
         state.notifications.isNotEmpty() || state.suggestions.isNotEmpty() -> PresenceState("Needs you", Critical)
         state.status == "Syncing" -> PresenceState("Syncing", Info)
@@ -399,21 +411,52 @@ private fun TopicsScreen(state: PhoneAgentUiState, actions: AppActions) {
 
 @Composable
 private fun ReviewScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var filter by remember { mutableStateOf("All") }
+    val liveRequestCount = state.approvalRequests.size + state.answerRequests.size
     ScreenList {
-        item { SectionLabel("Topic review") }
-        if (state.suggestions.isEmpty()) {
-            item { QuietCard("No review items", "Topic suggestions and uncertain assistant decisions will appear here.") }
-        } else {
+        item {
+            Text("Review is where calls, topic suggestions, and live requests get cleaned up before they become memory.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+        }
+        item {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("All", "Topics", "Calls", "Live", "Updates").forEach { label ->
+                    CalmFilterChip(label = label, selected = filter == label, onClick = { filter = label })
+                }
+            }
+        }
+        if ((filter == "All" || filter == "Topics") && state.suggestions.isNotEmpty()) {
+            item { SectionLabel("Topic suggestions") }
             state.suggestions.forEach { item { SuggestionCard(it, actions) } }
         }
-        item { SectionLabel("Calls to organize") }
-        state.calls.take(8).forEach { item { CallRow(it, actions) } }
+        if ((filter == "All" || filter == "Live") && liveRequestCount > 0) {
+            item { SectionLabel("Live requests") }
+            state.approvalRequests.forEach { item { TransferRequestCard(it, actions) } }
+            state.answerRequests.forEach { item { AnswerRequestCard(it, actions) } }
+        }
+        if ((filter == "All" || filter == "Updates") && state.notifications.isNotEmpty()) {
+            item { SectionLabel("Assistant updates") }
+            state.notifications.forEach { item { QuietCard(it.title, it.body) } }
+        }
+        if ((filter == "All" || filter == "Calls") && state.calls.isNotEmpty()) {
+            item { SectionLabel("Calls to organize") }
+            state.calls.take(12).forEach { item { CallRow(it, actions) } }
+        }
+        if (
+            (filter == "Topics" && state.suggestions.isEmpty()) ||
+            (filter == "Live" && liveRequestCount == 0) ||
+            (filter == "Updates" && state.notifications.isEmpty()) ||
+            (filter == "Calls" && state.calls.isEmpty()) ||
+            (filter == "All" && state.suggestions.isEmpty() && liveRequestCount == 0 && state.notifications.isEmpty() && state.calls.isEmpty())
+        ) {
+            item { QuietCard("Nothing to review", "When the assistant needs cleanup, approval, or organization, it will appear here.") }
+        }
     }
 }
 
 @Composable
 private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
     val assistantNumber = state.user.assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER }
+    val liveRequestCount = state.approvalRequests.size + state.answerRequests.size
     ScreenList {
         item {
             WorkCard {
@@ -421,10 +464,21 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
                 Text(state.activeCall?.displayCaller ?: "Ready to answer, summarize, ask for help, and protect your attention.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricTile("Needs you", (state.notifications.size + state.suggestions.size).toString(), Modifier.weight(1f))
+                    MetricTile("Needs you", (state.notifications.size + state.suggestions.size + liveRequestCount).toString(), Modifier.weight(1f))
                     MetricTile("Topics", state.topics.size.toString(), Modifier.weight(1f))
                     MetricTile("Calls", state.calls.size.toString(), Modifier.weight(1f))
                 }
+            }
+        }
+        item { SectionLabel("Live requests") }
+        if (liveRequestCount == 0) {
+            item { QuietCard("No live requests", "If a caller needs you while the assistant is on the phone, the request appears here.") }
+        } else {
+            state.approvalRequests.forEach { request ->
+                item { TransferRequestCard(request, actions) }
+            }
+            state.answerRequests.forEach { request ->
+                item { AnswerRequestCard(request, actions) }
             }
         }
         item { SectionLabel("Quick actions") }
@@ -441,6 +495,15 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
                 }
             }
         }
+        item { SectionLabel("Assistant notes") }
+        val activeNotes = state.agentNotes.filter { it.status == "active" }
+        if (activeNotes.isEmpty()) {
+            item { QuietCard("No active notes", "Add a note when the assistant should know something for an upcoming call.") }
+        } else {
+            activeNotes.take(6).forEach { note ->
+                item { AgentNoteCard(note, actions) }
+            }
+        }
         item { SectionLabel("Channels") }
         item {
             WorkCard {
@@ -454,8 +517,76 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
 }
 
 @Composable
+private fun TransferRequestCard(request: ApprovalRequest, actions: AppActions) {
+    WorkCard {
+        Text("Transfer request", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(request.displayCaller, color = Ink, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
+        Text(request.reason, color = Muted, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        DetailLine("Urgency", request.urgency)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            PrimaryButton("Accept", Icons.AutoMirrored.Filled.Send, Modifier.weight(1f)) { actions.acceptTransfer(request.id) }
+            SecondaryButton("Decline", Modifier.weight(1f)) { actions.declineTransfer(request.id) }
+        }
+    }
+}
+
+@Composable
+private fun AnswerRequestCard(request: AnswerRequest, actions: AppActions) {
+    var answer by remember(request.id) { mutableStateOf("") }
+    WorkCard {
+        Text("Caller question", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(request.displayCaller, color = Ink, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
+        Text(request.question, color = Ink, fontSize = 15.sp, lineHeight = 20.sp)
+        if (request.reason.isNotBlank()) {
+            Text(request.reason, color = Muted, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = answer,
+            onValueChange = { answer = it },
+            label = { Text("Reply for assistant to say") },
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Ink,
+                unfocusedTextColor = Ink,
+                focusedContainerColor = Card,
+                unfocusedContainerColor = Card,
+                focusedBorderColor = Line,
+                unfocusedBorderColor = Line,
+                focusedLabelColor = Muted,
+                unfocusedLabelColor = Muted,
+                cursorColor = Brand
+            )
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            PrimaryButton("Send", Icons.AutoMirrored.Filled.Send, Modifier.weight(1f)) { actions.sendLiveAnswer(request.id, answer) }
+            SecondaryButton("Decline", Modifier.weight(1f)) { actions.declineLiveAnswer(request.id) }
+        }
+    }
+}
+
+@Composable
+private fun AgentNoteCard(note: AgentNote, actions: AppActions) {
+    WorkCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(note.displayTitle, color = Ink, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(note.scopeLabel, color = Muted, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            SecondaryButton("Archive", Modifier.width(104.dp)) { actions.archiveAgentNote(note.id) }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(note.text, color = Muted, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
 private fun SearchScreen(state: PhoneAgentUiState, actions: AppActions) {
     var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("All") }
     val topics = state.topics.filter { query.isBlank() || it.title.contains(query, true) || it.description.contains(query, true) }
     val calls = state.calls.filter { query.isBlank() || it.displayCaller.contains(query, true) || it.phone.contains(query, true) }
     ScreenList {
@@ -470,16 +601,26 @@ private fun SearchScreen(state: PhoneAgentUiState, actions: AppActions) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("All", "Topics", "People", "Calls").forEach {
-                    CalmFilterChip(label = it, selected = it == "All", onClick = {})
+                    CalmFilterChip(label = it, selected = it == category, onClick = { category = it })
                 }
             }
         }
         item { SectionLabel("Best matches") }
-        if (topics.isEmpty() && calls.isEmpty()) {
-            item { QuietCard("No results yet", "Search becomes more useful as your assistant builds topic memory.") }
-        } else {
+        if ((category == "All" || category == "Topics") && topics.isNotEmpty()) {
             topics.take(4).forEach { item { TopicSearchRow(it, actions) } }
+        }
+        if ((category == "All" || category == "Calls") && calls.isNotEmpty()) {
             calls.take(4).forEach { item { CallRow(it, actions) } }
+        }
+        if (category == "People") {
+            item { QuietCard("People search is coming", "Synced contacts are used for caller recognition now. Full people search will use caller memory and contact records together.") }
+        }
+        if (
+            (category == "All" && topics.isEmpty() && calls.isEmpty()) ||
+            (category == "Topics" && topics.isEmpty()) ||
+            (category == "Calls" && calls.isEmpty())
+        ) {
+            item { QuietCard("No results yet", "Search becomes more useful as your assistant builds topic memory.") }
         }
     }
 }
@@ -621,6 +762,7 @@ private fun CallDetailScreen(state: PhoneAgentUiState, providerCallId: String, a
 private fun AddNoteScreen(state: PhoneAgentUiState, targetPhoneNumber: String, actions: AppActions) {
     var phone by remember(targetPhoneNumber) { mutableStateOf(targetPhoneNumber) }
     var note by remember { mutableStateOf("") }
+    var topic by remember { mutableStateOf("") }
     DetailFrame(title = "Add note", state = state, actions = actions) {
         item {
             WorkCard {
@@ -634,6 +776,17 @@ private fun AddNoteScreen(state: PhoneAgentUiState, targetPhoneNumber: String, a
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
+                if (state.topics.isNotEmpty()) {
+                    Text("Topic scope, optional", color = Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NoteScopeChip("General", selected = topic.isBlank()) { topic = "" }
+                        state.topics.take(8).forEach { candidate ->
+                            NoteScopeChip(candidate.title, selected = topic == candidate.title) { topic = candidate.title }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
@@ -655,7 +808,7 @@ private fun AddNoteScreen(state: PhoneAgentUiState, targetPhoneNumber: String, a
                 )
                 Spacer(Modifier.height(10.dp))
                 PrimaryButton(if (state.loading) "Saving" else "Save note", Icons.Filled.Add, enabled = !state.loading) {
-                    actions.saveAgentNote(note, phone)
+                    actions.saveAgentNote(note, phone, topic)
                 }
             }
         }
@@ -663,6 +816,30 @@ private fun AddNoteScreen(state: PhoneAgentUiState, targetPhoneNumber: String, a
             QuietCard(
                 "How notes work",
                 "If the caller matches the phone number, the assistant can use this note as call context. Leave the phone blank for general context."
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoteScopeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .height(32.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        shape = CircleShape,
+        color = if (selected) Brand else Soft,
+        border = BorderStroke(1.dp, if (selected) Brand else Line)
+    ) {
+        Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                color = if (selected) Color.White else Ink,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -781,6 +958,10 @@ private fun PhoneContactsScreen(state: PhoneAgentUiState, actions: AppActions) {
                     onClick = actions.syncPhoneContacts
                 )
                 Spacer(Modifier.height(8.dp))
+                if (state.contactSync.syncedCount > 0) {
+                    SecondaryButton("Disconnect synced contacts", Modifier.fillMaxWidth(), actions.disconnectPhoneContacts)
+                    Spacer(Modifier.height(8.dp))
+                }
                 Text("Permission is requested only when you tap sync.", color = Muted, fontSize = 13.sp, lineHeight = 18.sp)
             }
         }

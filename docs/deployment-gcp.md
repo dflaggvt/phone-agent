@@ -160,6 +160,7 @@ This creates or reuses:
 - Uptime check for `GET /readyz`.
 - Alert policy for Cloud Run `5xx` responses.
 - Alert policy for high Cloud Run p95 latency.
+- Log-based metrics and alert policies for provider webhook failures, billing failures, and FCM delivery failures.
 
 Attach at least one operator-owned notification channel in Cloud Monitoring before closed beta. The local `gcloud` installation may not include the beta command group required to create notification channels from the CLI, so creating the channel in the Google Cloud Console is acceptable.
 
@@ -193,7 +194,7 @@ The command checks every local `BillingAccount` against Stripe customers and Per
 - Evaluate moving topic-thread and permission-heavy data from Firestore to PostgreSQL on Cloud SQL.
 - Configure Firebase Phone Auth for production SMS/voice verification, Android app credentials, and explicit SMS region policy.
 - Keep Retell webhook endpoints public but signature-verified.
-- Add structured alerting for webhook failures and 5xx responses.
+- Add notification channels to the structured alerting policies for readiness, 5xx responses, high latency, webhook failures, billing failures, and FCM failures.
 - Add Cloud Armor or API Gateway rate limiting before public launch. The app has shared Firestore-backed backend limits as defense in depth, but edge controls are still required.
 - Add billing reconciliation and webhook replay dashboards before live billing.
 - Verify Stripe webhook event idempotency in test mode using duplicate delivery and retry scenarios before enabling live mode.

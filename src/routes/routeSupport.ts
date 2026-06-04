@@ -14,6 +14,26 @@ export function currentUserId(res: express.Response): string {
     : "";
 }
 
+export function requireRouteParam(value: string | string[] | undefined, name: string): string {
+  if (!value || Array.isArray(value)) {
+    throw new HttpError(400, "route_param_missing", `${name} route parameter is required.`);
+  }
+  return value;
+}
+
+export function rawBody(req: express.Request): string {
+  if (!Buffer.isBuffer(req.body)) {
+    throw new HttpError(400, "raw_body_missing", "Expected raw application/json request body.");
+  }
+
+  return req.body.toString("utf-8");
+}
+
+export function notificationActionSurface(req: express.Request): "notification_action" | "app_screen" | "api" {
+  const surface = req.header("x-phone-agent-action-surface");
+  return surface === "notification_action" || surface === "app_screen" ? surface : "api";
+}
+
 export function assertSafeAnalyticsAttributes(
   attributes: Record<string, string | number | boolean>
 ): Record<string, string | number | boolean> {

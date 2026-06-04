@@ -48,6 +48,7 @@ export interface BillingAccountRepository {
   get(userId: string): Promise<BillingAccount | undefined>;
   getByProviderCustomerId(providerCustomerId: string): Promise<BillingAccount | undefined>;
   upsert(input: UpsertBillingAccountInput): Promise<BillingAccount>;
+  incrementCurrentPeriodSpend(userId: string, amountCents: number): Promise<BillingAccount | undefined>;
 }
 
 export function createBillingAccount(input: UpsertBillingAccountInput & { now?: Date }): BillingAccount {

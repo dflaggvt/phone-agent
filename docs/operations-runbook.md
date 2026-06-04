@@ -68,7 +68,7 @@ Minimum closed-beta alert policies:
 | Billing reconciliation failure | reconciliation exits non-zero | each scheduled run | Critical | Revenue, duplicate subscription, or cap enforcement risk |
 | FCM delivery failures | elevated failed sends | `15` minutes | Warning | User may miss live call actions |
 
-Current setup creates service-level readiness, 5xx, and latency monitors. Provider-specific and billing reconciliation monitors require scheduled jobs/log-based metrics before public launch.
+Current setup creates service-level readiness, 5xx, latency, provider webhook, billing failure, and FCM delivery failure monitors. As of `2026-06-03`, those policies are attached to the email notification channel `dflagg@gmail.com`; verify the channel in Cloud Monitoring if Google sends a confirmation email. Billing reconciliation still needs a scheduled job and alert wrapper before public launch.
 
 ## Incident Triage
 
@@ -135,6 +135,20 @@ Escalate if:
 - A local active account has no active provider subscription.
 - Meter events repeatedly fail to publish.
 - A spending cap is bypassed.
+- Local invoice mirrors are missing for recent paid or failed invoices after Stripe webhook delivery.
+
+### Analytics Export
+
+Export privacy-safe product analytics rows for dashboard prototyping or warehouse loading:
+
+```powershell
+$env:GOOGLE_CLOUD_PROJECT = "phone-agent-43313"
+$env:ANALYTICS_EXPORT_SINCE = "2026-06-01T00:00:00Z"
+$env:ANALYTICS_EXPORT_OUTPUT = ".\\exports\\analytics-2026-06-01.ndjson"
+npm run analytics:export
+```
+
+The export intentionally strips blocked attribute keys such as transcript, summary, note, answer, query, contact, calendar, payment, secret, token, and raw payload fields. Escalate if the export command fails, exports zero rows for a known-active period, or dashboard rows contain sensitive content.
 
 ### Voice Provider Problem
 
@@ -197,4 +211,4 @@ Required channel:
 - Owner: production operator.
 - Coverage: backend health, 5xx, latency, webhook failures, billing reconciliation failure.
 
-Current local `gcloud` installation does not include the beta notification-channel command group. If the channel cannot be created locally, create it in the Google Cloud Console and attach it to the existing policies.
+Current local setup created an email notification channel through the Cloud Monitoring API and attached it to the existing policies. If the channel becomes unverified or needs to change, update it in the Google Cloud Console and keep all six Phone Agent policies attached.

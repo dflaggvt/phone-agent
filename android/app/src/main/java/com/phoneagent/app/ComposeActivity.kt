@@ -1,7 +1,6 @@
 package com.phoneagent.app
 
 import android.Manifest
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -21,26 +20,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import com.google.firebase.FirebaseApp
-import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.google.firebase.messaging.FirebaseMessaging
 import com.phoneagent.app.data.AgentNoteCreateRequest
-import com.phoneagent.app.data.AssistantProfileUpdate
-import com.phoneagent.app.data.PushTokenRegistrationRequest
 import com.phoneagent.app.data.TopicCreateRequest
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.TimeUnit
 
 @AndroidEntryPoint
 class ComposeActivity : ComponentActivity() {
@@ -50,6 +39,11 @@ class ComposeActivity : ComponentActivity() {
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private val viewModel: PhoneAgentViewModel by viewModels()
+    private val homeScreenViewModel: HomeScreenViewModel by viewModels()
+    private val onboardingViewModel: OnboardingViewModel by viewModels()
+    private val billingViewModel: BillingViewModel by viewModels()
+    private val contactsViewModel: ContactsViewModel by viewModels()
+    private val assistantLiveViewModel: AssistantLiveViewModel by viewModels()
     @Inject internal lateinit var firebaseAuth: FirebaseAuth
     @Inject internal lateinit var contactReader: AndroidContactReader
     @Inject internal lateinit var analyticsTracker: PhoneAgentAnalyticsTracker
@@ -58,8 +52,11 @@ class ComposeActivity : ComponentActivity() {
         set(value) {
             viewModel.setState(value)
         }
-    private var pendingDisplayName = ""
     private lateinit var contactsPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var onboardingCoordinator: PhoneOnboardingCoordinator
+    private lateinit var billingCoordinator: BillingCoordinator
+    private lateinit var contactSyncCoordinator: ContactSyncCoordinator
+    private lateinit var fcmRegistrationCoordinator: FcmRegistrationCoordinator
 
     private val pushReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -71,16 +68,47 @@ class ComposeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         contactsPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                uiState = uiState.copy(contactPermissionDenied = false)
-                track("contacts_permission_result", screen = "phone_contacts", action = "permission", result = "granted")
-                syncPhoneContacts()
-            } else {
-                uiState = uiState.copy(contactSyncing = false, contactPermissionDenied = true, status = if (uiState.onboarding.ready) "Active" else "Setup")
-                toast("Contacts permission was not granted.")
-                track("contacts_permission_result", screen = "phone_contacts", action = "permission", result = "denied")
-            }
+            contactSyncCoordinator.onPermissionResult(granted)
         }
+        fcmRegistrationCoordinator = FcmRegistrationCoordinator(applicationContext, scope, firebaseAuth, viewModel)
+        onboardingCoordinator = PhoneOnboardingCoordinator(
+            activity = this,
+            scope = scope,
+            firebaseAuth = firebaseAuth,
+            onboardingViewModel = onboardingViewModel,
+            getState = { uiState },
+            setState = { uiState = it },
+            tokenProvider = { requireToken() },
+            registerPushToken = { fcmRegistrationCoordinator.registerCurrentToken() },
+            refreshData = { forceStatus, keepScreen -> loadData(forceStatus = forceStatus, keepScreen = keepScreen) },
+            readableError = ::readableError,
+            toast = ::toast
+        )
+        billingCoordinator = BillingCoordinator(
+            activity = this,
+            scope = scope,
+            billingViewModel = billingViewModel,
+            getState = { uiState },
+            setState = { uiState = it },
+            tokenProvider = { requireToken() },
+            refreshData = { forceStatus, keepScreen -> loadData(forceStatus = forceStatus, keepScreen = keepScreen) }
+        )
+        contactSyncCoordinator = ContactSyncCoordinator(
+            scope = scope,
+            contactReader = contactReader,
+            contactsViewModel = contactsViewModel,
+            hasContactsPermission = { checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED },
+            requestContactsPermission = { contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+            getState = { uiState },
+            setState = { uiState = it },
+            tokenProvider = { requireToken() },
+            refreshData = { forceStatus, keepScreen -> loadData(forceStatus = forceStatus, keepScreen = keepScreen) },
+            readableError = ::readableError,
+            toast = ::toast,
+            track = { eventName, screen, action, result, attributes ->
+                track(eventName, screen = screen, action = action, result = result, attributes = attributes)
+            }
+        )
         requestNotificationPermission()
         setContent {
             val state by viewModel.uiState.collectAsState()
@@ -90,22 +118,28 @@ class ComposeActivity : ComponentActivity() {
                     actions = AppActions(
                         selectTab = ::selectTab,
                         refresh = { scope.launch { loadData(forceStatus = true) } },
-                        startSignup = ::startPhoneAuth,
-                        verifyCode = ::verifyPhoneCode,
-                        saveAssistantName = ::saveAssistantName,
+                        startSignup = onboardingCoordinator::startPhoneAuth,
+                        verifyCode = onboardingCoordinator::verifyPhoneCode,
+                        saveAssistantName = onboardingCoordinator::saveAssistantName,
                         openTopic = ::openTopic,
                         openCall = ::openCall,
                         openAddNote = ::openAddNote,
                         openProfileSettings = ::openProfileSettings,
                         openPhoneContacts = ::openPhoneContacts,
-                        syncPhoneContacts = ::requestPhoneContactSync,
+                        syncPhoneContacts = contactSyncCoordinator::requestSync,
+                        disconnectPhoneContacts = contactSyncCoordinator::disconnectContacts,
                         openSystemSettings = ::openSystemSettings,
                         saveAgentNote = ::saveAgentNote,
+                        archiveAgentNote = ::archiveAgentNote,
+                        acceptTransfer = ::acceptTransfer,
+                        declineTransfer = ::declineTransfer,
+                        sendLiveAnswer = ::sendLiveAnswer,
+                        declineLiveAnswer = ::declineLiveAnswer,
                         back = ::backToTab,
                         openForwarding = ::openForwarding,
                         openBilling = ::openBilling,
-                        openCheckout = ::openBillingCheckout,
-                        activateBilling = ::activateBilling,
+                        openCheckout = billingCoordinator::openCheckout,
+                        activateBilling = billingCoordinator::activateBilling,
                         signOut = ::signOut,
                         dial = ::dial,
                         createTopic = ::createTopic,
@@ -150,7 +184,7 @@ class ComposeActivity : ComponentActivity() {
                 hydrateFromCache()
                 loadData(forceStatus = true)
             }
-            scope.launch { registerFcmToken() }
+            fcmRegistrationCoordinator.register()
         }
     }
 
@@ -224,140 +258,12 @@ class ComposeActivity : ComponentActivity() {
         )
     }
 
-    private fun requestPhoneContactSync() {
-        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            uiState = uiState.copy(contactSyncing = true, status = "Syncing", contactPermissionDenied = false)
-            track("contacts_permission_requested", screen = "phone_contacts", action = "permission")
-            contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-            return
-        }
-        syncPhoneContacts()
-    }
-
-    private fun syncPhoneContacts() {
-        scope.launch {
-            try {
-                uiState = uiState.copy(contactSyncing = true, loading = true, status = "Syncing", error = null, contactPermissionDenied = false)
-                    val contacts = withContext(Dispatchers.IO) { contactReader.readPhoneContacts() }
-                val status = viewModel.syncContacts(requireToken(), contacts)
-                uiState = uiState.copy(contactSyncing = false, loading = false, contactSync = status, status = if (uiState.onboarding.ready) "Active" else "Setup")
-                toast("${status.syncedCount} contacts synced")
-                track(
-                    "contacts_sync_succeeded",
-                    screen = "phone_contacts",
-                    action = "sync",
-                    result = "success",
-                    attributes = mapOf(
-                        "synced_count" to status.syncedCount,
-                        "phone_number_count" to status.phoneNumberCount
-                    )
-                )
-                loadData(forceStatus = true, keepScreen = true)
-            } catch (error: Exception) {
-                uiState = uiState.copy(contactSyncing = false, loading = false, status = if (uiState.onboarding.ready) "Active" else "Setup", error = readableError(error))
-                toast("Could not sync contacts.")
-                track("contacts_sync_failed", screen = "phone_contacts", action = "sync", result = "failed")
-            }
-        }
-    }
-
     private fun openSystemSettings() {
         startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
     }
 
     private fun backToTab() {
         uiState = uiState.copy(screen = Screen.Main)
-    }
-
-    private fun startPhoneAuth(displayName: String, phoneNumber: String) {
-        val auth = firebaseAuth ?: return
-        val normalized = normalizePhone(phoneNumber)
-        if (displayName.trim().isEmpty() || !isValidE164Phone(normalized)) {
-            toast("Enter your name and a valid mobile number.")
-            return
-        }
-        pendingDisplayName = displayName.trim()
-        uiState = uiState.copy(loading = true, status = "Sending", error = null)
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(normalized)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(this)
-            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    signInWithCredential(credential)
-                }
-
-                override fun onVerificationFailed(error: FirebaseException) {
-                    uiState = uiState.copy(loading = false, status = "Setup", error = readableError(error))
-                    toast("Could not send code.")
-                }
-
-                override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    uiState = uiState.copy(
-                        loading = false,
-                        status = "Verify",
-                        screen = Screen.CodeEntry(verificationId),
-                        error = null
-                    )
-                }
-            })
-            .build()
-        runCatching { PhoneAuthProvider.verifyPhoneNumber(options) }
-            .onFailure {
-                uiState = uiState.copy(loading = false, status = "Setup", error = readableError(it))
-            }
-    }
-
-    private fun verifyPhoneCode(verificationId: String, code: String) {
-        if (code.trim().isEmpty()) {
-            toast("Enter the verification code.")
-            return
-        }
-        uiState = uiState.copy(loading = true, status = "Verifying")
-        signInWithCredential(PhoneAuthProvider.getCredential(verificationId, code.trim()))
-    }
-
-    private fun signInWithCredential(credential: PhoneAuthCredential) {
-        val auth = firebaseAuth ?: return
-        auth.signInWithCredential(credential).addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                uiState = uiState.copy(loading = false, status = "Setup", error = task.exception?.message ?: "Could not verify phone.")
-                return@addOnCompleteListener
-            }
-            scope.launch {
-                try {
-                    viewModel.updateDisplayName(requireToken(), pendingDisplayName.ifBlank { "Phone Agent User" })
-                    scope.launch { registerFcmToken() }
-                    uiState = uiState.copy(loading = false, status = "Setup", screen = Screen.AssistantName, error = null)
-                    loadData(forceStatus = true, keepScreen = true)
-                } catch (error: Exception) {
-                    uiState = uiState.copy(loading = false, status = "Setup", error = readableError(error))
-                }
-            }
-        }
-    }
-
-    private fun saveAssistantName(name: String) {
-        scope.launch {
-            try {
-                uiState = uiState.copy(loading = true, status = "Saving")
-                viewModel.updateAssistantProfile(
-                    requireToken(),
-                    AssistantProfileUpdate(
-                        assistantName = name.trim().ifBlank { "Assistant" },
-                        greetingStyle = "warm",
-                        disclosureStyle = "standard",
-                        warmth = 4,
-                        brevity = 4,
-                        proactivity = 3
-                    )
-                )
-                uiState = uiState.copy(loading = false, screen = Screen.Main, selectedTab = Tab.Home)
-                loadData(forceStatus = true)
-            } catch (error: Exception) {
-                uiState = uiState.copy(loading = false, status = "Setup", error = readableError(error))
-            }
-        }
     }
 
     private suspend fun loadData(forceStatus: Boolean = false, keepScreen: Boolean = false) {
@@ -369,6 +275,8 @@ class ComposeActivity : ComponentActivity() {
         track("data_refresh_started", screen = uiState.selectedTab.label.lowercase(), action = "refresh")
         try {
             val loaded = viewModel.refreshData(user.idToken(), forceStatus, keepScreen)
+            homeScreenViewModel.update(loaded)
+            assistantLiveViewModel.update(loaded)
             track(
                 "data_refresh_succeeded",
                 screen = uiState.selectedTab.label.lowercase(),
@@ -382,11 +290,17 @@ class ComposeActivity : ComponentActivity() {
                 )
             )
         } catch (error: Exception) {
-            val issueScreen = if (uiState.screen is Screen.Startup) Screen.StartupIssue else uiState.screen
+            val hasCachedShell = uiState.user.id.isNotEmpty()
+            val issueScreen = when {
+                hasCachedShell && uiState.screen is Screen.Startup -> Screen.Main
+                uiState.screen is Screen.Startup -> Screen.StartupIssue
+                else -> uiState.screen
+            }
             uiState = uiState.copy(
                 loading = false,
                 screen = issueScreen,
-                status = if (uiState.user.id.isNotEmpty()) uiState.status else "Setup",
+                status = if (hasCachedShell) "Offline" else "Setup",
+                dataFreshness = if (hasCachedShell) uiState.dataFreshness.offline() else uiState.dataFreshness,
                 error = readableError(error)
             )
             track("data_refresh_failed", screen = uiState.selectedTab.label.lowercase(), action = "refresh", result = "failed")
@@ -402,7 +316,10 @@ class ComposeActivity : ComponentActivity() {
 
     private suspend fun hydrateFromCache(): Boolean {
         if (firebaseAuth?.currentUser == null) return false
-        return viewModel.hydrateFromCache() != null
+        val snapshot = viewModel.hydrateFromCache() ?: return false
+        homeScreenViewModel.update(snapshot)
+        assistantLiveViewModel.update(snapshot)
+        return true
     }
 
     private fun createTopic(title: String, description: String) {
@@ -438,7 +355,7 @@ class ComposeActivity : ComponentActivity() {
         }
     }
 
-    private fun saveAgentNote(text: String, targetPhoneNumber: String) {
+    private fun saveAgentNote(text: String, targetPhoneNumber: String, topic: String) {
         val note = text.trim()
         if (note.isBlank()) {
             toast("Write a note first.")
@@ -447,11 +364,12 @@ class ComposeActivity : ComponentActivity() {
         scope.launch {
             try {
                 uiState = uiState.copy(loading = true, status = "Saving", error = null)
-                viewModel.createAgentNote(
+                assistantLiveViewModel.createAgentNote(
                     requireToken(),
                     AgentNoteCreateRequest(
                         text = note,
-                        targetPhoneNumber = targetPhoneNumber.trim().takeIf { it.isNotBlank() }?.let(::normalizePhone)
+                        targetPhoneNumber = targetPhoneNumber.trim().takeIf { it.isNotBlank() }?.let(::normalizePhone),
+                        topic = topic.trim().takeIf { it.isNotBlank() }
                     )
                 )
                 toast("Assistant note saved")
@@ -463,28 +381,55 @@ class ComposeActivity : ComponentActivity() {
         }
     }
 
-    private fun openBillingCheckout() {
+    private fun archiveAgentNote(noteId: String) {
         scope.launch {
             try {
-                uiState = uiState.copy(loading = true, status = "Opening")
-                val url = viewModel.createBillingCheckoutSession(requireToken())
-                if (url.isEmpty()) error("Payment setup did not return a secure URL.")
-                uiState = uiState.copy(loading = false, status = "Billing")
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                uiState = uiState.copy(loading = true, status = "Saving", error = null)
+                assistantLiveViewModel.archiveAgentNote(requireToken(), noteId)
+                toast("Assistant note archived")
+                loadData(forceStatus = true, keepScreen = true)
             } catch (error: Exception) {
-                uiState = uiState.copy(loading = false, error = "Could not open payment setup.")
+                uiState = uiState.copy(loading = false, error = readableError(error))
             }
         }
     }
 
-    private fun activateBilling() {
+    private fun acceptTransfer(approvalRequestId: String) {
+        submitLiveAction {
+            assistantLiveViewModel.acceptTransfer(requireToken(), approvalRequestId)
+        }
+    }
+
+    private fun declineTransfer(approvalRequestId: String) {
+        submitLiveAction {
+            assistantLiveViewModel.declineTransfer(requireToken(), approvalRequestId)
+        }
+    }
+
+    private fun sendLiveAnswer(answerRequestId: String, answer: String) {
+        if (answer.trim().isBlank()) {
+            toast("Write an answer first.")
+            return
+        }
+        submitLiveAction {
+            assistantLiveViewModel.sendLiveAnswer(requireToken(), answerRequestId, answer.trim())
+        }
+    }
+
+    private fun declineLiveAnswer(answerRequestId: String) {
+        submitLiveAction {
+            assistantLiveViewModel.declineLiveAnswer(requireToken(), answerRequestId)
+        }
+    }
+
+    private fun submitLiveAction(action: suspend () -> Unit) {
         scope.launch {
             try {
-                uiState = uiState.copy(loading = true, status = "Checking")
-                viewModel.activateBilling(requireToken())
-                loadData(forceStatus = true)
+                uiState = uiState.copy(loading = true, status = "Saving", error = null)
+                action()
+                loadData(forceStatus = true, keepScreen = true)
             } catch (error: Exception) {
-                uiState = uiState.copy(loading = false, error = "Could not check billing yet.")
+                uiState = uiState.copy(loading = false, error = readableError(error))
             }
         }
     }
@@ -498,21 +443,6 @@ class ComposeActivity : ComponentActivity() {
     private fun dialPhoneNumber(value: String) {
         if (value.isBlank()) return
         startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(value)}")))
-    }
-
-    private suspend fun registerFcmToken() {
-        val user = firebaseAuth?.currentUser ?: return
-        runCatching {
-            val token = withTimeoutOrNull(5000) { FirebaseMessaging.getInstance().token.await() } ?: return@runCatching
-            viewModel.registerPushToken(
-                user.idToken(),
-                PushTokenRegistrationRequest(
-                    token = token,
-                    deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID),
-                    appVersion = BuildConfig.VERSION_NAME
-                )
-            )
-        }
     }
 
     private fun track(

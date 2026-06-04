@@ -91,26 +91,31 @@ Android implementation direction:
 
 Current Android module boundaries:
 
-- `ComposeActivity` owns Android integration edges: Firebase auth callbacks, runtime permission decisions, dial/browser intents, push refresh broadcasts, lifecycle routing, and app-shell action wiring. It should delegate provider reads, analytics submission, backend requests, and cache work to injectable collaborators.
-- `PhoneAgentViewModel` owns immutable app UI state through `StateFlow` and delegates backend reads/writes to `PhoneAgentRepository`.
+- `ComposeActivity` owns Android integration edges only: runtime permission decisions, dial/browser intents, push refresh broadcasts, lifecycle routing, and app-shell action wiring. Firebase phone verification, first-run assistant naming, billing browser launch, FCM registration, contact sync, and analytics are delegated to focused coordinators or injectable collaborators.
+- `PhoneAgentViewModel` owns authenticated app state through `StateFlow`, snapshot hydration/refresh, and cross-screen mutations. Focused screen ViewModels wrap this shared state for major surfaces such as Home, Assistant/live call, Billing, Contacts, and Onboarding so screen logic can evolve without expanding the Activity.
+- Screen ViewModels should expose derived state and screen-specific commands; they should not duplicate the backend cache, bypass `PhoneAgentRepository`, or become independent sources of truth.
 - `PhoneAgentRepository` owns authenticated `AppSnapshot` loading, endpoint-specific response parsing, Room cache reads/writes, and named mutation commands such as contact sync, assistant profile update, topic creation, agent note creation, billing activation, push token registration, and product analytics submission.
 - `PhoneAgentRequests` owns provider-neutral Android request models and the narrow JSON serialization required by the existing backend contract. Compose screens and Activity action handlers should not construct endpoint-specific JSON bodies.
 - `PhoneAgentResponses` owns typed Android response parsers for backend envelope shapes. Repository code should ask those parsers for display/domain models rather than scattering `optJSONObject` and `optJSONArray` response parsing through app code.
 - `AndroidContactReader` owns Android `ContactsContract` access and transforms device rows into privacy-limited `DeviceContactInput` records. Activity code should only request permission and call the reader.
 - `PhoneAgentAnalyticsTracker` owns session IDs, event sequencing, safe Android build/device metadata, Firebase ID token retrieval, and privacy-safe analytics submission. UI code should call named tracking operations and never build analytics payload JSON directly.
+- `PhoneOnboardingCoordinator` owns Firebase Phone Auth callback orchestration and assistant-name completion because Firebase phone verification requires an Activity surface.
+- `BillingCoordinator`, `FcmRegistrationCoordinator`, and `ContactSyncCoordinator` own browser/payment launch, FCM token registration, and Android contact-sync orchestration respectively.
 - `PhoneAgentState` owns provider-neutral UI state, navigation state, tab definitions, display models, and JSON-to-display adapters.
 - `PhoneAgentScreens` owns the app shell, first-run screens, primary tabs, detail screens, profile/settings, forwarding, billing, and contact-sync UI.
 - `PhoneAgentComponents` owns reusable Compose product components such as work cards, call rows, topic image cards, buttons, chips, form fields, settings rows, and compact list scaffolding.
-- `PhoneAgentPreviews` owns preview fixture state and screen previews for design review.
+- `PhoneAgentPreviews` owns preview fixture state and screen previews for design review, while instrumentation screenshot tests own deterministic device screenshots and later golden comparisons.
 - Remaining Android cleanup should promote backend response parsing from manual JSON adapters toward generated or typed DTOs where it meaningfully improves safety, and add focused screen ViewModels where individual surfaces grow beyond simple rendering, rather than expanding `ComposeActivity`.
 
 Backend route organization:
 
-- `src/app.ts` remains the composition root for infrastructure construction, middleware order, provider webhooks, and high-risk live voice tool routes.
+- `src/app.ts` remains the composition root for infrastructure construction, middleware order, global parsers, rate limiters, and route registration.
 - Shared Express helpers, auth middleware, redaction helpers, and validation schemas should live under `src/routes/*` once they are reused by more than one route group.
-- Stable client route groups should be registered from route modules such as billing and analytics instead of continually expanding the app composition root.
+- Stable client route groups should be registered from route modules instead of continually expanding the app composition root. Billing, analytics, notifications, topics, contacts/callers, calendar, onboarding, communication, calls, live-action, and agent-note routes belong in modules with dependency injection from `createApp`.
+- Raw-body provider webhooks and live voice tool routes should also live in focused route modules once their signature and raw-body parsing behavior has dedicated contract coverage. The Retell route surface now lives in `src/routes/retellRawRoutes.ts` and receives the provider rate limiter, raw JSON parser, webhook verifier, billing gate, live-action services, and calendar tool service from `createApp`.
 - Route modules may depend on application services and repository interfaces, but they must not instantiate provider clients, persistence drivers, or global infrastructure.
 - Route extraction should preserve existing URL contracts and tests; it is an internal organization change, not a public API change.
+- Future provider routes with signature verification must add contract tests before moving parsing, verification, or side-effect behavior.
 
 Android local cache:
 
@@ -119,6 +124,7 @@ Android local cache:
 - Room is not an offline authority. It must not independently decide routing, billing eligibility, sharing, calendar writes, paid side effects, transfer approval, or live answer state.
 - Cached rows should store provider-neutral display fields plus the sanitized backend JSON snapshot needed to reconstruct Compose state. Raw provider payloads, secrets, card data, raw contact books, and unrestricted transcripts should not be expanded into local tables.
 - App launch should hydrate the UI from Room first when an authenticated user has cached data, then perform a source-of-truth refresh from the backend. FCM data messages, notification actions, app launch, explicit refresh, and navigation-triggered refreshes update Room after successful API reads.
+- Cached snapshots should include a `cachedAt` timestamp and a `freshness` label. Live surfaces become stale after `5m`; historical surfaces become stale after `30m`. Startup refresh failures must preserve the cached app shell and show a recoverable stale/offline label instead of replacing the app with setup failure.
 - Logout must clear the local Room cache for the signed-out user. Future multi-account support should partition Room records by authenticated user ID before multiple signed-in accounts are allowed on one device.
 - Room migrations must be explicit. Destructive migration is not used in debug or release; cache resets require an intentional reviewed path because local state affects user trust during startup.
 
@@ -476,7 +482,11 @@ Core entities:
 - CallerProfile, CallerMemory.
 - Notification, ApprovalRequest, AnswerRequest.
 - ProviderAccount, ProviderMapping.
-- BillingAccount, PaymentMethod, PricePlan, BillableMeter, CostRateCard, RatedUsageEvent, InvoiceMirror, CreditGrant, SpendingLimit.
+- BillingAccount, PaymentMethod, PricePlan, BillableMeter, CostRateCard, UsageEvent/RatedUsageEvent, InvoiceMirror, CreditGrant, SpendingLimit.
+
+Billing usage is locally rated before provider meter publication. Each usage event stores the provider-neutral type, quantity, idempotency key, source object, customer charge, estimated internal cost, margin, rating version, and local spend application marker. The local spend marker is claimed once per usage event before the billing account spend counter is incremented, preventing duplicate webhooks from double-applying spend. Stripe meter events remain downstream of the local ledger.
+
+Invoice state is mirrored into sanitized `InvoiceMirror` records from Stripe webhooks. The mobile app should read local invoice summaries first and only fall back to provider invoice reads before the first mirrored invoice exists.
 - AuditLog, ConsentPolicy, RetentionPolicy.
 
 Calendar data must be user-scoped. `CalendarConnection` stores `userId`, provider, connected email, scopes, refresh token reference/value, and timestamps. `CalendarEventRequest` stores `userId`, action, source call, caller metadata, event IDs, status, timing, and error metadata. Free/busy checks, event creation, event updates, activity lists, and OAuth callbacks must always resolve a user before reading or writing calendar state.
@@ -596,6 +606,10 @@ Initial events:
 - `billing_setup_opened`, `forwarding_opened`, `note_created`.
 
 Analytics storage starts in Firestore behind a repository abstraction. Later scale can move event ingestion to Pub/Sub, BigQuery, or a warehouse pipeline without changing the mobile client contract.
+
+`npm run analytics:export` exports privacy-safe analytics rows from Firestore to NDJSON for dashboard prototyping and warehouse loading. The export strips blocked attribute keys such as transcript, summary, note, answer, query, contact, calendar, payment, secret, token, and raw payload fields.
+
+The starter dashboard contract is documented in `docs/analytics-dashboard.md`, with BigQuery view definitions in `scripts/analytics-dashboard-bigquery.sql`.
 
 ## Error Handling
 

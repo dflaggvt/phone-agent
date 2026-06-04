@@ -1,9 +1,6 @@
 package com.phoneagent.app
 
 import androidx.lifecycle.ViewModel
-import com.phoneagent.app.data.AgentNoteCreateRequest
-import com.phoneagent.app.data.AssistantProfileUpdate
-import com.phoneagent.app.data.DeviceContactInput
 import com.phoneagent.app.data.PhoneAgentRepository
 import com.phoneagent.app.data.ProductAnalyticsEventInput
 import com.phoneagent.app.data.PushTokenRegistrationRequest
@@ -46,34 +43,12 @@ internal class PhoneAgentViewModel @Inject constructor(
         repository.clearCache()
     }
 
-    suspend fun syncContacts(token: String, contacts: List<DeviceContactInput>): ContactSyncStatus =
-        repository.syncContacts(token, contacts)
-
-    suspend fun updateDisplayName(token: String, displayName: String) {
-        repository.updateDisplayName(token, displayName)
-    }
-
-    suspend fun updateAssistantProfile(token: String, profile: AssistantProfileUpdate) {
-        repository.updateAssistantProfile(token, profile)
-    }
-
     suspend fun createTopic(token: String, request: TopicCreateRequest) {
         repository.createTopic(token, request)
     }
 
     suspend fun decideTopicSuggestion(token: String, suggestionId: String, accept: Boolean) {
         repository.decideTopicSuggestion(token, suggestionId, accept)
-    }
-
-    suspend fun createAgentNote(token: String, request: AgentNoteCreateRequest) {
-        repository.createAgentNote(token, request)
-    }
-
-    suspend fun createBillingCheckoutSession(token: String): String =
-        repository.createBillingCheckoutSession(token)
-
-    suspend fun activateBilling(token: String) {
-        repository.activateBilling(token)
     }
 
     suspend fun registerPushToken(token: String, request: PushTokenRegistrationRequest) {
@@ -89,6 +64,7 @@ internal class PhoneAgentViewModel @Inject constructor(
         mutableUiState.value = current.copy(
             loading = false,
             status = if (snapshot.activeCall != null) "Live" else if (snapshot.onboarding.ready) "Active" else "Setup",
+            dataFreshness = snapshot.dataFreshness,
             user = snapshot.me,
             billing = snapshot.billing,
             onboarding = snapshot.onboarding,
@@ -96,6 +72,9 @@ internal class PhoneAgentViewModel @Inject constructor(
             calls = snapshot.calls,
             suggestions = snapshot.suggestions,
             notifications = snapshot.notifications,
+            agentNotes = snapshot.agentNotes,
+            approvalRequests = snapshot.approvalRequests,
+            answerRequests = snapshot.answerRequests,
             contactSync = snapshot.contactSync,
             contactSyncing = false,
             activeCall = snapshot.activeCall,

@@ -11,6 +11,7 @@ import type { NotificationService } from "../notifications/notificationService.j
 import type { BillingInvoiceSummary, BillingPriceConfig, BillingProviderClient } from "../../infrastructure/stripe/stripeBillingClient.js";
 import { badRequest, forbidden } from "../../shared/httpErrors.js";
 import type { WebhookEventRepository } from "../../domain/webhooks/webhookEvent.js";
+import type { InvoiceMirrorRepository, InvoiceMirrorStatus } from "../../domain/billing/invoiceMirror.js";
 
 export class BillingAccountService {
   constructor(
@@ -19,6 +20,7 @@ export class BillingAccountService {
       users: UserConfigService;
       provider: BillingProviderClient;
       webhookEvents: WebhookEventRepository;
+      invoiceMirrors?: InvoiceMirrorRepository;
       notifications?: NotificationService;
       publicBaseUrl?: string;
       defaultSpendingCapCents: number;
@@ -74,6 +76,19 @@ export class BillingAccountService {
 
   async listInvoices(userId: string): Promise<BillingInvoiceSummary[]> {
     const account = await this.getOrCreateAccount(userId);
+    const mirrored = await this.dependencies.invoiceMirrors?.listForUser(userId, 12);
+    if (mirrored && mirrored.length > 0) {
+      return mirrored.map((invoice) => ({
+        id: invoice.providerInvoiceId,
+        status: invoice.status,
+        amountDueCents: invoice.amountDueCents,
+        amountPaidCents: invoice.amountPaidCents,
+        currency: invoice.currency,
+        hostedInvoiceUrl: invoice.hostedInvoiceUrl,
+        invoicePdfUrl: invoice.invoicePdfUrl,
+        createdAt: invoice.providerCreatedAt ?? invoice.createdAt
+      }));
+    }
     return this.dependencies.provider.listInvoices({
       customerId: requireProviderCustomerId(account),
       limit: 12
@@ -260,6 +275,7 @@ export class BillingAccountService {
       status,
       ...(status === "active" ? { currentPeriodSpendCents: Math.max(account.currentPeriodSpendCents, invoice.amount_paid ?? 0) } : {})
     });
+    await this.mirrorInvoice(account.userId, invoice, status === "past_due" ? "failed" : undefined);
   }
 
   private async updateSubscription(subscription: Stripe.Subscription, forcedStatus?: "canceled"): Promise<void> {
@@ -302,6 +318,41 @@ export class BillingAccountService {
       providerSubscriptionId: subscription.id,
       providerSubscriptionStatus: subscription.status,
       status: billingStatusFromSubscriptionStatus(subscription.status, account)
+    });
+  }
+
+  private async mirrorInvoice(
+    userId: string,
+    invoice: Stripe.Invoice,
+    forcedStatus?: InvoiceMirrorStatus
+  ): Promise<void> {
+    if (!this.dependencies.invoiceMirrors || !invoice.id) {
+      return;
+    }
+    const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+    if (!customerId) {
+      return;
+    }
+    const invoiceWithSubscription = invoice as Stripe.Invoice & {
+      subscription?: string | { id?: string } | null;
+    };
+    const subscription = invoiceWithSubscription.subscription;
+    const providerSubscriptionId = typeof subscription === "string" ? subscription : subscription?.id;
+    const status = forcedStatus ?? invoiceMirrorStatus(invoice.status);
+    await this.dependencies.invoiceMirrors.upsert({
+      userId,
+      providerInvoiceId: invoice.id,
+      providerCustomerId: customerId,
+      providerSubscriptionId,
+      status,
+      amountDueCents: invoice.amount_due ?? 0,
+      amountPaidCents: invoice.amount_paid ?? 0,
+      currency: invoice.currency ?? "usd",
+      hostedInvoiceUrl: invoice.hosted_invoice_url ?? undefined,
+      invoicePdfUrl: invoice.invoice_pdf ?? undefined,
+      providerCreatedAt: invoice.created ? new Date(invoice.created * 1000) : undefined,
+      paidAt: status === "paid" ? new Date() : undefined,
+      failedAt: status === "failed" ? new Date() : undefined
     });
   }
 
@@ -354,6 +405,19 @@ function shouldIgnoreSubscriptionEvent(account: BillingAccount, incomingSubscrip
     return true;
   }
   return account.status === "active" && account.providerSubscriptionStatus === "active";
+}
+
+function invoiceMirrorStatus(status: Stripe.Invoice.Status | null): InvoiceMirrorStatus {
+  if (
+    status === "draft" ||
+    status === "open" ||
+    status === "paid" ||
+    status === "uncollectible" ||
+    status === "void"
+  ) {
+    return status;
+  }
+  return "unknown";
 }
 
 function sanitizedWebhookError(error: unknown) {

@@ -36,6 +36,7 @@ export interface ContactSyncStatus {
 
 export interface ContactRepository {
   syncForUser(userId: string, contacts: SyncContactInput[], syncedAt?: Date): Promise<ContactSyncResult>;
+  disconnectForUser(userId: string, disconnectedAt?: Date): Promise<ContactSyncStatus>;
   findByPhoneNumber(userId: string, phoneNumber: string): Promise<Contact | undefined>;
   countForUser(userId: string): Promise<number>;
   statusForUser(userId: string): Promise<ContactSyncStatus>;

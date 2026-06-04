@@ -37,4 +37,18 @@ export class InMemoryBillingAccountRepository implements BillingAccountRepositor
     this.accounts.set(normalized.userId, normalized);
     return normalized;
   }
+
+  async incrementCurrentPeriodSpend(userId: string, amountCents: number): Promise<BillingAccount | undefined> {
+    const existing = this.accounts.get(userId);
+    if (!existing) {
+      return undefined;
+    }
+    const updated: BillingAccount = {
+      ...existing,
+      currentPeriodSpendCents: Math.max(0, existing.currentPeriodSpendCents + amountCents),
+      updatedAt: new Date()
+    };
+    this.accounts.set(userId, updated);
+    return updated;
+  }
 }

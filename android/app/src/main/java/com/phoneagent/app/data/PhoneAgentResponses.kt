@@ -1,7 +1,10 @@
 package com.phoneagent.app.data
 
 import com.phoneagent.app.ActiveCall
+import com.phoneagent.app.AgentNote
+import com.phoneagent.app.AnswerRequest
 import com.phoneagent.app.AppNotification
+import com.phoneagent.app.ApprovalRequest
 import com.phoneagent.app.BillingAccount
 import com.phoneagent.app.CallRecord
 import com.phoneagent.app.ContactSyncStatus
@@ -58,6 +61,27 @@ internal data class NotificationListResponse(val notifications: List<AppNotifica
     companion object {
         fun from(json: JSONObject): NotificationListResponse =
             NotificationListResponse(json.optJSONArray("notifications").toList(::AppNotification))
+    }
+}
+
+internal data class AgentNoteListResponse(val notes: List<AgentNote>) {
+    companion object {
+        fun from(json: JSONObject): AgentNoteListResponse =
+            AgentNoteListResponse(json.optJSONArray("notes").toList(::AgentNote))
+    }
+}
+
+internal data class ApprovalRequestListResponse(val approvalRequests: List<ApprovalRequest>) {
+    companion object {
+        fun from(json: JSONObject): ApprovalRequestListResponse =
+            ApprovalRequestListResponse(json.optJSONArray("approvalRequests").toList(::ApprovalRequest))
+    }
+}
+
+internal data class AnswerRequestListResponse(val answerRequests: List<AnswerRequest>) {
+    companion object {
+        fun from(json: JSONObject): AnswerRequestListResponse =
+            AnswerRequestListResponse(json.optJSONArray("answerRequests").toList(::AnswerRequest))
     }
 }
 

@@ -55,7 +55,7 @@ Required:
 - Cloud alerting for `5xx`, uptime, latency, webhook failures, billing failures, voice-provider failures, FCM failures, and negative-margin usage.
 - Operator runbooks for failed billing, failed Retell webhooks, stuck onboarding, and user deletion.
 - Secret rotation for keys previously pasted in chat.
-- Billing reconciliation scheduled and monitored.
+- Billing reconciliation and analytics export commands scheduled and monitored.
 - No known duplicate subscription or duplicate meter-event path.
 - Production support workflow.
 
@@ -83,22 +83,22 @@ Required:
 | P0 | Security | Rotate Retell, OpenAI, Google OAuth, and Stripe keys pasted in chat | Founder/operator | Pending |
 | P0 | Android | Local upload key and signed release AAB produced; Play Console upload/internal test track still pending | Engineering | Partial |
 | P0 | Reliability | Real-call test matrix for transfer, inline answer, expired actions | Founder + engineering | Pending |
-| P0 | Observability | Cloud alerting for backend uptime, 5xx, and latency is configured; provider/billing-specific monitors still needed | Engineering | Partial |
-| P1 | Billing | Reconciliation schedule and operator review process | Engineering | Partial |
+| P0 | Observability | Cloud alerting setup covers backend uptime, 5xx, latency, provider webhook failures, billing failures, and FCM delivery failures; scheduled reconciliation alerting still needed | Engineering | Partial |
+| P1 | Billing | Reconciliation schedule, local invoice mirror review, and operator recovery process | Engineering | Partial |
 | P1 | Data | Deletion/export endpoints and retention jobs | Engineering | Pending |
 | P1 | Abuse | Backend shared rate limiting implemented; edge controls and SMS/phone auth abuse controls remain | Engineering | Partial |
 | P1 | UX | Production onboarding polish and supportable error states | Design + engineering | Partial |
-| P1 | Analytics | First-party privacy-safe event capture exists; dashboards, retention, and warehouse export remain | Engineering/Product | Partial |
+| P1 | Analytics | First-party privacy-safe event capture, NDJSON export, and starter dashboard views exist; managed dashboard deployment and retention policy remain | Engineering/Product | Partial |
 
 ## Immediate Engineering Tasks
 
 1. Upload the signed `android/app/build/outputs/bundle/release/app-release.aab` to Google Play internal testing after Play App Signing/upload-key enrollment.
 2. Configure Firestore TTL for `rateLimitBuckets.expiresAt` and add Cloud Armor/API Gateway edge throttles before closed beta.
-3. Add Cloud Monitoring alert policy documentation and scriptable setup. Completed for uptime, 5xx, and latency; remaining provider/billing alerts need log-based metrics or scheduled jobs.
+3. Add Cloud Monitoring alert policy documentation and scriptable setup. Completed for uptime, 5xx, latency, provider webhook failures, billing failures, and FCM delivery failures; remaining work is scheduled billing reconciliation alerting.
 4. Create legal/compliance draft checklist for counsel review.
 5. Create release checklist for Play internal testing.
 6. Verify Crashlytics in a non-debug build.
-7. Build product analytics dashboards for activation, refresh failures, notification action completion, billing conversion, and churn risk.
+7. Load `npm run analytics:export` output into BigQuery and apply `scripts/analytics-dashboard-bigquery.sql`; managed dashboard deployment and scheduled refresh remain before closed beta.
 
 ## Non-Negotiable Production Rules
 

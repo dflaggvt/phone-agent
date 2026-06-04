@@ -17,6 +17,7 @@ internal data class PhoneAgentUiState(
     val screen: Screen = Screen.Auth,
     val selectedTab: Tab = Tab.Home,
     val status: String = "Setup",
+    val dataFreshness: DataFreshness = DataFreshness.fresh(),
     val loading: Boolean = false,
     val error: String? = null,
     val user: UserSummary = UserSummary.empty,
@@ -26,6 +27,9 @@ internal data class PhoneAgentUiState(
     val calls: List<CallRecord> = emptyList(),
     val suggestions: List<TopicSuggestion> = emptyList(),
     val notifications: List<AppNotification> = emptyList(),
+    val agentNotes: List<AgentNote> = emptyList(),
+    val approvalRequests: List<ApprovalRequest> = emptyList(),
+    val answerRequests: List<AnswerRequest> = emptyList(),
     val contactSync: ContactSyncStatus = ContactSyncStatus.empty,
     val contactSyncing: Boolean = false,
     val contactPermissionDenied: Boolean = false,
@@ -68,8 +72,14 @@ internal data class AppActions(
     val openProfileSettings: () -> Unit,
     val openPhoneContacts: () -> Unit,
     val syncPhoneContacts: () -> Unit,
+    val disconnectPhoneContacts: () -> Unit,
     val openSystemSettings: () -> Unit,
-    val saveAgentNote: (String, String) -> Unit,
+    val saveAgentNote: (String, String, String) -> Unit,
+    val archiveAgentNote: (String) -> Unit,
+    val acceptTransfer: (String) -> Unit,
+    val declineTransfer: (String) -> Unit,
+    val sendLiveAnswer: (String, String) -> Unit,
+    val declineLiveAnswer: (String) -> Unit,
     val back: () -> Unit,
     val openForwarding: () -> Unit,
     val openBilling: () -> Unit,
@@ -91,9 +101,61 @@ internal data class AppSnapshot(
     val calls: List<CallRecord>,
     val suggestions: List<TopicSuggestion>,
     val notifications: List<AppNotification>,
+    val agentNotes: List<AgentNote> = emptyList(),
+    val approvalRequests: List<ApprovalRequest> = emptyList(),
+    val answerRequests: List<AnswerRequest> = emptyList(),
     val contactSync: ContactSyncStatus,
-    val activeCall: ActiveCall?
+    val activeCall: ActiveCall?,
+    val dataFreshness: DataFreshness = DataFreshness.fresh()
 )
+
+internal enum class FreshnessState {
+    Fresh,
+    Cached,
+    Stale,
+    Offline
+}
+
+internal data class DataFreshness(
+    val state: FreshnessState,
+    val cachedAtEpochMs: Long? = null
+) {
+    val shouldShow: Boolean = state != FreshnessState.Fresh
+    val displayLabel: String
+        get() = when (state) {
+            FreshnessState.Fresh -> "Up to date"
+            FreshnessState.Cached -> "Saved ${ageLabel()}"
+            FreshnessState.Stale -> "Stale ${ageLabel()}"
+            FreshnessState.Offline -> "Offline / saved ${ageLabel()}"
+        }
+
+    fun offline(): DataFreshness =
+        copy(state = FreshnessState.Offline)
+
+    private fun ageLabel(): String {
+        val cachedAt = cachedAtEpochMs ?: return "earlier"
+        val ageMs = (System.currentTimeMillis() - cachedAt).coerceAtLeast(0)
+        val minutes = ageMs / 60_000
+        val hours = minutes / 60
+        return when {
+            minutes < 1 -> "just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            else -> "${hours / 24}d ago"
+        }
+    }
+
+    companion object {
+        fun fresh(cachedAtEpochMs: Long = System.currentTimeMillis()): DataFreshness =
+            DataFreshness(FreshnessState.Fresh, cachedAtEpochMs)
+
+        fun cached(cachedAtEpochMs: Long, hasLiveCall: Boolean, nowEpochMs: Long = System.currentTimeMillis()): DataFreshness {
+            val staleAfterMs = if (hasLiveCall) 5 * 60_000L else 30 * 60_000L
+            val state = if (nowEpochMs - cachedAtEpochMs > staleAfterMs) FreshnessState.Stale else FreshnessState.Cached
+            return DataFreshness(state, cachedAtEpochMs)
+        }
+    }
+}
 
 internal data class UserSummary(val json: JSONObject) {
     val id: String = json.optString("id")
@@ -200,6 +262,53 @@ internal data class AppNotification(val json: JSONObject) {
     val id: String = json.optString("id", json.optString("notificationId"))
     val title: String = json.optString("title", "Assistant update")
     val body: String = json.optString("body", "Open Phone Agent to review.")
+}
+
+internal data class AgentNote(val json: JSONObject) {
+    val id: String = json.optString("id")
+    val status: String = json.optString("status", "active")
+    val text: String = json.optString("text")
+    val title: String = json.optString("title")
+    val targetPhoneNumber: String = json.optString("targetPhoneNumber")
+    val targetCallerName: String = json.optString("targetCallerName")
+    val topic: String = json.optString("topic")
+    val createdAt: String = json.optString("createdAt")
+    val displayTitle: String = title.ifBlank {
+        when {
+            topic.isNotBlank() -> topic
+            targetCallerName.isNotBlank() -> targetCallerName
+            targetPhoneNumber.isNotBlank() -> targetPhoneNumber
+            else -> "General note"
+        }
+    }
+    val scopeLabel: String = when {
+        topic.isNotBlank() && targetPhoneNumber.isNotBlank() -> "$topic / $targetPhoneNumber"
+        topic.isNotBlank() -> topic
+        targetCallerName.isNotBlank() -> targetCallerName
+        targetPhoneNumber.isNotBlank() -> targetPhoneNumber
+        else -> "General context"
+    }
+}
+
+internal data class ApprovalRequest(val json: JSONObject) {
+    val id: String = json.optString("id")
+    val callerName: String = json.optString("callerName")
+    val callerNumber: String = json.optString("callerNumber")
+    val reason: String = json.optString("reason", "Caller requested live attention.")
+    val urgency: String = json.optString("urgency", "unknown").replace('_', ' ')
+    val displayCaller: String = callerName.ifBlank { callerNumber.ifBlank { "Caller" } }
+    val expiresAt: String = json.optString("expiresAt")
+}
+
+internal data class AnswerRequest(val json: JSONObject) {
+    val id: String = json.optString("id")
+    val callerName: String = json.optString("callerName")
+    val callerNumber: String = json.optString("callerNumber")
+    val question: String = json.optString("question", "The caller has a question.")
+    val reason: String = json.optString("reason")
+    val urgency: String = json.optString("urgency", "unknown").replace('_', ' ')
+    val displayCaller: String = callerName.ifBlank { callerNumber.ifBlank { "Caller" } }
+    val expiresAt: String = json.optString("expiresAt")
 }
 
 internal data class ActiveCall(val json: JSONObject) {

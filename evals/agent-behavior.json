@@ -12,9 +12,24 @@
       "requiredText": "Never say internal labels"
     },
     {
+      "id": "no_provider_or_model_leakage",
+      "description": "Agent must not mention backend providers, model names, token math, or technical routing unless asked.",
+      "requiredText": "Do not mention backend providers, model names, tokens, dynamic variables, or technical routing"
+    },
+    {
+      "id": "no_opening_line_literal",
+      "description": "Agent must specifically avoid saying the internal opening_line label.",
+      "requiredText": "opening_line"
+    },
+    {
       "id": "ai_disclosure",
       "description": "Agent discloses that it is an AI assistant.",
       "requiredText": "AI assistant"
+    },
+    {
+      "id": "privacy_context_boundary",
+      "description": "Agent must not disclose private memory or context without permission.",
+      "requiredText": "Do not reveal private facts"
     },
     {
       "id": "emergency_policy",
@@ -25,6 +40,11 @@
       "id": "transfer_policy",
       "description": "Agent uses approval before live transfer.",
       "requiredText": "Request live transfer approval"
+    },
+    {
+      "id": "live_answer_policy",
+      "description": "Agent can ask the user for a text answer during a call when it lacks a fact.",
+      "requiredText": "Request a user answer"
     },
     {
       "id": "calendar_limits",

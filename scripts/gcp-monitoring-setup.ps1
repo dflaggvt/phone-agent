@@ -121,6 +121,36 @@ function Ensure-Policy {
   }
 }
 
+function Ensure-LogMetric {
+  param(
+    [string]$MetricName,
+    [string]$Description,
+    [string]$LogFilter
+  )
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $existingMetric = gcloud logging metrics describe $MetricName `
+    --project $ProjectId `
+    --format "value(name)" 2>$null
+  $describeExitCode = $LASTEXITCODE
+  $ErrorActionPreference = $previousErrorActionPreference
+
+  if ($describeExitCode -eq 0 -and $existingMetric) {
+    Write-Host "Log metric already exists: $MetricName"
+    return
+  }
+
+  Write-Host "Creating log metric: $MetricName"
+  gcloud logging metrics create $MetricName `
+    --project $ProjectId `
+    --description=$Description `
+    --log-filter=$LogFilter
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to create log metric: $MetricName"
+  }
+}
+
 $requestCountAggregation = @{
   alignmentPeriod = "300s"
   perSeriesAligner = "ALIGN_RATE"
@@ -144,6 +174,31 @@ $requestCountFilter = 'resource.type="cloud_run_revision" AND resource.labels.se
 $latencyFilter = 'resource.type="cloud_run_revision" AND resource.labels.service_name="{0}" AND metric.type="run.googleapis.com/request_latencies"' -f $ServiceName
 $uptimeCheckId = Split-Path -Path $existingUptime -Leaf
 $uptimeFilter = 'resource.type="uptime_url" AND metric.type="monitoring.googleapis.com/uptime_check/check_passed" AND metric.labels.check_id="{0}"' -f $uptimeCheckId
+
+$providerWebhookMetric = "phone_agent_provider_webhook_errors"
+$billingFailureMetric = "phone_agent_billing_failures"
+$fcmFailureMetric = "phone_agent_fcm_delivery_failures"
+
+Ensure-LogMetric `
+  -MetricName $providerWebhookMetric `
+  -Description "Phone Agent provider webhook processing failures" `
+  -LogFilter ('resource.type="cloud_run_revision" AND resource.labels.service_name="{0}" AND severity>=ERROR AND (jsonPayload.message:"webhook" OR textPayload:"webhook")' -f $ServiceName)
+
+Ensure-LogMetric `
+  -MetricName $billingFailureMetric `
+  -Description "Phone Agent billing publish, webhook, subscription, or cap failures" `
+  -LogFilter ('resource.type="cloud_run_revision" AND resource.labels.service_name="{0}" AND severity>=WARNING AND (jsonPayload.message:"billing" OR textPayload:"billing")' -f $ServiceName)
+
+Ensure-LogMetric `
+  -MetricName $fcmFailureMetric `
+  -Description "Phone Agent FCM push delivery failures" `
+  -LogFilter ('resource.type="cloud_run_revision" AND resource.labels.service_name="{0}" AND severity>=WARNING AND jsonPayload.errorCode:* AND (jsonPayload.message:push OR textPayload:push)' -f $ServiceName)
+
+$logMetricAggregation = @{
+  alignmentPeriod = "300s"
+  perSeriesAligner = "ALIGN_RATE"
+  crossSeriesReducer = "REDUCE_SUM"
+}
 
 Ensure-Policy `
   -DisplayName "Phone Agent API readiness failed" `
@@ -172,6 +227,33 @@ Ensure-Policy `
   -ThresholdValue 3000 `
   -Duration "300s" `
   -Documentation "Phone Agent p95 request latency exceeded 3 seconds for five minutes. Voice tool calls, mobile setup, billing, or calendar actions may be degraded."
+
+Ensure-Policy `
+  -DisplayName "Phone Agent provider webhook failures" `
+  -ConditionDisplayName "Provider webhook error log rate" `
+  -Filter ('resource.type="cloud_run_revision" AND metric.type="logging.googleapis.com/user/{0}"' -f $providerWebhookMetric) `
+  -Aggregation $logMetricAggregation `
+  -ThresholdValue 0 `
+  -Duration "300s" `
+  -Documentation "Provider webhook processing emitted errors. Check voice call lifecycle, billing webhooks, signature verification, idempotency claims, and recent deploys."
+
+Ensure-Policy `
+  -DisplayName "Phone Agent billing failures" `
+  -ConditionDisplayName "Billing warning/error log rate" `
+  -Filter ('resource.type="cloud_run_revision" AND metric.type="logging.googleapis.com/user/{0}"' -f $billingFailureMetric) `
+  -Aggregation $logMetricAggregation `
+  -ThresholdValue 0 `
+  -Duration "300s" `
+  -Documentation "Billing emitted warnings or errors. Run npm run billing:reconcile, inspect local invoice mirrors, check Stripe webhook delivery, and verify cap enforcement."
+
+Ensure-Policy `
+  -DisplayName "Phone Agent FCM delivery failures" `
+  -ConditionDisplayName "FCM delivery failure log rate" `
+  -Filter ('resource.type="cloud_run_revision" AND metric.type="logging.googleapis.com/user/{0}"' -f $fcmFailureMetric) `
+  -Aggregation $logMetricAggregation `
+  -ThresholdValue 0 `
+  -Duration "900s" `
+  -Documentation "FCM delivery failures may prevent live transfer or live-answer requests from reaching users. Check Firebase credentials, disabled tokens, and NotificationDelivery records."
 
 Write-Host "Monitoring setup complete."
 Write-Host "Attach notification channels in Cloud Monitoring before closed beta."
