@@ -778,64 +778,21 @@ Topics is the main product surface. It is where fragmented communication becomes
 4. Suggested topics.
 5. Archived entry.
 
-### Topic Card
+### Topic List Card
 
-Topic cards on the Topics screen may use richer visual treatment than Home because this is the dedicated browsing surface. Home topic tiles must stay minimal: topic name only plus a new/unread indicator when one exists.
+The Topics screen is a quiet index of durable situations, not an information dashboard. Topic list cards should show only the topic name, a new/unread indicator when one exists, and a subtle open affordance.
 
-### Topic Image System
-
-Topic imagery should come from a curated, Calm-inspired category set before attempting per-topic generated images. Curated images keep the app visually coherent and avoid surprising or overly literal one-off artwork.
-
-Initial reusable categories:
-
-- Home projects / repairs.
-- Family logistics.
-- Work decisions / recruiting.
-- Travel planning.
-- Medical appointments.
-- Finance / taxes / payments.
-- Car / insurance / lease.
-- School / kids activities.
-- Pets.
-- General conversation.
-
-Image rules:
-
-- Use landscape `3:2` crops for Android topic-card assets.
-- Avoid readable text, logos, brand marks, people, medical alarm imagery, and clutter.
-- Keep the lower third compatible with white text overlays.
-- Prefer serene editorial interiors, quiet tabletops, soft natural light, and twilight shadows.
-- Use deterministic keyword/category mapping until the product has a safe per-topic image generation review workflow.
-
-Required fields:
-
-- Topic title.
-- Status.
-- Latest material update.
-- Participants.
-- Next action.
-- Counts for decisions, questions, tasks.
-- Last updated.
-
-Optional fields:
-
-- Sensitivity flag.
-- External sharing indicator.
-- Confidence warning.
-- Deadline.
+Do not show summaries, descriptions, participants, decision/question/task counts, status text, latest-update excerpts, generated images, or timeline previews in topic list cards.
 
 Numeric specs:
 
-- Target height `176dp`.
-- Max height `210dp`.
-- Title max `2` lines.
-- Latest update max `2` lines.
-- Participants visible `3`, then "+N".
-- Count chips visible `3`.
-- Next-action text max `80` characters.
-- Card image must fill the card bounds.
-- Text overlay height target `76-112dp`.
-- Vertical gap between topic cards `12dp`.
+- Target height `64-76dp`.
+- Minimum touch target `56dp`.
+- Horizontal padding `14-16dp`.
+- Vertical gap between topic cards `8-10dp`.
+- Topic title max `2` lines.
+- Unread badge max width `88dp`.
+- Unread badge labels: `New`, `2 new`, or `9+ new`.
 - The list should not show a full create form inline when topics already exist.
 
 ### Topic Statuses

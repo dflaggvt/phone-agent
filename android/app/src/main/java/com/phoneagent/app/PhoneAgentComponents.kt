@@ -113,40 +113,84 @@ internal fun HomeTopicCard(topic: TopicThread?, actions: AppActions) {
 }
 
 @Composable
-internal fun TopicImageCard(topic: TopicThread?, actions: AppActions) {
-    val title = topic?.title ?: "Topics will appear here"
-    val body = topic?.description?.ifBlank { topic.compactMeta } ?: "The assistant groups related conversations into calm topic cards."
-    Box(
-        Modifier
-            .width(224.dp)
-            .height(142.dp)
+internal fun TopicListCard(topic: TopicThread, actions: AppActions) {
+    val unreadLabel = topic.unreadIndicatorLabel
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable { if (topic == null) actions.openTopics() else actions.openTopic(topic.id) }
+            .clickable { actions.openTopic(topic.id) },
+        shape = RoundedCornerShape(16.dp),
+        color = Card,
+        border = BorderStroke(1.dp, Line)
     ) {
-        Image(painterResource(topicImage(topic)), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
-        Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-            Text(title, color = Color.White, fontSize = 16.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(body, color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(
+            Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                topic.title,
+                color = Ink,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (unreadLabel.isNotBlank()) {
+                Spacer(Modifier.width(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Brand.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, Brand.copy(alpha = 0.18f))
+                ) {
+                    Text(
+                        unreadLabel,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        color = Brand,
+                        fontSize = 12.sp,
+                        lineHeight = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Muted,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
 @Composable
-internal fun TopicWideCard(topic: TopicThread, actions: AppActions) {
-    Box(
-        Modifier
+internal fun EmptyTopicListCard() {
+    Surface(
+        modifier = Modifier
             .fillMaxWidth()
-            .height(154.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable { actions.openTopic(topic.id) }
+            .height(66.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Card,
+        border = BorderStroke(1.dp, Line)
     ) {
-        Image(painterResource(topicImage(topic)), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.76f)))))
-        Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-            Text(topic.title, color = Color.White, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(topic.compactMeta, color = Color.White.copy(alpha = 0.86f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            Text(topic.description.ifBlank { "No brief yet." }, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, lineHeight = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(
+            Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "No topics yet",
+                color = Ink,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

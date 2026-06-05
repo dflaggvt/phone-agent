@@ -704,8 +704,18 @@ private fun SectionHeader(value: String, actionLabel: String? = null, onAction: 
 private fun TopicsDetailScreen(state: PhoneAgentUiState, actions: AppActions) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var showCreateForm by remember { mutableStateOf(false) }
     DetailFrame(title = "Topics", state = state, actions = actions) {
-        topicListItems(state, actions, title, { title = it }, description, { description = it })
+        topicListItems(
+            state = state,
+            actions = actions,
+            title = title,
+            onTitleChange = { title = it },
+            description = description,
+            onDescriptionChange = { description = it },
+            showCreateForm = showCreateForm,
+            onShowCreateForm = { showCreateForm = true }
+        )
     }
 }
 
@@ -723,28 +733,49 @@ private fun LazyListScope.topicListItems(
     title: String,
     onTitleChange: (String) -> Unit,
     description: String,
-    onDescriptionChange: (String) -> Unit
+    onDescriptionChange: (String) -> Unit,
+    showCreateForm: Boolean,
+    onShowCreateForm: () -> Unit
 ) {
     item {
-        Text("Real-world situations with memory, decisions, questions, tasks, and communications.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
+        Text("Topics your assistant is tracking.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
     }
     item { SectionLabel("Active topics") }
     if (state.topics.isEmpty()) {
-        item { TopicImageCard(null, actions) }
+        item { EmptyTopicListCard() }
     } else {
-        state.topics.forEach { item { TopicWideCard(it, actions) } }
+        state.topics.forEach { item { TopicListCard(it, actions) } }
     }
-    item { SectionLabel("Create") }
-    item {
-        WorkCard {
-            Text("Create topic", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
-            Text("Start a topic for a project, family situation, appointment, trip, vendor, or decision.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(title, onTitleChange, label = { Text("Topic title") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(6.dp))
-            OutlinedTextField(description, onDescriptionChange, label = { Text("Description, optional") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(10.dp))
-            PrimaryButton("Create topic", Icons.Filled.Add) { actions.createTopic(title, description) }
+    if (state.topics.isEmpty() || showCreateForm) {
+        item { SectionLabel("Create") }
+        item {
+            WorkCard {
+                Text("Create topic", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Text("Start a topic for a project, family situation, appointment, trip, vendor, or decision.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(title, onTitleChange, label = { Text("Topic title") }, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(description, onDescriptionChange, label = { Text("Description, optional") }, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                PrimaryButton("Create topic", Icons.Filled.Add) { actions.createTopic(title, description) }
+            }
+        }
+    } else {
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onShowCreateForm),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.58f))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("Create topic", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
