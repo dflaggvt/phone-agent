@@ -1306,6 +1306,7 @@ Acceptance criteria:
 - Home must not duplicate the Assistant review queue. Home can show one compact assistant-needs signal with a count, but the cards themselves live on Assistant.
 - The Android app must not run periodic polling for live calls, approvals, answer requests, notifications, or calendar activity. FCM data messages, notification action results, notification deep links, app launch, and explicit user refresh/navigation are the allowed refresh triggers. Only explicit navigation to a screen should reset scroll to top.
 - Live answer requests expire after `90s` by default unless a stricter production policy is explicitly configured.
+- Live answer send must provide terminal feedback within `1500ms`: success toast/copy when the assistant received the answer, or an expired state/message when the answer can no longer be relayed. Expired actions must never look like a dead button.
 
 ### Live Activity
 
@@ -2033,6 +2034,7 @@ Rules:
 - No notification should expose transcript text by default.
 - Live notification actions must deep link to the relevant live card.
 - Expired actions must show expired state, not fail silently.
+- In-app live answer actions must parse backend product error codes and show product copy, not raw `HTTP 409` or a generic retry message.
 - Notification actions must work when the app is backgrounded or killed.
 - After a successful action, the original notification must be dismissed or replaced within `1s`.
 - If an action fails, show a privacy-safe result notification with one recovery action: `Open`.

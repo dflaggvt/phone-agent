@@ -6,6 +6,7 @@ import type {
   ApprovalRequestStatus,
   CreateApprovalRequestInput
 } from "../../domain/approvals/approvalRequest.js";
+import { DEFAULT_TRANSFER_APPROVAL_TIMEOUT_MS } from "../../domain/liveActions/liveActionTimeouts.js";
 import { firestoreDate, removeUndefinedDeep } from "./firestoreClient.js";
 
 const APPROVAL_COLLECTION = "approvalRequests";
@@ -27,7 +28,7 @@ export class FirestoreApprovalRequestRepository implements ApprovalRequestReposi
       urgency: input.urgency ?? "unknown",
       transferToNumber: input.transferToNumber,
       createdAt: now,
-      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? 45_000))
+      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? DEFAULT_TRANSFER_APPROVAL_TIMEOUT_MS))
     };
     await this.collection().doc(approval.id).set(removeUndefinedDeep(approval));
     return approval;

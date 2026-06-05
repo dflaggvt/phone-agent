@@ -918,6 +918,12 @@ private fun AnswerRequestCard(request: AnswerRequest, actions: AppActions) {
         if (request.reason.isNotBlank()) {
             Text(request.reason, color = Muted, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        Text(
+            "Reply while the caller is waiting. Live answers expire after about 90 seconds.",
+            color = Muted,
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = answer,

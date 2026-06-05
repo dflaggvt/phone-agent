@@ -6,6 +6,7 @@ import type {
   AnswerRequestStatus,
   CreateAnswerRequestInput
 } from "../../domain/answerRequests/answerRequest.js";
+import { DEFAULT_LIVE_ANSWER_TIMEOUT_MS } from "../../domain/liveActions/liveActionTimeouts.js";
 import { firestoreDate, removeUndefinedDeep } from "./firestoreClient.js";
 
 const ANSWER_REQUEST_COLLECTION = "answerRequests";
@@ -27,7 +28,7 @@ export class FirestoreAnswerRequestRepository implements AnswerRequestRepository
       reason: input.reason,
       urgency: input.urgency ?? "unknown",
       createdAt: now,
-      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? 45_000))
+      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? DEFAULT_LIVE_ANSWER_TIMEOUT_MS))
     };
     await this.collection().doc(answerRequest.id).set(removeUndefinedDeep(answerRequest));
     return answerRequest;

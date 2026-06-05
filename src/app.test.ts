@@ -17,7 +17,8 @@ const testEnv: AppEnv = {
   RETELL_API_KEY: undefined,
   RETELL_DEFAULT_AGENT_ID: "agent_default",
   RETELL_DEFAULT_FROM_NUMBER: "+15551230000",
-  LIVE_REQUEST_TIMEOUT_MS: 90_000,
+  TRANSFER_APPROVAL_TIMEOUT_MS: 60_000,
+  LIVE_ANSWER_TIMEOUT_MS: 90_000,
   OPENAI_API_KEY: undefined,
   OPENAI_CLASSIFIER_MODEL: "gpt-4.1-mini",
   BILLING_PLAN: "beta",
@@ -1864,7 +1865,7 @@ describe("app", () => {
     const app = createTestApp({
       ...testEnv,
       USER_TRANSFER_PHONE_NUMBER: "+15559876543",
-      LIVE_REQUEST_TIMEOUT_MS: 500
+      TRANSFER_APPROVAL_TIMEOUT_MS: 500
     });
 
     const toolResponsePromise = request(app)
@@ -1906,7 +1907,7 @@ describe("app", () => {
   });
 
   it("returns an expired answer state instead of accepting a stale inline reply", async () => {
-    const app = createTestApp({ ...testEnv, LIVE_REQUEST_TIMEOUT_MS: 500 });
+    const app = createTestApp({ ...testEnv, LIVE_ANSWER_TIMEOUT_MS: 500 });
 
     const toolResponsePromise = request(app)
       .post("/tools/retell/request-user-answer")

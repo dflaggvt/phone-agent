@@ -7,6 +7,8 @@ param(
   [string]$RetellDefaultAgentId = $env:RETELL_DEFAULT_AGENT_ID,
   [string]$RetellDefaultFromNumber = $env:RETELL_DEFAULT_FROM_NUMBER,
   [string]$UserTransferPhoneNumber = $env:USER_TRANSFER_PHONE_NUMBER,
+  [string]$TransferApprovalTimeoutMs = $env:TRANSFER_APPROVAL_TIMEOUT_MS,
+  [string]$LiveAnswerTimeoutMs = $env:LIVE_ANSWER_TIMEOUT_MS,
   [string]$FirebaseProjectId = $env:FIREBASE_PROJECT_ID,
   [string]$BillingPlan = $env:BILLING_PLAN,
   [string]$BillingMonthlyIncludedMinutes = $env:BILLING_MONTHLY_INCLUDED_MINUTES,
@@ -175,6 +177,12 @@ $resolvedFirebaseProjectId = if ($FirebaseProjectId) { $FirebaseProjectId } else
 $runtimeEnvVars = "NODE_ENV=production,LOG_LEVEL=info,PERSISTENCE_DRIVER=firestore,FIREBASE_PROJECT_ID=$resolvedFirebaseProjectId,RETELL_DEFAULT_AGENT_ID=$RetellDefaultAgentId,RETELL_DEFAULT_FROM_NUMBER=$RetellDefaultFromNumber,RETELL_INBOUND_WEBHOOK_VERIFY=true"
 if ($UserTransferPhoneNumber) {
   $runtimeEnvVars = "$runtimeEnvVars,USER_TRANSFER_PHONE_NUMBER=$UserTransferPhoneNumber"
+}
+if ($TransferApprovalTimeoutMs) {
+  $runtimeEnvVars = "$runtimeEnvVars,TRANSFER_APPROVAL_TIMEOUT_MS=$TransferApprovalTimeoutMs"
+}
+if ($LiveAnswerTimeoutMs) {
+  $runtimeEnvVars = "$runtimeEnvVars,LIVE_ANSWER_TIMEOUT_MS=$LiveAnswerTimeoutMs"
 }
 if ($BillingPlan) {
   $runtimeEnvVars = "$runtimeEnvVars,BILLING_PLAN=$BillingPlan"

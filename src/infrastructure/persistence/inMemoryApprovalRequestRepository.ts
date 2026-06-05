@@ -4,6 +4,7 @@ import type {
   ApprovalRequestRepository,
   CreateApprovalRequestInput
 } from "../../domain/approvals/approvalRequest.js";
+import { DEFAULT_TRANSFER_APPROVAL_TIMEOUT_MS } from "../../domain/liveActions/liveActionTimeouts.js";
 
 export class InMemoryApprovalRequestRepository implements ApprovalRequestRepository {
   private readonly approvals = new Map<string, ApprovalRequest>();
@@ -22,7 +23,7 @@ export class InMemoryApprovalRequestRepository implements ApprovalRequestReposit
       urgency: input.urgency ?? "unknown",
       transferToNumber: input.transferToNumber,
       createdAt: now,
-      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? 45_000))
+      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? DEFAULT_TRANSFER_APPROVAL_TIMEOUT_MS))
     };
     this.approvals.set(approval.id, approval);
     return approval;

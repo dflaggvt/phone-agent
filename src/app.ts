@@ -299,7 +299,7 @@ export function createApp(dependencies: AppDependencies) {
     notifications,
     logger: dependencies.logger,
     transferToNumber: dependencies.env.USER_TRANSFER_PHONE_NUMBER,
-    timeoutMs: dependencies.env.LIVE_REQUEST_TIMEOUT_MS,
+    timeoutMs: dependencies.env.TRANSFER_APPROVAL_TIMEOUT_MS,
     pollIntervalMs: 1000
   });
 
@@ -307,7 +307,7 @@ export function createApp(dependencies: AppDependencies) {
     answerRequests: answerRequestRepository,
     notifications,
     logger: dependencies.logger,
-    timeoutMs: dependencies.env.LIVE_REQUEST_TIMEOUT_MS,
+    timeoutMs: dependencies.env.LIVE_ANSWER_TIMEOUT_MS,
     pollIntervalMs: 1000
   });
 

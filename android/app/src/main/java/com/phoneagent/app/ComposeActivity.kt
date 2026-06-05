@@ -25,6 +25,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.phoneagent.app.data.AgentNoteCreateRequest
 import com.phoneagent.app.data.TopicCreateRequest
+import com.phoneagent.app.data.remote.PhoneAgentApiException
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -453,13 +454,13 @@ class ComposeActivity : ComponentActivity() {
     }
 
     private fun acceptTransfer(approvalRequestId: String) {
-        submitLiveAction {
+        submitLiveAction(successMessage = "Transfer approved.") {
             assistantLiveViewModel.acceptTransfer(requireToken(), approvalRequestId)
         }
     }
 
     private fun declineTransfer(approvalRequestId: String) {
-        submitLiveAction {
+        submitLiveAction(successMessage = "Transfer declined.") {
             assistantLiveViewModel.declineTransfer(requireToken(), approvalRequestId)
         }
     }
@@ -469,25 +470,28 @@ class ComposeActivity : ComponentActivity() {
             toast("Write an answer first.")
             return
         }
-        submitLiveAction {
+        submitLiveAction(successMessage = "Answer sent to assistant.") {
             assistantLiveViewModel.sendLiveAnswer(requireToken(), answerRequestId, answer.trim())
         }
     }
 
     private fun declineLiveAnswer(answerRequestId: String) {
-        submitLiveAction {
+        submitLiveAction(successMessage = "Assistant will take a message.") {
             assistantLiveViewModel.declineLiveAnswer(requireToken(), answerRequestId)
         }
     }
 
-    private fun submitLiveAction(action: suspend () -> Unit) {
+    private fun submitLiveAction(successMessage: String, action: suspend () -> Unit) {
         scope.launch {
             try {
                 uiState = uiState.copy(loading = true, status = "Saving", error = null)
                 action()
+                toast(successMessage)
                 loadData(forceStatus = true, keepScreen = true)
             } catch (error: Exception) {
-                uiState = uiState.copy(loading = false, error = readableError(error))
+                val message = readableError(error)
+                uiState = uiState.copy(loading = false, error = message)
+                toast(message)
             }
         }
     }
@@ -521,6 +525,14 @@ class ComposeActivity : ComponentActivity() {
     private fun readableError(error: Throwable): String {
         val message = error.message.orEmpty()
         return when {
+            error is PhoneAgentApiException && error.apiCode == "answer_request_expired" ->
+                "This answer request expired. The assistant can no longer relay it."
+            error is PhoneAgentApiException && error.apiCode == "approval_request_expired" ->
+                "This transfer request expired. The assistant is taking a message."
+            error is PhoneAgentApiException && (error.statusCode == 401 || error.statusCode == 403) ->
+                "Please sign in again to continue."
+            error is PhoneAgentApiException && message.isNotBlank() && message.length <= 120 ->
+                message
             message.contains("network", ignoreCase = true) ||
                 message.contains("timeout", ignoreCase = true) ||
                 message.contains("unreachable", ignoreCase = true) ||

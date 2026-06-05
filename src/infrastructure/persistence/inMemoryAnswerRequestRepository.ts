@@ -5,6 +5,7 @@ import type {
   AnswerRequestStatus,
   CreateAnswerRequestInput
 } from "../../domain/answerRequests/answerRequest.js";
+import { DEFAULT_LIVE_ANSWER_TIMEOUT_MS } from "../../domain/liveActions/liveActionTimeouts.js";
 
 export class InMemoryAnswerRequestRepository implements AnswerRequestRepository {
   private readonly answerRequests = new Map<string, AnswerRequest>();
@@ -23,7 +24,7 @@ export class InMemoryAnswerRequestRepository implements AnswerRequestRepository 
       reason: input.reason,
       urgency: input.urgency ?? "unknown",
       createdAt: now,
-      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? 45_000))
+      expiresAt: new Date(now.getTime() + (input.timeoutMs ?? DEFAULT_LIVE_ANSWER_TIMEOUT_MS))
     };
     this.answerRequests.set(answerRequest.id, answerRequest);
     return answerRequest;

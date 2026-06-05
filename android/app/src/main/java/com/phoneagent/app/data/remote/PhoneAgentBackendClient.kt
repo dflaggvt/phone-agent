@@ -6,6 +6,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
+class PhoneAgentApiException(
+    val statusCode: Int,
+    val apiCode: String?,
+    message: String
+) : RuntimeException(message)
+
 @Singleton
 class PhoneAgentBackendClient @Inject constructor(
     private val api: PhoneAgentApi
@@ -46,7 +52,22 @@ private fun retrofit2.Response<okhttp3.ResponseBody>.toJson(): JSONObject {
         errorBody()?.string().orEmpty()
     }
     if (!isSuccessful) {
-        error("HTTP ${code()}")
+        throw apiException(code(), text)
     }
     return if (text.isBlank()) JSONObject() else JSONObject(text)
 }
+
+private fun apiException(statusCode: Int, text: String): PhoneAgentApiException {
+    val parsed = runCatching {
+        if (text.isBlank()) null else JSONObject(text)
+    }.getOrNull()
+    val error = parsed?.optJSONObject("error")
+    val apiCode = error?.optString("code").nonBlank()
+        ?: parsed?.optString("code").nonBlank()
+    val apiMessage = error?.optString("message").nonBlank()
+        ?: parsed?.optString("message").nonBlank()
+        ?: "HTTP $statusCode"
+    return PhoneAgentApiException(statusCode, apiCode, apiMessage)
+}
+
+private fun String?.nonBlank(): String? = this?.takeIf { it.isNotBlank() }
