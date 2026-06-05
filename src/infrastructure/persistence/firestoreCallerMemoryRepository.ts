@@ -150,6 +150,9 @@ function mergeCallIntoProfile(
   const relationship = input.relationship ?? existing?.relationship ?? "unknown";
   const trustLevel = input.trustLevel ?? existing?.trustLevel ?? trustLevelForRelationship(relationship);
   const memories = existing?.memories ? [...existing.memories] : [];
+  const displayName = input.displayNameSource === "contact"
+    ? input.displayName ?? existing?.displayName
+    : existing?.displayName ?? input.displayName;
 
   for (const fact of input.facts ?? []) {
     addMemory(memories, {
@@ -192,7 +195,7 @@ function mergeCallIntoProfile(
     userId: input.userId,
     primaryPhoneNumber: existing?.primaryPhoneNumber ?? normalizedPhoneNumber,
     phoneNumbers: existing?.phoneNumbers ?? [normalizedPhoneNumber],
-    displayName: input.displayName ?? existing?.displayName,
+    displayName,
     organization: input.organization ?? existing?.organization,
     relationship,
     trustLevel,

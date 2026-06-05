@@ -64,6 +64,7 @@ export interface MemoryUpsertInput {
   userId: string;
   phoneNumber: string;
   displayName?: string;
+  displayNameSource?: "analysis" | "contact";
   organization?: string;
   relationship?: RelationshipLabel;
   trustLevel?: CallerTrustLevel;

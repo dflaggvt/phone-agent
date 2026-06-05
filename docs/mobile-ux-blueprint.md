@@ -1664,6 +1664,7 @@ Acceptance criteria:
 - Sync uploads no contact emails, addresses, birthdays, notes, photos, groups, organizations, or raw contact payloads.
 - The Assistant tab updates the Phone contacts row count after a successful sync.
 - First-time callers in synced contacts are greeted by contact name without "again" or prior-history language.
+- Repeat callers in synced contacts continue to use the contact display name even if prior call analysis extracted a conflicting caller name.
 - Shows a permission-denied state with a clear path to try again.
 - Does not upload notes, email addresses, addresses, birthdays, photos, or unrelated contact fields in the MVP.
 

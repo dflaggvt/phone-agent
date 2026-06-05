@@ -37,6 +37,9 @@ export class InMemoryCallerMemoryRepository implements CallerMemoryRepository {
     const relationship = input.relationship ?? existing?.relationship ?? "unknown";
     const trustLevel = input.trustLevel ?? existing?.trustLevel ?? trustLevelForRelationship(relationship);
     const memories = existing?.memories ? [...existing.memories] : [];
+    const displayName = input.displayNameSource === "contact"
+      ? input.displayName ?? existing?.displayName
+      : existing?.displayName ?? input.displayName;
 
     for (const fact of input.facts ?? []) {
       addMemory(memories, {
@@ -79,7 +82,7 @@ export class InMemoryCallerMemoryRepository implements CallerMemoryRepository {
       userId: input.userId,
       primaryPhoneNumber: existing?.primaryPhoneNumber ?? normalized,
       phoneNumbers: existing?.phoneNumbers ?? [normalized],
-      displayName: input.displayName ?? existing?.displayName,
+      displayName,
       organization: input.organization ?? existing?.organization,
       relationship,
       trustLevel,

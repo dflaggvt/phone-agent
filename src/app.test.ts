@@ -1335,6 +1335,82 @@ describe("app", () => {
     expect(variables.caller_context).toContain("landscaping");
   });
 
+  it("does not let later call analysis overwrite an existing caller name", async () => {
+    const app = createTestApp();
+    await assignDefaultRoute(app);
+
+    await request(app)
+      .post("/webhooks/retell/events")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_analyzed",
+        call: {
+          call_id: "call_name_seed_123",
+          direction: "inbound",
+          from_number: "+15551230000",
+          to_number: "+15557650000",
+          agent_id: "agent_default",
+          call_status: "ended",
+          transcript: "Greg called about landscaping.",
+          call_analysis: {
+            call_summary: "Greg Floyd called about landscaping.",
+            call_successful: true,
+            custom_analysis_data: {
+              caller_name: "Greg Floyd",
+              caller_intent: "Confirm landscaping time.",
+              urgency: "low"
+            }
+          }
+        }
+      })
+      .expect(204);
+
+    await request(app)
+      .post("/webhooks/retell/events")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_analyzed",
+        call: {
+          call_id: "call_name_conflict_123",
+          direction: "inbound",
+          from_number: "+15551230000",
+          to_number: "+15557650000",
+          agent_id: "agent_default",
+          call_status: "ended",
+          transcript: "The caller asked for Daryl, and the analyzer mislabeled the caller as Daryl.",
+          call_analysis: {
+            call_summary: "Daryl called to test the assistant.",
+            call_successful: true,
+            custom_analysis_data: {
+              caller_name: "Daryl",
+              caller_intent: "Test the assistant.",
+              urgency: "low"
+            }
+          }
+        }
+      })
+      .expect(204);
+
+    const inboundResponse = await request(app)
+      .post("/webhooks/retell/inbound")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_inbound",
+        call_inbound: {
+          from_number: "+15551230000",
+          to_number: "+15557650000"
+        }
+      })
+      .expect(200);
+
+    const variables = inboundResponse.body.call_inbound.dynamic_variables;
+    expect(variables.caller_name).toBe("Greg Floyd");
+    expect(variables.opening_line).toBe("Hi Greg, it's Daryl's assistant. Good to hear from you again. What can I help with today?");
+    expect(variables.opening_line).not.toContain("Hi Daryl");
+    expect(variables.caller_context).toContain("Known caller: Greg Floyd");
+    expect(variables.caller_context).not.toContain("Caller name is Daryl");
+  });
+
   it("keeps caller names scoped to the owning user", async () => {
     const app = createTestApp();
     await assignDefaultRoute(app, "daryl", "+15557650000", "Daryl", "+15557650000");
@@ -1442,6 +1518,72 @@ describe("app", () => {
     expect(variables.opening_line).toBe("Hi Theresa, this is Daryl's assistant. What can I help with?");
     expect(variables.opening_line).not.toContain("again");
     expect(variables.caller_context).toContain("Identity source: contact");
+  });
+
+  it("keeps synced contact names authoritative when call analysis extracts the wrong caller name", async () => {
+    const app = createTestApp();
+    await assignDefaultRoute(app);
+
+    await request(app)
+      .post("/v1/contacts/sync")
+      .set(auth())
+      .send({
+        contacts: [{
+          source: "android_contacts",
+          sourceContactId: "contact_theresa",
+          displayName: "Theresa",
+          phoneNumbers: [{ number: "(555) 123-0000", label: "mobile" }]
+        }]
+      })
+      .expect(200);
+
+    await request(app)
+      .post("/webhooks/retell/events")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_analyzed",
+        call: {
+          call_id: "call_contact_conflict_123",
+          direction: "inbound",
+          from_number: "+15551230000",
+          to_number: "+15557650000",
+          agent_id: "agent_default",
+          call_status: "ended",
+          transcript: "Caller asked for Daryl, but the analyzer incorrectly labeled the caller as Daryl.",
+          call_analysis: {
+            call_summary: "Daryl called to test the assistant.",
+            call_successful: true,
+            custom_analysis_data: {
+              caller_name: "Daryl",
+              caller_intent: "Test the assistant.",
+              urgency: "low"
+            }
+          }
+        }
+      })
+      .expect(204);
+
+    const inboundResponse = await request(app)
+      .post("/webhooks/retell/inbound")
+      .set("content-type", "application/json")
+      .send({
+        event: "call_inbound",
+        call_inbound: {
+          from_number: "+15551230000",
+          to_number: "+15557650000"
+        }
+      })
+      .expect(200);
+
+    const variables = inboundResponse.body.call_inbound.dynamic_variables;
+    expect(variables.caller_known).toBe("true");
+    expect(variables.caller_identity_source).toBe("contact");
+    expect(variables.caller_name).toBe("Theresa");
+    expect(variables.opening_line).toBe("Hi Theresa, it's Daryl's assistant. Good to hear from you again. What can I help with today?");
+    expect(variables.opening_line).not.toContain("Hi Daryl");
+    expect(variables.caller_context).toContain("Known caller: Theresa");
+    expect(variables.caller_context).toContain("Prior calls: 1");
+    expect(variables.caller_context).not.toContain("Caller name is Daryl");
   });
 
   it("injects active user notes into Retell inbound dynamic variables", async () => {

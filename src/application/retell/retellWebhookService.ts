@@ -199,7 +199,8 @@ export class RetellWebhookService {
 
     if (normalized.eventType === "call_analyzed" && !this.memoryProcessedProviderCallIds.has(normalized.providerCallId)) {
       this.memoryProcessedProviderCallIds.add(normalized.providerCallId);
-      await this.dependencies.callerMemory.upsertFromCall(extractMemoryInput(session, userConfig.userId));
+      const contact = await this.dependencies.contacts?.findByPhoneNumber(userConfig.userId, session.fromNumber);
+      await this.dependencies.callerMemory.upsertFromCall(extractMemoryInput(session, userConfig.userId, contact));
     }
 
     if (normalized.eventType === "call_analyzed") {
@@ -252,10 +253,15 @@ export class RetellWebhookService {
     }
 
     if (memoryContext.knownCaller) {
-      return memoryContext.callerName ? memoryContext : {
+      return {
         ...memoryContext,
         contactId: contact.id,
-        callerName: contact.displayName
+        identitySource: "contact",
+        callerName: contact.displayName,
+        redLines: [
+          ...memoryContext.redLines,
+          "Use the synced contact display name as the caller name for this phone number."
+        ]
       };
     }
 
@@ -270,6 +276,11 @@ export class RetellWebhookService {
       return;
     }
 
+    const contact = session.direction === "outbound"
+      ? undefined
+      : await this.dependencies.contacts?.findByPhoneNumber(userId, session.fromNumber);
+    const displayName = contact?.displayName ?? getCallerName(session.summary?.structuredData);
+
     return this.dependencies.communicationItems.upsertFromProvider({
       userId,
       channel: "phone_call",
@@ -278,11 +289,11 @@ export class RetellWebhookService {
       providerItemId: session.providerCallId,
       sender: {
         phoneNumber: session.fromNumber,
-        displayName: getCallerName(session.summary?.structuredData)
+        displayName
       },
       recipients: [{ phoneNumber: session.toNumber }],
       participants: [
-        { phoneNumber: session.fromNumber, displayName: getCallerName(session.summary?.structuredData) },
+        { phoneNumber: session.fromNumber, displayName },
         { phoneNumber: session.toNumber }
       ],
       occurredAt: session.startedAt ?? session.createdAt,
@@ -418,7 +429,11 @@ function buildOpeningLine(context: AgentContextPack, user: UserConfig): string {
       : `Hey${friendlyName}, it's ${owner}'s assistant. Good to hear from you. What's up?`;
   }
 
-  if (context.identitySource === "contact" || context.priorCallCount === 0) {
+  if (context.identitySource === "contact" && context.priorCallCount === 0) {
+    return `Hi${friendlyName}, this is ${owner}'s assistant. What can I help with?`;
+  }
+
+  if (context.priorCallCount === 0) {
     return `Hi${friendlyName}, this is ${owner}'s assistant. What can I help with?`;
   }
 
@@ -551,7 +566,11 @@ function contextPackFromContact(contact: Contact): AgentContextPack {
   };
 }
 
-function extractMemoryInput(session: Awaited<ReturnType<CallRepository["upsertFromProvider"]>>, userId: string) {
+function extractMemoryInput(
+  session: Awaited<ReturnType<CallRepository["upsertFromProvider"]>>,
+  userId: string,
+  contact?: Contact
+) {
   const structured = session.summary?.structuredData;
   const custom = getRecord(structured?.custom_analysis_data);
   const callerName = getString(custom, "caller_name");
@@ -560,11 +579,9 @@ function extractMemoryInput(session: Awaited<ReturnType<CallRepository["upsertFr
   const followUp = getString(custom, "requested_follow_up");
   const callbackNumber = getString(custom, "callback_number");
   const urgency = getString(custom, "urgency");
+  const displayNameSource = contact ? "contact" as const : callerName ? "analysis" as const : undefined;
   const facts: string[] = [];
 
-  if (callerName) {
-    facts.push(`Caller name is ${callerName}.`);
-  }
   if (organization) {
     facts.push(`Caller organization is ${organization}.`);
   }
@@ -581,7 +598,8 @@ function extractMemoryInput(session: Awaited<ReturnType<CallRepository["upsertFr
   return {
     userId,
     phoneNumber: session.fromNumber,
-    displayName: callerName,
+    displayName: contact?.displayName ?? callerName,
+    displayNameSource,
     organization,
     lastIntent: intent,
     lastCallSummary: session.summary?.text,

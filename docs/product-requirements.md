@@ -223,7 +223,7 @@ The detailed monetization design lives in `docs/monetization.md`.
 3. Voice provider sends an inbound webhook.
 4. Backend normalizes the provider event and creates or updates a `CommunicationItem` with channel `phone_call`.
 5. Agent context service resolves caller, relationship, active notes, related topic threads, and interruption rules.
-   - Resolution order: user-scoped caller memory, user-scoped synced contacts, then unknown caller.
+   - Resolution order: user-scoped synced contacts for caller display name, user-scoped caller memory for prior history and relationship, then unknown caller. Model-extracted names must not override a synced contact name for the same phone number.
 6. AI agent answers with disclosure and asks for identity and intent as needed.
 7. Agent classifies urgency, topic, requested outcome, and whether user interruption is warranted.
 8. Agent handles the call, requests a live answer, requests transfer approval, creates/updates calendar items when allowed, or takes a message.
