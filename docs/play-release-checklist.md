@@ -25,7 +25,8 @@ Required before first closed test upload:
 - Data Safety answers drafted. Status: draft exists in `docs/play-store-listing.md`.
 - Store listing draft created. Status: draft exists in `docs/play-store-listing.md`.
 - Closed tester list configured.
-- Google Play Developer API publishing credential configured if automation is desired. Status: not configured locally.
+- Google Play Developer API enabled. Status: enabled on GCP project `phone-agent-43313`.
+- Google Play Developer API publishing credential configured if automation is desired. Status: local service account key exists outside the repo at `C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json`; Play Console access grant is still required.
 
 ## Release Signing
 
@@ -86,6 +87,22 @@ C:\Users\Daryl Flagg\source\repos\phone-agent\android\signing.properties
 ```
 
 Treat both files as production credentials. Back them up in a secure password manager or secret vault before using the key for Play Console upload signing.
+
+## Play Developer API Credential
+
+The dedicated Google Play publishing service account is:
+
+```text
+google-play-publisher@phone-agent-43313.iam.gserviceaccount.com
+```
+
+The local JSON key is stored outside the repo at:
+
+```text
+C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json
+```
+
+Do not commit the JSON key. In Google Play Console, grant this service account app-level access to `Call Held` with release/testing-track permissions before attempting automated closed testing uploads.
 
 ## Play Console Closed Testing Upload Steps
 

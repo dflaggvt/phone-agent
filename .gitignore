@@ -16,6 +16,9 @@ android/*.hprof
 *.aab
 *.jks
 *.keystore
+google-play-publisher.json
+*-service-account.json
+service-account*.json
 
 # Generated release packets and public-download artifacts
 release/

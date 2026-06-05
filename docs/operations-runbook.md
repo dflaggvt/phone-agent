@@ -187,6 +187,20 @@ For Android release candidates:
 - Verify first-run onboarding, billing setup, assistant number assignment, forwarding instructions, call detail, notification actions, and calendar status.
 - Confirm Crashlytics receives a non-sensitive test crash before closed beta.
 
+Automated Google Play uploads use the dedicated service account:
+
+```text
+google-play-publisher@phone-agent-43313.iam.gserviceaccount.com
+```
+
+The local JSON key lives outside the repo at:
+
+```text
+C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json
+```
+
+Google Play Console must grant this service account app-level release/testing-track permissions before upload automation can publish to closed testing.
+
 ## Data Safety During Incidents
 
 Never include these in logs, tickets, screenshots, or chat:
