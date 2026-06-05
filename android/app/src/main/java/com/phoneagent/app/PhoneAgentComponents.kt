@@ -62,6 +62,57 @@ internal fun ScreenList(content: androidx.compose.foundation.lazy.LazyListScope.
 }
 
 @Composable
+internal fun HomeTopicCard(topic: TopicThread?, actions: AppActions) {
+    val title = topic?.title ?: "No topics yet"
+    val unreadLabel = topic?.unreadIndicatorLabel.orEmpty()
+    Surface(
+        modifier = Modifier
+            .width(164.dp)
+            .height(84.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { if (topic == null) actions.openTopics() else actions.openTopic(topic.id) },
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                title,
+                color = Color.White,
+                fontSize = 15.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (unreadLabel.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = SuccessLight.copy(alpha = 0.22f),
+                    border = BorderStroke(1.dp, SuccessLight.copy(alpha = 0.38f))
+                ) {
+                    Text(
+                        unreadLabel,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
 internal fun TopicImageCard(topic: TopicThread?, actions: AppActions) {
     val title = topic?.title ?: "Topics will appear here"
     val body = topic?.description?.ifBlank { topic.compactMeta } ?: "The assistant groups related conversations into calm topic cards."

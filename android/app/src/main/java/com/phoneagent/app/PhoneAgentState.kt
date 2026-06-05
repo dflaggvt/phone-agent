@@ -245,6 +245,21 @@ internal data class TopicThread(val json: JSONObject) {
     val taskCount: Int = json.optJSONArray("tasks")?.length() ?: 0
     val compactMeta: String = "Active / $communicationCount comm / $decisionCount decisions"
     val timeline: List<TimelineItem> = json.optJSONArray("timeline").toList(::TimelineItem)
+    val unreadUpdateCount: Int = listOf(
+        json.optInt("unreadUpdateCount", 0),
+        json.optInt("newUpdateCount", 0),
+        json.optInt("unreadCount", 0)
+    ).maxOrNull() ?: 0
+    val hasUnreadUpdates: Boolean = unreadUpdateCount > 0 ||
+        json.optBoolean("hasUnreadUpdates", false) ||
+        json.optBoolean("hasNewUpdates", false) ||
+        json.optBoolean("isUnread", false)
+    val unreadIndicatorLabel: String = when {
+        unreadUpdateCount > 9 -> "9+ new"
+        unreadUpdateCount > 1 -> "$unreadUpdateCount new"
+        hasUnreadUpdates -> "New"
+        else -> ""
+    }
 }
 
 internal data class TimelineItem(val json: JSONObject) {

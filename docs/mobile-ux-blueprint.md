@@ -120,7 +120,7 @@ Assistant is the live control surface. It answers: "What is my assistant doing n
 
 Profile is account and configuration. It owns identity, assistant name/behavior settings, forwarding, billing, calendar, contacts, notification preferences, privacy, support, diagnostics, and logout. The header presence/avatar may also open Profile.
 
-Topics remain the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread." Topics are promoted on Home through image-led cards and opened through a `See all topics` drill-in rather than occupying a permanent tab.
+Topics remain the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread." Topics are promoted on Home through quiet topic-name tiles and opened through a `See all topics` drill-in rather than occupying a permanent tab.
 
 Review is a triage mode called `Needs review` in consumer copy. It is not a second call log and it is not a notification feed. Its action cards live primarily on the Assistant tab, with a compact Home signal only when items are waiting. The Review drill-in remains available for fuller triage across items that need correction, organization, approval, or user action before they become durable memory.
 
@@ -631,13 +631,12 @@ Recent call cards:
 
 Tracked topic cards:
 
-- Horizontal row using Calm-like large image cards.
-- Card width: `220-260dp`.
-- Card height target: `160-190dp`.
-- Each card uses a full-bleed AI-generated bitmap image relevant to the topic category.
-- Overlay text must be short and readable against the image.
-- Each topic card shows title, status, count summary, and the most recent structured state when available.
-- Empty state shows a single card explaining that topics appear after calls are classified or created.
+- Horizontal row using quiet, non-image topic tiles.
+- Card width: `148-176dp`.
+- Card height target: `76-92dp`.
+- Each topic tile shows only the topic name and a small new/unread indicator when the backend exposes unread state for that topic.
+- Do not show summaries, descriptions, participants, counts, status text, AI-generated images, or timeline previews on Home topic tiles.
+- Empty state shows a single quiet tile such as `No topics yet`.
 4. Upcoming decisions and deadlines.
 5. Recent handled communications.
 6. Suggested improvements.
@@ -781,7 +780,7 @@ Topics is the main product surface. It is where fragmented communication becomes
 
 ### Topic Card
 
-Topic cards on the Topics screen should use the same image-led visual language as Home topic cards, scaled for vertical browsing. They should feel like persistent real-world situations, not database rows or white admin panels.
+Topic cards on the Topics screen may use richer visual treatment than Home because this is the dedicated browsing surface. Home topic tiles must stay minimal: topic name only plus a new/unread indicator when one exists.
 
 ### Topic Image System
 
@@ -1532,7 +1531,7 @@ Numeric specs:
 - Filter-specific initial results `20`.
 - Load more `20`.
 - Snippet max `96` characters.
-- Search results should use compact lookup rows, not Home/Review action rows, unless the result is a topic image card opened from Topics.
+- Search results should use compact lookup rows, not Home/Review action rows. Topic results can open the richer Topics surface, but should not reuse Home's minimal topic tiles as search results.
 - Search result rows should expose one primary open/details affordance; call-back, note, attach, and workflow actions belong on the destination screen.
 - Search response target under `700ms` cached, `1800ms` network.
 
@@ -2470,8 +2469,8 @@ Scope:
 - Onboarding must be consumer-safe. It must not show stored crash text, HTTP details, provider names, stack traces, or internal setup diagnostics on the welcome screen.
 - Bottom navigation must include an icon and label for each destination. The visual target remains `56dp` high per item inside a `72dp` nav.
 - Placeholder letter icons such as `[T]`, `[I]`, or single-letter call actions are not acceptable in consumer builds.
-- Home is the default tab and keeps first-screen focus on topic image cards and compact recent calls. Waiting assistant actions may appear only as one compact signal that opens Assistant.
-- Empty topic cards should be visually inviting but shorter than populated topic cards so Home can show recent calls and the first attention item on common phone screens.
+- Home is the default tab and keeps first-screen focus on quiet topic-name tiles and compact recent calls. Waiting assistant actions may appear only as one compact signal that opens Assistant.
+- Empty topic tiles should be visually quiet and shorter than populated topic tiles so Home can show recent calls and the first attention item on common phone screens.
 - Call detail must read as a calm record, not a transcript dump. Summary, outcomes, and transcript should be separated into clear cards with high-contrast text on card surfaces.
 - Call detail keeps bottom navigation hidden while the detail is open, but the back action must return to the originating tab without losing the app shell.
 - Icon-only call-row actions must have content descriptions and `40-44dp` touch targets.

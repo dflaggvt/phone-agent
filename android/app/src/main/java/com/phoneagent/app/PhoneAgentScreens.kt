@@ -653,9 +653,9 @@ private fun HomeScreen(state: PhoneAgentUiState, actions: AppActions) {
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (state.topics.isEmpty()) {
-                    TopicImageCard(null, actions)
+                    HomeTopicCard(null, actions)
                 } else {
-                    state.topics.take(8).forEach { TopicImageCard(it, actions) }
+                    state.topics.take(8).forEach { HomeTopicCard(it, actions) }
                 }
             }
         }
