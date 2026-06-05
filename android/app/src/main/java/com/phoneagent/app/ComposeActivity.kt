@@ -79,6 +79,7 @@ class ComposeActivity : ComponentActivity() {
             getState = { uiState },
             setState = { uiState = it },
             tokenProvider = { requireToken() },
+            clearLocalCache = { viewModel.clearCache() },
             registerPushToken = { fcmRegistrationCoordinator.registerCurrentToken() },
             refreshData = { forceStatus, keepScreen -> loadData(forceStatus = forceStatus, keepScreen = keepScreen) },
             readableError = ::readableError,
@@ -118,9 +119,11 @@ class ComposeActivity : ComponentActivity() {
                     actions = AppActions(
                         selectTab = ::selectTab,
                         refresh = { scope.launch { loadData(forceStatus = true) } },
-                        startGoogleSignin = onboardingCoordinator::startGoogleAuth,
-                        startSignup = onboardingCoordinator::startPhoneAuth,
-                        verifyCode = onboardingCoordinator::verifyPhoneCode,
+                        openLogin = { uiState = uiState.copy(screen = Screen.Login, error = null) },
+                        openCreateAccount = { uiState = uiState.copy(screen = Screen.CreateAccount, error = null) },
+                        startGoogleAuth = onboardingCoordinator::startGoogleAuth,
+                        startPhoneVerification = onboardingCoordinator::startPhoneVerification,
+                        verifyPhoneCode = onboardingCoordinator::verifyPhoneCode,
                         saveAssistantName = onboardingCoordinator::saveAssistantName,
                         openTopics = ::openTopics,
                         openReview = ::openReview,
@@ -189,7 +192,7 @@ class ComposeActivity : ComponentActivity() {
     private fun initialize() {
         if (FirebaseApp.getApps(this).isEmpty()) {
             uiState = uiState.copy(
-                screen = Screen.Auth,
+                screen = Screen.AuthChoice,
                 status = "Setup",
                 error = "Authentication is not configured for this build."
             )
@@ -197,7 +200,7 @@ class ComposeActivity : ComponentActivity() {
         }
         FirebaseCrashlytics.getInstance().setCustomKey("ui", "compose")
         if (firebaseAuth?.currentUser == null) {
-            uiState = uiState.copy(screen = Screen.Auth, status = "Setup", loading = false)
+            uiState = uiState.copy(screen = Screen.AuthChoice, status = "Setup", loading = false)
         } else {
             uiState = uiState.copy(screen = Screen.Startup, status = "Syncing", loading = true, error = null)
             scope.launch {
@@ -304,7 +307,7 @@ class ComposeActivity : ComponentActivity() {
     private suspend fun loadData(forceStatus: Boolean = false, keepScreen: Boolean = false) {
         val user = firebaseAuth?.currentUser
         if (user == null) {
-            uiState = uiState.copy(screen = Screen.Auth, loading = false, status = "Setup")
+            uiState = uiState.copy(screen = Screen.AuthChoice, loading = false, status = "Setup")
             return
         }
         track("data_refresh_started", screen = uiState.selectedTab.label.lowercase(), action = "refresh")
@@ -347,7 +350,7 @@ class ComposeActivity : ComponentActivity() {
         onboardingCoordinator.clearCredentialState()
         firebaseAuth?.signOut()
         scope.launch { viewModel.clearCache() }
-        uiState = PhoneAgentUiState(screen = Screen.Auth, status = "Setup")
+        uiState = PhoneAgentUiState(screen = Screen.AuthChoice, status = "Setup")
     }
 
     private fun removeAccount() {
@@ -360,7 +363,7 @@ class ComposeActivity : ComponentActivity() {
                 onboardingCoordinator.clearCredentialState()
                 firebaseAuth?.signOut()
                 viewModel.clearCache()
-                uiState = PhoneAgentUiState(screen = Screen.Auth, status = "Setup")
+                uiState = PhoneAgentUiState(screen = Screen.AuthChoice, status = "Setup")
                 toast("Account removed.")
             } catch (error: Exception) {
                 uiState = uiState.copy(loading = false, status = "Profile", error = readableError(error))

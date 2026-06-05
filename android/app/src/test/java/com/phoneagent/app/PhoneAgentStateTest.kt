@@ -149,12 +149,24 @@ class PhoneAgentStateTest {
     }
 
     @Test
-    fun phoneCredentialCollisionRecoveryOnlyAppliesWhenGoogleUserNeedsPhone() {
+    fun phoneCredentialCollisionUsesProductOwnedRecoveryMessage() {
         val collision = IllegalStateException("This credential is already associated with a different user account.")
 
-        assertTrue(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = true, error = collision))
-        assertFalse(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = false, error = collision))
-        assertFalse(shouldRecoverExistingPhoneAccount(currentUserNeedsPhone = true, error = IllegalStateException("Network unavailable.")))
+        assertEquals(
+            "That mobile number is already connected to another account. Contact support to move it.",
+            protectedNumberVerificationError(collision)
+        )
+        assertEquals("Network unavailable.", protectedNumberVerificationError(IllegalStateException("Network unavailable.")))
+        assertEquals("Could not verify phone.", protectedNumberVerificationError(null))
+    }
+
+    @Test
+    fun googleAuthFlowRejectsUnexpectedAccountCreationOrReuse() {
+        assertTrue(shouldRejectGoogleAuthResult(GoogleAuthFlow.Login, isNewUser = true))
+        assertFalse(shouldRejectGoogleAuthResult(GoogleAuthFlow.Login, isNewUser = false))
+
+        assertTrue(shouldRejectGoogleAuthResult(GoogleAuthFlow.CreateAccount, isNewUser = false))
+        assertFalse(shouldRejectGoogleAuthResult(GoogleAuthFlow.CreateAccount, isNewUser = true))
     }
 
     @Test

@@ -90,13 +90,16 @@ internal class PhoneAgentViewModel @Inject constructor(
     private fun nextScreenAfterSnapshot(snapshot: AppSnapshot, current: PhoneAgentUiState, keepScreen: Boolean): Screen {
         if (keepScreen) return current.screen
         val shouldRouteOnboarding =
-            current.screen is Screen.Auth ||
+            current.screen is Screen.AuthChoice ||
+                current.screen is Screen.Login ||
+                current.screen is Screen.CreateAccount ||
+                current.screen is Screen.VerifyPhone ||
                 current.screen is Screen.CodeEntry ||
                 current.screen is Screen.Startup ||
                 current.screen is Screen.StartupIssue
         if (!shouldRouteOnboarding) return current.screen
         return when {
-            !snapshot.onboarding.phoneVerified -> Screen.Auth
+            !snapshot.onboarding.phoneVerified -> Screen.VerifyPhone
             !snapshot.onboarding.assistantProfileConfigured -> Screen.AssistantName
             else -> Screen.Main
         }

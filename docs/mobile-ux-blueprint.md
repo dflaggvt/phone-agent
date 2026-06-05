@@ -122,7 +122,7 @@ Profile is account and configuration. It owns identity, assistant name/behavior 
 
 Topics remain the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread." Topics are promoted on Home through image-led cards and opened through a `See all topics` drill-in rather than occupying a permanent tab.
 
-Review is a triage mode called `Needs you` in consumer copy. It is not a second call log. It appears as a Home section and optional drill-in for items that need correction, organization, approval, or user action before they become durable memory.
+Review is a triage mode called `Needs review` in consumer copy. It is not a second call log and it is not a notification feed. Its action cards live primarily on the Assistant tab, with a compact Home signal only when items are waiting. The Review drill-in remains available for fuller triage across items that need correction, organization, approval, or user action before they become durable memory.
 
 Search is a utility, not a standing destination in the first release. It is reachable from the Home header and should open as a quiet search surface. Search can become a primary destination later if usage data shows frequent cross-channel memory retrieval.
 
@@ -131,12 +131,12 @@ Search is a utility, not a standing destination in the first release. It is reac
 - Bottom navigation must have exactly `3` items for the current consumer release: Home, Assistant, Profile.
 - Label length must be `4-9` characters.
 - Each item must include an icon and label.
-- Active tab target height: `56dp`.
-- Bottom nav total height: `72-80dp`, integrated with the bottom app chrome rather than rendered as a floating white island.
+- Active tab target height: `52-56dp`.
+- Bottom nav total height: `66-72dp`, integrated with the bottom app chrome rather than rendered as a floating white island.
 - The live-call dock may appear above bottom nav and must not obscure the active tab.
 - Search must be reachable from Home without competing for a bottom-nav slot.
 - Topics must be reachable from Home topic cards and a `See all topics` affordance.
-- Review/Needs You must be reachable from Home when there are pending items; it should not appear as an empty permanent tab.
+- Review/Needs Review must be reachable from Home when there are pending items; it should not appear as an empty permanent tab.
 - The assistant presence/avatar control opens Profile. It should be reachable from every authenticated primary screen.
 
 ## Global App Shell
@@ -167,7 +167,7 @@ Production polish rules:
 
 ### Header
 
-The authenticated app chrome should follow the calmer, integrated pattern of premium habit and coaching apps rather than the older floating-card shell. The top bar is anchored and compact, but it must continue the purple atmospheric app background instead of introducing a separate dark surface.
+The authenticated app chrome should follow the calmer, integrated pattern of premium habit and coaching apps rather than the older floating-card shell. The top bar is anchored and compact, but it must be visually transparent over the purple atmospheric app background instead of introducing a separate band, card, or local gradient.
 
 Header elements:
 
@@ -181,8 +181,8 @@ Header numeric spec:
 
 | Element | Value |
 | --- | ---: |
-| Top chrome background | Purple atmosphere gradient, `#65549B` to `#352363` |
-| Top chrome corner radius bottom | `14dp` |
+| Top chrome background | Transparent over app atmosphere |
+| Top chrome corner radius bottom | `0dp` |
 | Top row height | `64dp` |
 | Wordmark size | `25sp` |
 | Wordmark line height | `30sp` |
@@ -202,7 +202,7 @@ Presence states:
 | Ready | Ready | Green | Assistant reachable and no urgent issue |
 | Setup | Setup | Amber | Required onboarding incomplete |
 | Live | Live | Amber | Assistant is on a call |
-| Needs you | Needs you | Red | User action pending |
+| Needs you | Needs you | Red | Live user action pending |
 | Syncing | Syncing | Blue-gray | Refresh in progress over `700ms` |
 | Offline | Offline | Gray/red | Backend unreachable for `30s` |
 | Paused | Paused | Gray | User disabled assistant |
@@ -236,13 +236,13 @@ Numeric:
 
 | Element | Value |
 | --- | ---: |
-| Nav background | `#202531` |
-| Nav height before system inset | `76dp` |
-| Item target | `56dp` |
-| Icon size | `24dp` |
-| Label size | `11sp` |
-| Top border | `1dp` at `#323847` |
-| Active indicator | `3dp` high, `28dp` wide |
+| Nav background | `#160A2F` at `98%` opacity |
+| Nav height before system inset | `68dp` |
+| Item target | `52-60dp` |
+| Icon size | `22dp` |
+| Label size | `10sp` |
+| Top border | `1dp` at white `10%` opacity |
+| Active indicator | `2dp` high, `24dp` wide |
 
 ### Profile And Settings
 
@@ -594,16 +594,28 @@ On a `393x873dp` viewport, Home must show:
 - Header.
 - Horizontally scrollable topic cards.
 - Recent calls with action controls.
-- Priority items when present.
+- A compact assistant-needs signal only when action items are waiting.
 
 ### Content Order
 
 1. Horizontally scrollable topic cards.
 2. Recent calls with action controls.
-3. Priority queue when there are live requests or review items.
+3. Optional compact assistant-needs signal when live requests or actionable review items are waiting.
 
 Home must not show a large generic assistant-status card such as "Assistant active." Assistant health belongs in the header status chip and Assistant tab. Home should spend first-screen space on communication objects: topics and calls.
-Home must not show a generic "Latest changes" or "Today's changes" section. Cross-channel activity belongs in Review, Search, notifications, and topic detail timelines unless it is urgent enough to appear in Needs attention.
+Home must not show a generic "Latest changes" or "Today's changes" section. Cross-channel activity belongs in Review, Search, notifications, and topic detail timelines unless it requires a user decision, caller reply, transfer decision, or topic/memory review.
+
+Assistant-needs signal:
+
+- Home must not render review cards.
+- Home may show one compact row/card when there are waiting assistant actions.
+- The signal label should use plain language such as `Assistant needs review`.
+- Tapping the signal opens the Assistant tab, not a separate settings or notification screen.
+- The signal may include count only, not item details.
+- The signal must stay under `72dp` tall.
+- Empty Home must not show a `Nothing to review` card.
+- It must not show passive `NotificationEvent` rows such as completed background updates, generic calendar changes, billing reminders, or FYI assistant activity.
+- Passive notifications remain reachable through the bell/profile notification surfaces, Assistant recent activity when relevant, and Review `Updates`.
 
 Recent call cards:
 
@@ -1256,21 +1268,18 @@ Assistant is where the user controls the AI layer.
 It combines:
 
 - Live activity.
-- Assistant mode.
-- Rules.
+- Action/review requests.
 - Notes.
-- Channels.
-- Voice behavior.
-- Health.
+- Recent assistant activity.
+- Minimal live-use actions.
 
 ### Assistant Screen Sections
 
 1. Assistant status summary.
-2. Live needs when present.
-3. Quick actions.
-4. Connected channels.
-5. Memory, rules, and billing.
-6. Voice/personality summary.
+2. Action/review queue.
+3. Prepared context for upcoming calls.
+4. Recent assistant activity.
+5. Minimal live-use actions.
 
 The Assistant tab should not feel like a diagnostic dashboard. Technical URLs, webhook status, provider names, and model/provider implementation details belong in Settings, Status, or internal diagnostics, not the main Assistant tab.
 
@@ -1279,11 +1288,10 @@ The Assistant tab should not feel like a diagnostic dashboard. Technical URLs, w
 The current native Android Assistant tab should use this hierarchy:
 
 - Top command card: assistant name, active/setup/live chip, one plain-language explanation, and exactly `3` compact metric pills in one horizontal row.
-- Live needs: show only active calls, transfer approvals, answer requests, or live notifications. If none exist, use a slim inline strip under the command card, not a full panel.
-- Primary actions: `Add note`, `Test call`, `Forwarding`, and `Calendar` in a compact `2x2` grid immediately after live needs.
-- Voice behavior: compact row below primary actions with assistant name/style and a single `Customize` affordance.
-- Connected channels: Phone and Calendar first in dense rows. Future channels may appear only as muted `Soon` rows and must not dominate the first screen.
-- Memory and controls: Notifications, People memory, Phone contacts, Rules, Billing in dense rows.
+- Needs review: show action-oriented items the assistant needs from the user. Ordering is live transfer requests, live answer requests, topic suggestions, decision cards, conflicts, and sensitive-memory reviews. If none exist, use a slim empty state that explains the assistant will ask here when it needs input.
+- Prepared notes: active user-authored notes the assistant can use on the next call, capped at `3` rows before drill-in.
+- Recent activity: privacy-safe notification/activity rows from the assistant, capped at `4` rows.
+- Minimal actions: only `Add note` and `Test call`. These are live-use actions, not settings. Forwarding, billing, contacts, calendar, privacy, rules, model/provider status, and channel setup controls belong in Profile or dedicated settings/detail screens.
 
 Acceptance criteria:
 
@@ -1294,8 +1302,8 @@ Acceptance criteria:
 - `Add note` and `Test call` are reachable without scrolling on common phones.
 - The first viewport should not show more than `2` large white containers before the action grid.
 - Empty live state height must stay under `52dp`.
-- Channel/control rows should be `56-68dp` tall, not card-sized.
-- Channel rows use user-facing labels: `Phone`, `Calendar`, `SMS`, `Email`, `Documents`.
+- The Assistant tab must not contain settings-style channel/control rows. If a row changes account setup, provider routing, billing, contacts, calendar connection, privacy, rules, or notification settings, it does not belong on Assistant.
+- Home must not duplicate the Assistant review queue. Home can show one compact assistant-needs signal with a count, but the cards themselves live on Assistant.
 - The Android app must not run periodic polling for live calls, approvals, answer requests, notifications, or calendar activity. FCM data messages, notification action results, notification deep links, app launch, and explicit user refresh/navigation are the allowed refresh triggers. Only explicit navigation to a screen should reset scroll to top.
 - Live answer requests expire after `90s` by default unless a stricter production policy is explicitly configured.
 
@@ -1569,26 +1577,36 @@ The first-run flow must assume the user is not Daryl, has no Retell number, has 
 
 Required screens:
 
-1. Value promise.
-2. Continue with phone number.
-3. Verify code.
-4. Name assistant.
-5. Assign assistant number.
-6. Configure forwarding.
-7. Test assistant.
-8. First handled call review.
+1. Splash/title screen with temporary logo, product name, short value promise, and account actions.
+2. Account choice actions: `Create account` and `Log in`.
+3. Create account: Google.
+4. Log in: Google for an existing account.
+5. Verify code when mobile-number OTP is used for protected-number verification.
+6. Protected mobile-number verification when a Google-authenticated account does not yet have a verified phone.
+7. Name assistant.
+8. Assign assistant number.
+9. Configure forwarding.
+10. Test assistant.
+11. First handled call review.
 
 Do not show the main authenticated shell until account bootstrap succeeds. If backend auth is unavailable, show a recoverable setup error rather than a fake demo account.
 
 After account bootstrap succeeds, users with incomplete setup must be routed to dedicated onboarding screens on app launch. Do not use the Today tab as the primary place to complete activation. Today may show assistant readiness after onboarding, but it must not contain a checklist-style onboarding module.
+
+Auth and onboarding must not collapse into a single ambiguous form. `Create account` is for first-time users and uses Google sign-in before routing into onboarding. `Log in` is for returning users and uses Google sign-in to restore the existing account; if the provider reports that the login attempt created a new account, the app must undo that accidental creation when possible and tell the user to create an account instead. Returning users with incomplete setup resume the next required onboarding step, not a fresh signup form.
+
+Auth screen copy must match the user's intent. The login screen should not use generic setup copy, phone-number fields, or imply account creation. It should say the user is accessing an existing assistant and may resume setup only if the existing account is incomplete. The protected-number verification screen should explain that the phone number is the number the assistant protects and uses for routing/account recovery, not a second account-creation step.
+
+The first unauthenticated screen must not look like a setup form. It should behave like a title/splash screen: centered temporary logo mark, `Phone Agent` product name, one short promise line, and the two account actions below. No input fields, setup card, checklist, or provider-specific language should appear on this screen.
 
 Onboarding screen behavior:
 
 - Hide bottom navigation on all required onboarding screens.
 - Use a clear screen title and one primary action per screen.
 - Show at most `1` secondary action on any onboarding screen.
+- Every required setup screen shown after authentication must include a single `Use another account` secondary action unless the screen has a more specific recovery action. It signs out, clears local display cache, and returns to the unauthenticated title screen so users are never trapped in setup for the wrong account.
 - Keep each screen to `1` decision or task.
-- Do not ask for the user's display name before authentication. Returning users should be able to sign in with Google or with only their phone number and code; display name can be collected later only when needed.
+- Do not ask for the user's display name before authentication. Returning users should log in with Google; display name can be collected later only when needed.
 - Show setup progress in copy or compact status text, not as a dense checklist.
 - Route back into onboarding after reloads until core setup is complete.
 - The final test-call screen may offer `Open app` after forwarding instructions have been viewed, because the first real handled call depends on carrier behavior and user action outside the app.
@@ -1714,11 +1732,12 @@ Production behavior:
 - The app uses Firebase Auth for Google sign-in and Firebase Phone Auth to send a real SMS or voice OTP.
 - Google sign-in authenticates the account, but it does not replace mobile-number verification. If a user starts with Google, the next required setup step is linking and verifying the mobile number that the assistant will protect.
 - Phone verification after Google sign-in must link the phone credential to the existing Firebase user rather than creating a second account.
-- If the verified phone number is already attached to an existing Firebase phone account, the app should recover that existing account and continue setup. The user-facing message should be calm and product-owned, such as `We found your existing account for this mobile number`, rather than Firebase's raw `credential already associated` error.
+- After a phone credential links successfully, the app must force-refresh the Firebase ID token before loading setup state. Returning users with a previously verified protected number must not be sent back to verification just because a later Google token omits the phone claim.
+- If the verified phone number is already attached to a different Firebase account, the app must not silently switch accounts or create a phone-only login path. It should show a calm product-owned error explaining that the number is already connected to another account and provide a support/recovery path.
 - The verification code is never returned by the Phone Agent backend.
 - The setup code must not be displayed in production.
 - The button label is `Send code`.
-- The auth entry screen should offer `Continue with Google` and mobile-number OTP. The phone entry must ask only for the mobile number. It may say `Sign in or create account`, but it must not look like a signup form with name, company, payment, or assistant settings before verification.
+- The create-account and login screens should offer Google only. Phone-number OTP remains available for protected-number verification, not account creation or returning-user login.
 - If Firebase configuration is missing, show a blocking setup error for the build rather than a fake verification path.
 
 Retell/provider details must not be visible on this screen. The app should explain behavior in user language.
@@ -2449,7 +2468,7 @@ Scope:
 - Onboarding must be consumer-safe. It must not show stored crash text, HTTP details, provider names, stack traces, or internal setup diagnostics on the welcome screen.
 - Bottom navigation must include an icon and label for each destination. The visual target remains `56dp` high per item inside a `72dp` nav.
 - Placeholder letter icons such as `[T]`, `[I]`, or single-letter call actions are not acceptable in consumer builds.
-- Home is the default tab and keeps first-screen focus on topic image cards, compact recent calls, and needs-you items.
+- Home is the default tab and keeps first-screen focus on topic image cards and compact recent calls. Waiting assistant actions may appear only as one compact signal that opens Assistant.
 - Empty topic cards should be visually inviting but shorter than populated topic cards so Home can show recent calls and the first attention item on common phone screens.
 - Call detail must read as a calm record, not a transcript dump. Summary, outcomes, and transcript should be separated into clear cards with high-contrast text on card surfaces.
 - Call detail keeps bottom navigation hidden while the detail is open, but the back action must return to the originating tab without losing the app shell.

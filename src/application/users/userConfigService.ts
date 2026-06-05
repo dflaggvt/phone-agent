@@ -30,16 +30,18 @@ export class UserConfigService {
   async getOrCreateForFirebaseUser(authUser: VerifiedAuthUser): Promise<UserConfig> {
     const userId = userIdForFirebaseUid(authUser.uid);
     const existing = await this.dependencies.users.get(userId);
-    const phoneNumber = normalizePhone(authUser.phoneNumber);
+    const claimedPhoneNumber = normalizePhone(authUser.phoneNumber);
+    const existingPhoneNumber = normalizePhone(existing?.auth.phoneNumber);
+    const phoneNumber = claimedPhoneNumber || existingPhoneNumber;
     return this.dependencies.users.upsert({
       ...this.dependencies.defaultConfig,
       userId,
       displayName: existing?.displayName ?? authUser.displayName ?? phoneNumber ?? "Phone Agent User",
       auth: {
         firebaseUid: authUser.uid,
-        email: authUser.email,
+        email: authUser.email ?? existing?.auth.email,
         phoneNumber,
-        primaryPhoneVerifiedAt: phoneNumber ? existing?.auth.primaryPhoneVerifiedAt ?? new Date() : existing?.auth.primaryPhoneVerifiedAt
+        primaryPhoneVerifiedAt: claimedPhoneNumber ? existing?.auth.primaryPhoneVerifiedAt ?? new Date() : existing?.auth.primaryPhoneVerifiedAt
       },
       phoneRouting: {
         ...existing?.phoneRouting,

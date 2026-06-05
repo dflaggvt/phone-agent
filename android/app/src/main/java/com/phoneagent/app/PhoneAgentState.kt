@@ -12,7 +12,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 internal data class PhoneAgentUiState(
-    val screen: Screen = Screen.Auth,
+    val screen: Screen = Screen.AuthChoice,
     val selectedTab: Tab = Tab.Home,
     val status: String = "Setup",
     val dataFreshness: DataFreshness = DataFreshness.fresh(),
@@ -37,7 +37,10 @@ internal data class PhoneAgentUiState(
 internal sealed interface Screen {
     data object Startup : Screen
     data object StartupIssue : Screen
-    data object Auth : Screen
+    data object AuthChoice : Screen
+    data object Login : Screen
+    data object CreateAccount : Screen
+    data object VerifyPhone : Screen
     data class CodeEntry(val verificationId: String) : Screen
     data object AssistantName : Screen
     data object Main : Screen
@@ -53,6 +56,11 @@ internal sealed interface Screen {
     data class AddNote(val targetPhoneNumber: String = "") : Screen
 }
 
+internal enum class GoogleAuthFlow {
+    Login,
+    CreateAccount
+}
+
 internal enum class Tab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Filled.Home),
     Assistant("Assistant", Icons.Filled.Headphones),
@@ -62,9 +70,11 @@ internal enum class Tab(val label: String, val icon: ImageVector) {
 internal data class AppActions(
     val selectTab: (Tab) -> Unit,
     val refresh: () -> Unit,
-    val startGoogleSignin: () -> Unit,
-    val startSignup: (String) -> Unit,
-    val verifyCode: (String, String) -> Unit,
+    val openLogin: () -> Unit,
+    val openCreateAccount: () -> Unit,
+    val startGoogleAuth: (GoogleAuthFlow) -> Unit,
+    val startPhoneVerification: (String) -> Unit,
+    val verifyPhoneCode: (String, String) -> Unit,
     val saveAssistantName: (String) -> Unit,
     val openTopics: () -> Unit,
     val openReview: () -> Unit,

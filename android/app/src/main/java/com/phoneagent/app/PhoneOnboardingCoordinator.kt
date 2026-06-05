@@ -9,7 +9,6 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -30,6 +29,7 @@ internal class PhoneOnboardingCoordinator(
     private val getState: () -> PhoneAgentUiState,
     private val setState: (PhoneAgentUiState) -> Unit,
     private val tokenProvider: suspend () -> String,
+    private val clearLocalCache: suspend () -> Unit,
     private val registerPushToken: suspend () -> Unit,
     private val refreshData: suspend (forceStatus: Boolean, keepScreen: Boolean) -> Unit,
     private val readableError: (Throwable) -> String,
@@ -37,13 +37,13 @@ internal class PhoneOnboardingCoordinator(
 ) {
     private val credentialManager = CredentialManager.create(activity)
 
-    fun startGoogleAuth() {
+    fun startGoogleAuth(flow: GoogleAuthFlow) {
         scope.launch {
             try {
-                setState(getState().copy(loading = true, status = "Signing in", error = null))
-                val idToken = runCatching { googleIdToken(filterByAuthorizedAccounts = true) }
+                setState(getState().copy(loading = true, status = authLoadingStatus(flow), error = null))
+                val idToken = runCatching { googleIdToken(filterByAuthorizedAccounts = flow == GoogleAuthFlow.Login) }
                     .recoverCatching { error ->
-                        if (error is NoCredentialException) {
+                        if (flow == GoogleAuthFlow.Login && error is NoCredentialException) {
                             googleIdToken(filterByAuthorizedAccounts = false)
                         } else {
                             throw error
@@ -51,7 +51,10 @@ internal class PhoneOnboardingCoordinator(
                     }
                     .getOrThrow()
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
-                firebaseAuth.signInWithCredential(credential).await()
+                val result = firebaseAuth.signInWithCredential(credential).await()
+                if (rejectUnexpectedAccountState(flow, result.additionalUserInfo?.isNewUser == true)) {
+                    return@launch
+                }
                 completeAuthenticatedSession()
             } catch (error: GetCredentialCancellationException) {
                 setState(getState().copy(loading = false, status = "Setup", error = null))
@@ -62,7 +65,17 @@ internal class PhoneOnboardingCoordinator(
         }
     }
 
-    fun startPhoneAuth(phoneNumber: String) {
+    fun startPhoneVerification(phoneNumber: String) {
+        if (firebaseAuth.currentUser == null) {
+            setState(
+                PhoneAgentUiState(
+                    screen = Screen.AuthChoice,
+                    status = "Setup",
+                    error = "Log in or create an account before verifying a protected number."
+                )
+            )
+            return
+        }
         val normalized = normalizePhone(phoneNumber)
         if (!isValidE164Phone(normalized)) {
             toast("Enter a valid mobile number.")
@@ -75,7 +88,7 @@ internal class PhoneOnboardingCoordinator(
             .setActivity(activity)
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    signInWithCredential(credential)
+                    linkProtectedNumber(credential)
                 }
 
                 override fun onVerificationFailed(error: FirebaseException) {
@@ -107,7 +120,7 @@ internal class PhoneOnboardingCoordinator(
             return
         }
         setState(getState().copy(loading = true, status = "Verifying"))
-        signInWithCredential(PhoneAuthProvider.getCredential(verificationId, code.trim()))
+        linkProtectedNumber(PhoneAuthProvider.getCredential(verificationId, code.trim()))
     }
 
     fun saveAssistantName(name: String) {
@@ -133,57 +146,36 @@ internal class PhoneOnboardingCoordinator(
         }
     }
 
-    private fun signInWithCredential(credential: PhoneAuthCredential) {
+    private fun linkProtectedNumber(credential: PhoneAuthCredential) {
         val currentUser = firebaseAuth.currentUser
-        val currentUserNeedsPhone = currentUser != null && currentUser.phoneNumber.isNullOrBlank()
-        val task = if (currentUserNeedsPhone) {
-            currentUser.linkWithCredential(credential)
-        } else {
-            firebaseAuth.signInWithCredential(credential)
+        if (currentUser == null) {
+            setState(
+                PhoneAgentUiState(
+                    screen = Screen.AuthChoice,
+                    status = "Setup",
+                    error = "Log in or create an account before verifying a protected number."
+                )
+            )
+            return
         }
-        task.addOnCompleteListener { result ->
+        currentUser.linkWithCredential(credential).addOnCompleteListener { result ->
             if (!result.isSuccessful) {
-                if (shouldRecoverExistingPhoneAccount(currentUserNeedsPhone, result.exception)) {
-                    recoverExistingPhoneAccount(credential)
-                    return@addOnCompleteListener
-                }
                 setState(
                     getState().copy(
                         loading = false,
                         status = "Setup",
-                        error = result.exception?.message ?: "Could not verify phone."
+                        error = protectedNumberVerificationError(result.exception)
                     )
                 )
                 return@addOnCompleteListener
             }
             scope.launch {
                 try {
+                    currentUser.idToken(forceRefresh = true)
                     completeAuthenticatedSession()
                 } catch (error: Exception) {
                     setState(getState().copy(loading = false, status = "Setup", error = readableError(error)))
                 }
-            }
-        }
-    }
-
-    private fun recoverExistingPhoneAccount(credential: PhoneAuthCredential) {
-        scope.launch {
-            try {
-                setState(getState().copy(loading = true, status = "Recovering", error = null))
-                firebaseAuth.signOut()
-                firebaseAuth.signInWithCredential(credential).await()
-                toast("We found your existing account for this mobile number.")
-                completeAuthenticatedSession()
-            } catch (error: Exception) {
-                setState(
-                    getState().copy(
-                        loading = false,
-                        status = "Setup",
-                        screen = Screen.Auth,
-                        error = readableError(error)
-                    )
-                )
-                toast("Could not recover that mobile account.")
             }
         }
     }
@@ -217,20 +209,64 @@ internal class PhoneOnboardingCoordinator(
     }
 
     private suspend fun completeAuthenticatedSession() {
+        clearLocalCache()
         registerPushToken()
         setState(getState().copy(loading = true, status = "Syncing", error = null))
         refreshData(true, false)
         val refreshed = getState()
         when {
-            !refreshed.onboarding.phoneVerified -> setState(refreshed.copy(loading = false, status = "Setup", screen = Screen.Auth, error = null))
+            !refreshed.onboarding.phoneVerified -> setState(refreshed.copy(loading = false, status = "Setup", screen = Screen.VerifyPhone, error = null))
             !refreshed.onboarding.assistantProfileConfigured -> setState(refreshed.copy(loading = false, status = "Setup", screen = Screen.AssistantName, error = null))
         }
     }
+
+    private suspend fun rejectUnexpectedAccountState(flow: GoogleAuthFlow, isNewUser: Boolean): Boolean {
+        if (!shouldRejectGoogleAuthResult(flow, isNewUser)) return false
+        when (flow) {
+            GoogleAuthFlow.Login -> {
+                runCatching { firebaseAuth.currentUser?.delete()?.await() }
+                firebaseAuth.signOut()
+                setState(
+                    PhoneAgentUiState(
+                        screen = Screen.Login,
+                        status = "Setup",
+                        error = "No account exists for that sign-in yet. Create an account to get started."
+                    )
+                )
+            }
+            GoogleAuthFlow.CreateAccount -> {
+                firebaseAuth.signOut()
+                setState(
+                    PhoneAgentUiState(
+                        screen = Screen.Login,
+                        status = "Setup",
+                        error = "That account already exists. Log in to continue."
+                    )
+                )
+            }
+        }
+        return true
+    }
+
 }
 
-internal fun shouldRecoverExistingPhoneAccount(currentUserNeedsPhone: Boolean, error: Throwable?): Boolean {
-    if (!currentUserNeedsPhone) return false
+internal fun shouldRejectGoogleAuthResult(flow: GoogleAuthFlow, isNewUser: Boolean): Boolean =
+    when (flow) {
+        GoogleAuthFlow.Login -> isNewUser
+        GoogleAuthFlow.CreateAccount -> !isNewUser
+    }
+
+private fun authLoadingStatus(flow: GoogleAuthFlow): String =
+    when (flow) {
+        GoogleAuthFlow.Login -> "Signing in"
+        GoogleAuthFlow.CreateAccount -> "Creating"
+    }
+
+internal fun protectedNumberVerificationError(error: Throwable?): String {
     val message = error?.message.orEmpty()
-    return error is FirebaseAuthUserCollisionException ||
-        message.contains("already associated with a different user account", ignoreCase = true)
+    return if (message.contains("already associated with a different user account", ignoreCase = true)) {
+        "That mobile number is already connected to another account. Contact support to move it."
+    } else {
+        message.ifBlank { "Could not verify phone." }
+    }
 }

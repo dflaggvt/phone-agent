@@ -261,6 +261,79 @@ describe("app", () => {
       });
   });
 
+  it("preserves verified protected phone state when later Google tokens omit phone claims", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .get("/v1/me")
+      .set(auth("daryl", "+15557650000", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.auth.phoneNumber).toBe("+15557650000");
+        expect(body.user.auth.phoneVerificationStatus).toBe("verified");
+      });
+
+    await request(app)
+      .get("/v1/me")
+      .set(auth("daryl", "", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.auth.phoneNumber).toBe("+15557650000");
+        expect(body.user.auth.phoneVerificationStatus).toBe("verified");
+      });
+
+    await request(app)
+      .get("/v1/onboarding/status")
+      .set(auth("daryl", "", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status.activation.phoneVerified).toBe(true);
+        expect(body.status.checklist).toContainEqual(expect.objectContaining({
+          id: "phone_verification",
+          complete: true
+        }));
+      });
+  });
+
+  it("does not mark Google-only accounts as phone verified before protected-number verification", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .get("/v1/onboarding/status")
+      .set(auth("google_only", "", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status.activation.phoneVerified).toBe(false);
+        expect(body.status.checklist).toContainEqual(expect.objectContaining({
+          id: "phone_verification",
+          complete: false
+        }));
+      });
+  });
+
+  it("reproduces split legacy phone and Google identities before support merge", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .get("/v1/me")
+      .set(auth("legacy_phone_uid", "+15557650000", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.auth.phoneVerificationStatus).toBe("verified");
+      });
+
+    await request(app)
+      .get("/v1/onboarding/status")
+      .set(auth("google_uid", "", "Daryl"))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status.activation.phoneVerified).toBe(false);
+        expect(body.status.nextAction).toEqual(expect.objectContaining({
+          id: "phone_verification"
+        }));
+      });
+  });
+
   it("returns billing account state and lets the user set a spending cap", async () => {
     const app = createTestApp();
 

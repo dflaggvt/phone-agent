@@ -147,7 +147,7 @@ Onboarding should require only one assistant customization decision: the assista
 
 The main app shell should not be the primary onboarding surface for a new user. Before core setup is complete, the app should route the user into a traditional first-run sequence: value promise, account/phone verification, assistant naming, assistant number assignment, forwarding instructions, and a final test-call prompt. The Today tab should become useful after this sequence, not serve as the setup checklist.
 
-The auth entry step should support Google sign-in and phone-number OTP. A returning user should be able to sign in with Google or with their mobile number and verification code without entering a name again. User display name can be shown or edited later in Profile; it should not be a blocker before authentication. Google sign-in authenticates the account, but the user must still verify the mobile number that the assistant will protect before call routing, assistant-number provisioning, or forwarding setup.
+The auth entry step must separate `Create account` from `Log in`. A new user explicitly creates an account with Google first, then enters onboarding: protected mobile-number verification, assistant naming, assistant-number assignment, forwarding instructions, and post-setup activation. A returning user logs in with Google and should be restored directly to the app when setup is complete, or resumed at the next incomplete onboarding step when setup is not complete. Returning users with a previously verified protected number must not be sent back to number verification because of stale or incomplete provider token claims. Phone-number OTP is available for protected-number verification, not account creation or returning-user login. The login path must not silently create a new Firebase/user account. User display name can be shown or edited later in Profile; it should not be a blocker before authentication. Google sign-in authenticates the account, but the user must still verify the mobile number that the assistant will protect before call routing, assistant-number provisioning, or forwarding setup.
 
 The full customizable fields are:
 
@@ -342,11 +342,11 @@ Design requirements:
 
 The ideal production mobile app should use three primary bottom-navigation destinations:
 
-- Home: the default destination and daily command center. Home should prioritize recent handled calls, caller requests, follow-up actions, important notes, needs-you items, and horizontally browsable topic cards. It owns the entry points for all topics, review/triage, call history, and search.
-- Assistant: live-call control, live answer/transfer requests, assistant notes, test call, forwarding, and immediate channel readiness. It should answer "what is my assistant doing now, and what can I tell it?" rather than duplicating settings, billing, review, or long-term history.
+- Home: the default destination and daily command center. Home should prioritize horizontally browsable topic cards and recent handled calls. It may show one compact assistant-needs signal with a count when action items are waiting, but it should not render review cards or passive notification history.
+- Assistant: live-call control, live answer/transfer requests, topic suggestions, review/action items, assistant notes, test call, and immediate assistant activity. It should answer "what does my assistant need from me, and what can I tell it?" rather than duplicating settings, billing, forwarding, contacts, or long-term history.
 - Profile: account identity, assistant identity, forwarding, billing, calendar, contacts, notifications, privacy, support, diagnostics, and logout.
 
-Topics remain the durable memory product, but they should be surfaced through Home cards and an all-topics drill-in instead of a permanent bottom tab. Review should appear as `Needs you` on Home and become a drill-in only when there are pending items. Search should be a quiet utility launched from Home, not a primary tab, until cross-channel search frequency warrants promoting it.
+Topics remain the durable memory product, but they should be surfaced through Home cards and an all-topics drill-in instead of a permanent bottom tab. Review/action cards belong primarily on Assistant. Home may show a compact `Assistant needs review` signal that opens Assistant, but it should not duplicate the queue. Passive notifications should not appear on Home; they belong in notification history, Assistant recent activity when relevant, or a Review updates filter. Search should be a quiet utility launched from Home, not a primary tab, until cross-channel search frequency warrants promoting it.
 
 The UI should feel calm, minimal, and executive. It should not feel like a call center.
 

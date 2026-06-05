@@ -6,7 +6,7 @@ This document tracks unresolved product, technical, legal, and business question
 
 - Can Phone Agent own the cross-channel topic memory layer without becoming a bloated personal CRM?
 - Which early use case proves topic threads fastest: home projects, family logistics, solo professional work, or small business operations?
-- How much value must the phone-only product deliver before cross-channel ingestion is introduced?
+- How much value must the voice-first product deliver before cross-channel ingestion is introduced?
 - What is the minimum topic thread UX that clearly beats call history, email search, and SMS threads?
 - How do we keep Retell replaceable while still moving quickly with Retell-specific live-call capabilities?
 

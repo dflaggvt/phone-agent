@@ -5,8 +5,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal suspend fun FirebaseUser.idToken(): String =
-    getIdToken(false).await().token ?: error("Could not start session.")
+internal suspend fun FirebaseUser.idToken(forceRefresh: Boolean = false): String =
+    getIdToken(forceRefresh).await().token ?: error("Could not start session.")
 
 internal suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T =
     suspendCancellableCoroutine { continuation ->
