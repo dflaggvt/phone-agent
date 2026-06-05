@@ -25,6 +25,9 @@ if (!baseUrl) {
 const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
 const inboundWebhookUrl = `${normalizedBaseUrl}/webhooks/retell/inbound`;
 const eventWebhookUrl = `${normalizedBaseUrl}/webhooks/retell/events`;
+const transferApprovalTimeoutMs = 65_000;
+const liveAnswerTimeoutMs = 95_000;
+const calendarWriteTimeoutMs = 70_000;
 
 const client = new Retell({ apiKey });
 
@@ -46,7 +49,7 @@ if (agent.response_engine?.type === "retell-llm" && agent.response_engine.llm_id
   const llm = await client.llm.retrieve(agent.response_engine.llm_id);
   llmUpdate = await client.llm.update(agent.response_engine.llm_id, {
     general_prompt: withCalendarDateHandling(llm.general_prompt ?? ""),
-    general_tools: withCalendarTools(llm.general_tools ?? [], normalizedBaseUrl),
+    general_tools: withPhoneAgentTools(llm.general_tools ?? [], normalizedBaseUrl),
     model: "gpt-4.1",
     model_temperature: llm.model_temperature ?? 0,
     default_dynamic_variables: {
@@ -93,8 +96,22 @@ Calendar date handling:
   return `${prompt.trimEnd()}${block}`;
 }
 
-function withCalendarTools(tools, baseUrl) {
+function withPhoneAgentTools(tools, baseUrl) {
   const nextTools = tools.map((tool) => {
+    if (tool.name === "request_live_transfer_approval") {
+      return {
+        ...tool,
+        url: `${baseUrl}/tools/retell/request-transfer`,
+        timeout_ms: transferApprovalTimeoutMs
+      };
+    }
+    if (tool.name === "request_user_answer") {
+      return {
+        ...tool,
+        url: `${baseUrl}/tools/retell/request-user-answer`,
+        timeout_ms: liveAnswerTimeoutMs
+      };
+    }
     if (tool.name === "request_calendar_event") {
       return calendarCreateTool(baseUrl, tool);
     }
@@ -117,6 +134,7 @@ function calendarCreateTool(baseUrl, existing = {}) {
     type: "custom",
     name: "request_calendar_event",
     url: `${baseUrl}/tools/retell/request-calendar-event`,
+    timeout_ms: calendarWriteTimeoutMs,
     description: "Create a Google Calendar event directly. Use only after the caller and event details are clear. Do not ask the user for approval first; the user will be notified after the event is created. Return and remember the calendar_event_request_id/event_id so later changes update this same event instead of creating a duplicate.",
     parameters: {
       type: "object",
@@ -140,6 +158,7 @@ function calendarUpdateTool(baseUrl, existing = {}) {
     type: "custom",
     name: "update_calendar_event",
     url: `${baseUrl}/tools/retell/update-calendar-event`,
+    timeout_ms: calendarWriteTimeoutMs,
     description: "Update a Google Calendar event that Phone Agent previously created. Use this when the caller changes the time, duration, title, or details of an existing assistant-created event. Prefer calendar_event_request_id returned by request_calendar_event; otherwise use calendar_event_id. Never use this for events not created by Phone Agent, and never create a duplicate when this tool can update the existing event.",
     parameters: {
       type: "object",
