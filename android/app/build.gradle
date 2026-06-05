@@ -59,8 +59,8 @@ android {
         applicationId "com.phoneagent.app"
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName "0.1.1-internal"
+        versionCode 3
+        versionName "0.1.2-closed"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField "String", "BACKEND_BASE_URL", "\"https://phone-agent-47585065917.us-central1.run.app\""

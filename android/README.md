@@ -30,7 +30,7 @@ The current local upload key is stored outside the repo under:
 %USERPROFILE%\.phone-agent\secrets\phone-agent-upload.p12
 ```
 
-Build an internal-test app bundle:
+Build a closed-test app bundle:
 
 ```powershell
 .\gradlew.bat bundleRelease

@@ -183,7 +183,7 @@ gcloud run services describe phone-agent --project phone-agent-43313 --region us
 For Android release candidates:
 
 - Build an AAB with release signing configured.
-- Install or distribute through an internal testing track.
+- Install or distribute through a closed testing track.
 - Verify first-run onboarding, billing setup, assistant number assignment, forwarding instructions, call detail, notification actions, and calendar status.
 - Confirm Crashlytics receives a non-sensitive test crash before closed beta.
 

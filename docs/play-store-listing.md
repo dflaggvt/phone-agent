@@ -5,10 +5,10 @@
 - App name: Phone Agent.
 - Package name: `com.phoneagent.app`.
 - Category: Productivity.
-- Track for first release: Internal testing.
+- Track for first release: Closed testing.
 - Target audience: adults.
 - Ads: no ads.
-- Login required: yes, Google sign-in or phone-number sign-in. Mobile number verification is still required before call routing.
+- Login required: yes, Google sign-in. Protected mobile-number verification is required before call routing.
 - Paid features: yes, pay-as-you-go assistant usage with a spending cap.
 
 ## Short Description
@@ -23,22 +23,22 @@ Forward calls to your assistant, then let it identify who is calling, understand
 
 Phone Agent is designed for people who want fewer interruptions and better follow-through from everyday calls. Your assistant can take messages, summarize calls, remember prior caller context, ask you a live question by notification, and help with calendar availability when connected.
 
-The product is currently in private/internal testing. Some features may require manual setup, carrier call forwarding, and an active payment method before paid assistant usage is enabled.
+The product is currently in private closed testing. Some features may require manual setup, carrier call forwarding, and an active payment method before paid assistant usage is enabled.
 
-## Release Notes For Internal Test
+## Release Notes For Closed Test
 
 Use the release notes in:
 
 ```text
-docs/play-release-notes/internal-test-v0.1.1.md
+docs/play-release-notes/closed-test-v0.1.2.md
 ```
 
 ## App Access Instructions For Review/Testers
 
-Phone Agent supports Google sign-in and phone-number sign-in. Internal testers should:
+Phone Agent supports Google sign-in and protected mobile-number verification. Closed testers should:
 
-1. Install the internal test build.
-2. Continue with Google or sign in with their mobile phone number.
+1. Install the closed test build.
+2. Continue with Google.
 3. Verify the protected mobile number when prompted.
 4. Complete guided onboarding.
 5. Add a test payment method when prompted.
@@ -101,7 +101,7 @@ Phone Agent should not sell user data. External sharing of call recaps, decision
 
 ### Deletion
 
-Before public launch, the product must provide a user-accessible data deletion request path and documented retention policy. For internal testing, deletion requests are handled manually by the operator until automated deletion/export endpoints are complete.
+Before public launch, the product must provide a user-accessible data deletion request path and documented retention policy. For closed testing, deletion requests are handled manually by the operator until automated deletion/export endpoints are complete.
 
 ## Content Ratings And Policy Notes
 

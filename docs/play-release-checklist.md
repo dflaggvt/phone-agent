@@ -1,28 +1,31 @@
 # Google Play Release Checklist
 
-## Internal Test Track
+## Closed Test Track
 
 Current target release:
 
-- Track: Google Play internal testing.
+- Track: Google Play closed testing.
 - Package name: `com.phoneagent.app`.
-- Version code: `2`.
-- Version name: `0.1.1-internal`.
+- Version code: `3`.
+- Version name: `0.1.2-closed`.
 - Release artifact: `android/app/build/outputs/bundle/release/app-release.aab`.
-- Release notes source: `docs/play-release-notes/internal-test-v0.1.1.md`.
+- Release notes source: `docs/play-release-notes/closed-test-v0.1.2.md`.
 
-Required before first internal test upload:
+Required before first closed test upload:
 
 - Release app signing configured. Status: local PKCS12 upload key created outside the repo and ignored signing properties configured.
-- Version code incremented. Status: complete for `versionCode 2`.
+- Version code incremented. Status: complete for `versionCode 3`.
 - App bundle generated with `./gradlew bundleRelease`. Status: signed release AAB produced at `android/app/build/outputs/bundle/release/app-release.aab`.
+- Release verification. Status: `:app:testReleaseUnitTest`, `:app:bundleRelease`, and `:app:lintRelease` passed for `versionCode 3`.
+- Signature verification. Status: `jarsigner` verified the AAB signed by `Phone Agent Upload`; SHA-256 `349EEC876ADA03BBDF4C713F5CBD114EF0B83EBA487B118EB7B2AA62636A867A`.
 - Firebase Android app uses the production package name.
 - Crashlytics enabled in non-debug builds.
 - Privacy policy URL available. Status: draft exists in `docs/privacy-policy-draft.md`; must be hosted before Play submission.
 - Support email available.
 - Data Safety answers drafted. Status: draft exists in `docs/play-store-listing.md`.
 - Store listing draft created. Status: draft exists in `docs/play-store-listing.md`.
-- Internal tester list configured.
+- Closed tester list configured.
+- Google Play Developer API publishing credential configured if automation is desired. Status: not configured locally.
 
 ## Release Signing
 
@@ -84,22 +87,23 @@ C:\Users\Daryl Flagg\source\repos\phone-agent\android\signing.properties
 
 Treat both files as production credentials. Back them up in a secure password manager or secret vault before using the key for Play Console upload signing.
 
-## Play Console Upload Steps
+## Play Console Closed Testing Upload Steps
 
 1. Create or open the app in Google Play Console.
 2. Choose package name `com.phoneagent.app`.
 3. Enable Play App Signing.
-4. Upload `android/app/build/outputs/bundle/release/app-release.aab` to Internal testing.
-5. Paste release notes from `docs/play-release-notes/internal-test-v0.1.1.md`.
-6. Add internal testers.
-7. Complete App content:
+4. Create or choose a closed testing track.
+5. Upload `android/app/build/outputs/bundle/release/app-release.aab` to Closed testing.
+6. Paste release notes from `docs/play-release-notes/closed-test-v0.1.2.md`.
+7. Add closed testers.
+8. Complete App content:
    - Privacy policy URL.
    - Data Safety.
    - Ads: no ads.
    - App access: login required, include tester account instructions.
    - Target audience: adults, not designed for children.
    - Financial features: app collects payment method through Stripe-hosted flow for usage billing.
-8. Submit internal test release.
+9. Submit closed test release.
 
 ## Internal QA Matrix
 

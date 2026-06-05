@@ -2,7 +2,7 @@
 
 ## Current Readiness
 
-Phone Agent is a private alpha moving toward an internal Google Play test. It has real backend deployment, Firebase auth, Retell voice handling, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, privacy-safe product analytics, user-scoped calendar state, route-scoped call history, durable provider webhook idempotency, shared backend rate limiting, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
+Phone Agent is a private alpha moving toward Google Play closed testing. It has real backend deployment, Firebase auth, Retell voice handling, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, privacy-safe product analytics, user-scoped calendar state, route-scoped call history, durable provider webhook idempotency, shared backend rate limiting, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
 
 Working readiness score: `6/10`.
 
@@ -28,14 +28,14 @@ Remaining:
 - Validate live transfer, inline answer, and expired-request flows with real calls.
 - Confirm Crashlytics receives a non-sensitive test crash in a non-debug build.
 
-### Gate 2: Internal Google Play Test
+### Gate 2: Google Play Closed Test
 
 Status: not complete.
 
 Required:
 
 - Android release signing configured.
-- Internal test track app bundle produced.
+- Closed test track app bundle produced.
 - App versioning policy.
 - Privacy policy URL.
 - Terms of service URL.
@@ -45,7 +45,7 @@ Required:
 - At least `10` successful onboarding/call test passes on real devices.
 - Crash-free install, signup, billing, onboarding, call history, and notification action flows.
 
-### Gate 3: Closed Beta With Real Users
+### Gate 3: Expanded Closed Beta With Real Users
 
 Status: blocked.
 
@@ -82,7 +82,7 @@ Required:
 | --- | --- | --- | --- | --- |
 | P0 | Legal | Privacy policy, terms, AI disclosure, recording consent, refunds, deletion | Founder + counsel | Pending |
 | P0 | Security | Rotate Retell, OpenAI, Google OAuth, and Stripe keys pasted in chat | Founder/operator | Pending |
-| P0 | Android | Local upload key and signed release AAB produced; Play Console upload/internal test track still pending | Engineering | Partial |
+| P0 | Android | Local upload key and signed release AAB produced; Play Console closed test upload still pending | Engineering | Partial |
 | P0 | Reliability | Real-call test matrix for transfer, inline answer, expired actions | Founder + engineering | Pending |
 | P0 | Observability | Cloud alerting setup covers backend uptime, 5xx, latency, provider webhook failures, billing failures, and FCM delivery failures; scheduled reconciliation alerting still needed | Engineering | Partial |
 | P1 | Billing | Reconciliation schedule, local invoice mirror review, and operator recovery process | Engineering | Partial |
@@ -93,11 +93,11 @@ Required:
 
 ## Immediate Engineering Tasks
 
-1. Upload the signed `android/app/build/outputs/bundle/release/app-release.aab` to Google Play internal testing after Play App Signing/upload-key enrollment.
+1. Upload the signed `android/app/build/outputs/bundle/release/app-release.aab` to Google Play closed testing after Play App Signing/upload-key enrollment.
 2. Configure Firestore TTL for `rateLimitBuckets.expiresAt` and add Cloud Armor/API Gateway edge throttles before closed beta.
 3. Add Cloud Monitoring alert policy documentation and scriptable setup. Completed for uptime, 5xx, latency, provider webhook failures, billing failures, and FCM delivery failures; remaining work is scheduled billing reconciliation alerting.
 4. Create legal/compliance draft checklist for counsel review.
-5. Create release checklist for Play internal testing.
+5. Create release checklist for Play closed testing.
 6. Verify Crashlytics in a non-debug build.
 7. Load `npm run analytics:export` output into BigQuery and apply `scripts/analytics-dashboard-bigquery.sql`; managed dashboard deployment and scheduled refresh remain before closed beta.
 

@@ -117,7 +117,7 @@ This document tracks unresolved product, technical, legal, and business question
 - What retention period should apply to product analytics events before warehouse export or deletion?
 - Which support workflows need internal tooling before public users can depend on the product: stuck onboarding, failed forwarding, failed payment, wrong caller memory, bad transfer, account deletion, and data export?
 - What Cloud Armor/API Gateway rules should sit in front of the backend in addition to shared backend rate limits?
-- What real-device matrix is enough for Google Play internal testing: carriers, Android versions, screen sizes, notification permission states, and battery/background restrictions?
+- What real-device matrix is enough for Google Play closed testing: carriers, Android versions, screen sizes, notification permission states, and battery/background restrictions?
 
 ## Current Working Assumptions
 

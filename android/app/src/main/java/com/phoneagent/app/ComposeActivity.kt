@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
@@ -222,12 +223,7 @@ class ComposeActivity : ComponentActivity() {
 
     private fun registerReceiverCompat() {
         val filter = IntentFilter(ACTION_PUSH_REFRESH)
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(pushReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(pushReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, pushReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun requestNotificationPermission() {
