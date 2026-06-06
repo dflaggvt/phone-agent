@@ -201,6 +201,20 @@ C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json
 
 Google Play Console must grant this service account app-level release/testing-track permissions before upload automation can publish to closed testing.
 
+Run a dry-run check before an upload:
+
+```powershell
+$env:GOOGLE_PLAY_DRY_RUN = "true"
+npm run play:upload-closed-test
+Remove-Item Env:\GOOGLE_PLAY_DRY_RUN
+```
+
+Upload the current signed AAB to the initial closed-testing track. The uploader defaults to a draft release while the Play app itself is still draft:
+
+```powershell
+npm run play:upload-closed-test
+```
+
 ## Data Safety During Incidents
 
 Never include these in logs, tickets, screenshots, or chat:

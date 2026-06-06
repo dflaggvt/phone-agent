@@ -10,6 +10,7 @@ Current target release:
 - Version name: `0.1.2-closed`.
 - Release artifact: `android/app/build/outputs/bundle/release/app-release.aab`.
 - Release notes source: `docs/play-release-notes/closed-test-v0.1.2.md`.
+- Play Console release notes source: `docs/play-release-notes/closed-test-v0.1.2-play.txt`.
 
 Required before first closed test upload:
 
@@ -18,6 +19,7 @@ Required before first closed test upload:
 - App bundle generated with `./gradlew bundleRelease`. Status: signed release AAB produced at `android/app/build/outputs/bundle/release/app-release.aab`.
 - Release verification. Status: `:app:testReleaseUnitTest`, `:app:bundleRelease`, and `:app:lintRelease` passed for `versionCode 3`.
 - Signature verification. Status: `jarsigner` verified the AAB signed by `Phone Agent Upload`; SHA-256 `349EEC876ADA03BBDF4C713F5CBD114EF0B83EBA487B118EB7B2AA62636A867A`.
+- Google Play upload. Status: `versionCode 3` uploaded to Play track `alpha` as draft closed-test release `0.1.2 closed test`.
 - Firebase Android app uses the production package name.
 - Crashlytics enabled in non-debug builds.
 - Privacy policy URL available. Status: draft exists in `docs/privacy-policy-draft.md`; must be hosted before Play submission.
@@ -26,7 +28,7 @@ Required before first closed test upload:
 - Store listing draft created. Status: draft exists in `docs/play-store-listing.md`.
 - Closed tester list configured.
 - Google Play Developer API enabled. Status: enabled on GCP project `phone-agent-43313`.
-- Google Play Developer API publishing credential configured if automation is desired. Status: local service account key exists outside the repo at `C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json`; Play Console access grant is still required.
+- Google Play Developer API publishing credential configured. Status: local service account key exists outside the repo at `C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json`; Play Console access granted.
 
 ## Release Signing
 
@@ -104,6 +106,20 @@ C:\Users\Daryl Flagg\.phone-agent\secrets\google-play-publisher.json
 
 Do not commit the JSON key. In Google Play Console, grant this service account app-level access to `Call Held` with release/testing-track permissions before attempting automated closed testing uploads.
 
+The initial automated closed-test upload uses Google Play track `alpha` and defaults to a draft release while the Play app itself is still draft. Run a read-only smoke test first:
+
+```powershell
+$env:GOOGLE_PLAY_DRY_RUN = "true"
+npm run play:upload-closed-test
+Remove-Item Env:\GOOGLE_PLAY_DRY_RUN
+```
+
+Then upload the signed release bundle to closed testing:
+
+```powershell
+npm run play:upload-closed-test
+```
+
 ## Play Console Closed Testing Upload Steps
 
 1. Create or open the app in Google Play Console.
@@ -111,7 +127,7 @@ Do not commit the JSON key. In Google Play Console, grant this service account a
 3. Enable Play App Signing.
 4. Create or choose a closed testing track.
 5. Upload `android/app/build/outputs/bundle/release/app-release.aab` to Closed testing.
-6. Paste release notes from `docs/play-release-notes/closed-test-v0.1.2.md`.
+6. Paste release notes from `docs/play-release-notes/closed-test-v0.1.2-play.txt`.
 7. Add closed testers.
 8. Complete App content:
    - Privacy policy URL.

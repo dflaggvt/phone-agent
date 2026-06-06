@@ -1,0 +1,1 @@
+Closed test 0.1.2: adds Home/Assistant/Profile navigation, simpler topic cards, Google sign-in onboarding, billing setup, privacy-safe push notifications, calendar support, contact recognition, and a repeat-caller identity fix.
