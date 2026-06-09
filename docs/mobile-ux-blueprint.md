@@ -1734,7 +1734,7 @@ Failure states:
 
 Title:
 
-"Your phone should only ring when it should."
+"When you cannot answer, your assistant can."
 
 Body target:
 

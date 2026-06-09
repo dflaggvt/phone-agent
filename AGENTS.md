@@ -4,7 +4,7 @@
 
 Phone Agent is a cross-channel communication intelligence layer. It begins as an AI-native phone agent for a user's existing number, but the durable product organizes calls, SMS, email, documents, calendar events, manual notes, and future agent-to-agent messages into persistent topic threads.
 
-The original phone promise still matters: "Your phone only rings when it should." The expanded promise is: Phone Agent turns scattered calls, texts, emails, and messages into organized, topic-aware threads with memory, decisions, and next actions.
+The current phone promise is: when a user misses or declines a call, the assistant can catch it, understand intent, and preserve the outcome. The expanded promise is: Phone Agent turns scattered calls, texts, emails, and messages into organized, topic-aware threads with memory, decisions, and next actions.
 
 Retell is initial voice infrastructure, not the moat. The application must own the domain model, topic memory, user rules, permissions, identities, summaries, decisions, open questions, tasks, audit logs, and workflow outcomes.
 
@@ -13,7 +13,7 @@ Retell is initial voice infrastructure, not the moat. The application must own t
 - The assistant should understand the situation, not just the message.
 - Topic threads are the core product object.
 - Calls are one type of communication item.
-- The phone should not ring first; the system should understand intent first.
+- The current conditional-forwarding product must be described honestly: the user's phone still rings first, and missed or declined calls forward to the assistant. Future full-forwarding experiences may let the assistant answer first.
 - Human interruption is expensive and should be protected.
 - The AI agent should be helpful but not deceptive.
 - The user should remain in control.

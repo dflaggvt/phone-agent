@@ -2,7 +2,7 @@
 
 ## App Identity
 
-- App name: Phone Agent.
+- App name: Call Held.
 - Package name: `com.phoneagent.app`.
 - Category: Productivity.
 - Track for first release: Closed testing.
@@ -13,15 +13,15 @@
 
 ## Short Description
 
-An AI phone assistant that answers first, organizes calls, and helps decide what needs your attention.
+An AI phone assistant that handles missed calls, organizes context, and helps you follow up.
 
 ## Full Description
 
-Phone Agent is an AI-native communication assistant for your existing phone number.
+Call Held is an AI-native communication assistant for your existing phone number.
 
-Forward calls to your assistant, then let it identify who is calling, understand why they are calling, capture the outcome, and notify you when something needs attention. The app helps you review recent calls, caller requests, summaries, topic threads, assistant notes, calendar actions, billing controls, and live call actions.
+Forward missed or declined calls to your assistant, then let it identify who is calling, understand why they are calling, capture the outcome, and notify you when something needs attention. The app helps you review recent calls, caller requests, summaries, topic threads, assistant notes, calendar actions, billing controls, and live call actions.
 
-Phone Agent is designed for people who want fewer interruptions and better follow-through from everyday calls. Your assistant can take messages, summarize calls, remember prior caller context, ask you a live question by notification, and help with calendar availability when connected.
+Call Held is designed for people who want better follow-through from everyday calls they miss or decline. Your assistant can take messages, summarize calls, remember prior caller context, ask you a live question by notification, and help with calendar availability when connected.
 
 The product is currently in private closed testing. Some features may require manual setup, carrier call forwarding, and an active payment method before paid assistant usage is enabled.
 
@@ -35,7 +35,7 @@ docs/play-release-notes/closed-test-v0.1.2.md
 
 ## App Access Instructions For Review/Testers
 
-Phone Agent supports Google sign-in and protected mobile-number verification. Closed testers should:
+Call Held supports Google sign-in and protected mobile-number verification. Closed testers should:
 
 1. Install the closed test build.
 2. Continue with Google.
@@ -75,7 +75,7 @@ App activity:
 
 Financial info:
 
-- Payment method setup and subscription/payment state are handled by Stripe. Phone Agent must not store raw card numbers, CVC, or full payment credentials.
+- Payment method setup and subscription/payment state are handled by Stripe. Call Held must not store raw card numbers, CVC, or full payment credentials.
 
 Device or other IDs:
 
@@ -88,14 +88,14 @@ Data may be shared with service providers necessary to operate the app:
 
 - Cloud hosting, authentication, database, crash reporting, notification delivery, payment processing, voice runtime, AI processing, and calendar integration providers.
 
-Phone Agent should not sell user data. External sharing of call recaps, decision requests, or thread artifacts must be user-permissioned and scoped to the selected recipient/thread.
+Call Held should not sell user data. External sharing of call recaps, decision requests, or thread artifacts must be user-permissioned and scoped to the selected recipient/thread.
 
 ### Security Practices
 
 - Data encrypted in transit.
 - Managed cloud storage with provider encryption at rest.
 - Provider secrets stored in managed secret storage.
-- Raw card details are not stored by Phone Agent.
+- Raw card details are not stored by Call Held.
 - Notifications default to privacy-safe payloads.
 - User-owned data boundaries and thread-level permissions are product requirements.
 
@@ -120,5 +120,6 @@ Before closed or public release:
 - Feature graphic.
 - Phone screenshots for onboarding, home, call detail, assistant, billing, and topics.
 - Privacy policy URL.
+- Website URL. Status: Vercel-ready site exists in `web/`; deploy and use `/privacy`.
 - Support email.
 - Terms of service URL.

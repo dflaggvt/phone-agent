@@ -2,7 +2,7 @@
 
 Phone Agent is a cross-channel communication intelligence layer. It starts with AI-native call control for an existing phone number, then grows into topic-aware memory across calls, SMS, email, documents, calendar events, manual notes, and future agent-to-agent messages.
 
-The phone promise remains: "Your phone only rings when it should." The broader product promise is: Phone Agent turns scattered communications into organized topic threads with memory, decisions, open questions, tasks, and next actions.
+The current phone promise is: when a user misses or declines a call, the assistant can catch it, understand intent, and preserve the outcome. The broader product promise is: Phone Agent turns scattered communications into organized topic threads with memory, decisions, open questions, tasks, and next actions.
 
 Retell is the first voice runtime, not the core moat. The application owns communication items, topic threads, identities, permissions, user rules, summaries, decisions, and workflow outcomes.
 
@@ -136,3 +136,7 @@ Cloud Run deployment instructions live in [docs/deployment-gcp.md](docs/deployme
 ## Android app
 
 Android build instructions live in [android/README.md](android/README.md).
+
+## Website
+
+The static Call Held website lives in [web](web/README.md). Deploy it on Vercel with `web` as the project root directory.

@@ -4,7 +4,7 @@
 
 Phone Agent is a cross-channel communication intelligence layer. It starts as an AI-native phone call layer for a user's existing phone number, but the durable product is broader: it organizes calls, SMS, email, documents, calendar events, manual notes, and future agent-to-agent messages into persistent topic threads.
 
-The original promise still matters: "Your phone only rings when it should." The expanded promise is: Phone Agent turns scattered calls, texts, emails, and messages into organized, topic-aware threads with memory, decisions, and next actions.
+The current phone promise is: when a user misses or declines a call, the assistant can catch it, understand intent, and preserve the outcome. The expanded promise is: Phone Agent turns scattered calls, texts, emails, and messages into organized, topic-aware threads with memory, decisions, and next actions.
 
 This is not voicemail, call screening, spam filtering, a chatbot on a phone line, or a Retell wrapper. Retell is replaceable voice infrastructure. Phone Agent owns the domain model, topic memory, user rules, permissions, identities, summaries, decisions, audit logs, and workflow outcomes.
 
@@ -35,7 +35,7 @@ Old model: communications are organized by channel, sender, and timestamp.
 
 New model: communications are organized by topic, participants, decisions, open questions, tasks, documents, and outcomes.
 
-A phone call should not begin with a ring. It should begin with intent. A communication thread should not end with a transcript. It should update the user's understanding of the situation.
+For the current conditional-forwarding product, a phone call still rings the user's phone first. If the user does not answer, or taps the red decline button, the call forwards to the assistant. The longer-term full-forwarding vision is that a call can begin with intent before interrupting the user. In both cases, a communication thread should not end with a transcript. It should update the user's understanding of the situation.
 
 ## Target Users
 
@@ -75,7 +75,7 @@ The MVP remains Android-first and phone-first, but it should be built on the cro
 - Per-user assistant profile with name, tone, greeting, disclosure, transfer, calendar, and interruption preferences.
 - Per-user phone routing configuration: user's real mobile number, assigned AI forwarding number, Retell agent/template mapping, transfer destination, and forwarding verification state.
 - Frictionless first-run onboarding flow that uses dedicated setup screens, not an activation card inside the Today tab, and gets a new user from install to first successful assistant-handled call with the fewest required decisions.
-- Existing mobile number forwarding to an AI-controlled number.
+- Existing mobile number conditional forwarding to an AI-controlled number, where missed or declined calls forward to the assistant after the user's phone rings.
 - Retell-backed inbound call handling through provider abstraction.
 - AI answers, asks who is calling and why, determines intent and urgency, and can take a message.
 - Call lifecycle events, transcripts, summaries, caller identity, urgency, and follow-up actions.
