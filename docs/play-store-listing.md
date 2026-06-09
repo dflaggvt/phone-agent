@@ -13,7 +13,7 @@
 
 ## Short Description
 
-An AI phone assistant that handles missed calls, organizes context, and helps you follow up.
+An AI phone assistant that talks with missed callers, remembers context, and helps you follow up.
 
 ## Full Description
 
@@ -22,6 +22,8 @@ Call Held is an AI-native communication assistant for your existing phone number
 Forward missed or declined calls to your assistant, then let it identify who is calling, understand why they are calling, capture the outcome, and notify you when something needs attention. The app helps you review recent calls, caller requests, summaries, topic threads, assistant notes, calendar actions, billing controls, and live call actions.
 
 Call Held is designed for people who want better follow-through from everyday calls they miss or decline. Your assistant can take messages, summarize calls, remember prior caller context, ask you a live question by notification, and help with calendar availability when connected.
+
+For known or repeat callers, Call Held can use contact context, prior call summaries, user-authored notes, and topic history to respond more naturally where policy allows. When calendar access is connected, the assistant can check availability, answer scheduling questions, and create meetings or reminders when appropriate.
 
 The product is currently in private closed testing. Some features may require manual setup, carrier call forwarding, and an active payment method before paid assistant usage is enabled.
 

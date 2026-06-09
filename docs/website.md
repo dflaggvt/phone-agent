@@ -40,6 +40,17 @@ Call Held is an AI phone assistant that handles missed or declined forwarded cal
 
 Current website copy must describe the active conditional-forwarding product honestly: the user's phone still rings first. If the user does not answer, or taps the red decline button, the carrier forwards the call to the assistant. Future unconditional forwarding can support an "assistant answers first" experience, but that should not be the main website promise until it is the default setup.
 
+## Capability Claims
+
+The website may describe these capabilities when phrased with clear user control and availability limits:
+
+- The assistant can have a natural conversation with missed or declined callers to understand what they need.
+- When Call Held recognizes a caller through user-approved contacts, caller history, or prior call context, it can respond with more relevant context.
+- For repeat callers, the assistant can use previous call summaries, user-authored notes, relationship context, and topic memory where policy allows.
+- When the user connects calendar access, the assistant can check availability, answer scheduling questions, and create meetings or reminders when appropriate.
+
+Avoid absolute claims such as "the AI knows who is calling" or "the AI always remembers everything." Use qualified language such as "when recognized," "when connected," "when available," and "where policy allows."
+
 ## Vercel Settings
 
 Create the Vercel project from the repository with:

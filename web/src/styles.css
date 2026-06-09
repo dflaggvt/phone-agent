@@ -275,6 +275,57 @@ h2 {
   margin-bottom: 34px;
 }
 
+.section-copy {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.capability-section {
+  background: #181029;
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.capability-item {
+  min-height: 270px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(247, 243, 237, 0.08), rgba(247, 243, 237, 0.035)),
+    rgba(247, 243, 237, 0.04);
+}
+
+.capability-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(134, 212, 174, 0.14);
+  color: var(--mint);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.capability-item h3 {
+  margin-top: 34px;
+  font-size: 1.32rem;
+  line-height: 1.12;
+}
+
+.capability-item p {
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
 .steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -637,11 +688,13 @@ h2 {
     font-size: 2.08rem;
   }
 
-  .steps {
+  .steps,
+  .capability-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .step {
+  .step,
+  .capability-item {
     min-height: 210px;
   }
 
@@ -672,8 +725,17 @@ h2 {
   .hero-actions,
   .hero-line,
   .hero-copy {
-    width: calc(100vw - 48px);
-    max-width: calc(100vw - 48px);
+    width: calc(100vw - 88px);
+    max-width: calc(100vw - 88px);
+  }
+
+  .section-inner {
+    width: calc(100vw - 88px);
+    max-width: calc(100vw - 88px);
+  }
+
+  h2 {
+    font-size: 1.86rem;
   }
 
   h1 {
@@ -689,15 +751,18 @@ h2 {
     width: 100%;
   }
 
-  .steps {
+  .steps,
+  .capability-grid {
     grid-template-columns: 1fr;
   }
 
-  .step {
+  .step,
+  .capability-item {
     min-height: auto;
   }
 
-  .step h3 {
+  .step h3,
+  .capability-item h3 {
     margin-top: 24px;
   }
 
@@ -720,8 +785,8 @@ h2 {
   }
 
   .legal-shell {
-    width: calc(100vw - 36px);
-    max-width: calc(100vw - 36px);
+    width: calc(100vw - 72px);
+    max-width: calc(100vw - 72px);
     padding-left: 18px;
     padding-right: 18px;
   }
