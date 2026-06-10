@@ -15,6 +15,7 @@ Included pages:
 - `/`: one-page marketing landing page.
 - `/privacy`: privacy policy page.
 - `/terms`: terms of service page.
+- `/account-deletion`: account and data deletion request instructions for Google Play. This page is intentionally not linked from the main landing page and is marked `noindex`.
 
 The site is static and does not call the Phone Agent backend. It does not include analytics, cookies, lead capture storage, or third-party scripts by default.
 
@@ -69,6 +70,7 @@ After Vercel deployment, update Google Play Console with:
 
 - Privacy policy URL: `https://<domain>/privacy`
 - Terms URL, if requested: `https://<domain>/terms`
+- Account deletion URL: `https://<domain>/account-deletion`
 - Website URL: `https://<domain>/`
 
 Use the custom domain once available. The Vercel preview domain is acceptable for internal review, but public launch should use a stable owned domain.
@@ -78,6 +80,6 @@ Use the custom domain once available. The Vercel preview domain is acceptable fo
 The current privacy and terms pages are suitable for closed-test scaffolding, not final public launch. Before public release:
 
 - Counsel should review privacy, terms, call recording/transcription, AI disclosure, consent, billing, refunds, deletion, and emergency-use language.
-- Replace `support@callheld.app` if that mailbox is not configured.
+- Use `support@callheld.com` as the public support mailbox.
 - Add the final company/legal entity name when available.
 - Confirm that Google Play Data Safety answers match the website policy exactly.

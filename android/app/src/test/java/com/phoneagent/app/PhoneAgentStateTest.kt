@@ -161,12 +161,23 @@ class PhoneAgentStateTest {
     }
 
     @Test
-    fun googleAuthFlowRejectsUnexpectedAccountCreationOrReuse() {
-        assertTrue(shouldRejectGoogleAuthResult(GoogleAuthFlow.Login, isNewUser = true))
-        assertFalse(shouldRejectGoogleAuthResult(GoogleAuthFlow.Login, isNewUser = false))
+    fun federatedAuthFlowRejectsUnexpectedAccountCreationOrReuse() {
+        assertTrue(shouldRejectFederatedAuthResult(AuthFlow.Login, isNewUser = true))
+        assertFalse(shouldRejectFederatedAuthResult(AuthFlow.Login, isNewUser = false))
 
-        assertTrue(shouldRejectGoogleAuthResult(GoogleAuthFlow.CreateAccount, isNewUser = false))
-        assertFalse(shouldRejectGoogleAuthResult(GoogleAuthFlow.CreateAccount, isNewUser = true))
+        assertTrue(shouldRejectFederatedAuthResult(AuthFlow.CreateAccount, isNewUser = false))
+        assertFalse(shouldRejectFederatedAuthResult(AuthFlow.CreateAccount, isNewUser = true))
+    }
+
+    @Test
+    fun emailPasswordAuthValidationRequiresValidEmailAndStrongPassword() {
+        assertEquals("Enter a valid email address.", authFormError("not-email", "password123"))
+        assertEquals("Enter a valid email address.", authFormError("person@example", "password123"))
+        assertEquals("Use a password with at least 8 characters.", authFormError("person@example.com", "short"))
+        assertEquals(null, authFormError("person@example.com", "password123"))
+
+        assertTrue(isValidAuthEmail("person@example.com"))
+        assertFalse(isValidAuthEmail("person @example.com"))
     }
 
     @Test

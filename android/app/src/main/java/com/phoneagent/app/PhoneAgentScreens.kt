@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -510,6 +511,8 @@ private fun SplashLogo() {
 
 @Composable
 private fun LoginScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     OnboardingFrame(
         headerTitle = "Welcome back",
         title = "Log in.",
@@ -527,7 +530,28 @@ private fun LoginScreen(state: PhoneAgentUiState, actions: AppActions) {
             if (state.loading) "Opening Google" else "Log in with Google",
             Icons.Filled.AccountCircle,
             enabled = !state.loading,
-            onClick = { actions.startGoogleAuth(GoogleAuthFlow.Login) }
+            onClick = { actions.startGoogleAuth(AuthFlow.Login) }
+        )
+        Spacer(Modifier.height(14.dp))
+        Text("or log in with email", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        AuthEmailPasswordFields(
+            email = email,
+            password = password,
+            onEmailChange = { email = it },
+            onPasswordChange = { password = it }
+        )
+        Spacer(Modifier.height(10.dp))
+        PrimaryButton(
+            if (state.loading) "Signing in" else "Log in with email",
+            Icons.AutoMirrored.Filled.Send,
+            enabled = !state.loading,
+            onClick = { actions.startEmailPasswordAuth(AuthFlow.Login, email, password) }
+        )
+        Spacer(Modifier.height(8.dp))
+        SecondaryButton(
+            "Send password reset",
+            onClick = { actions.sendPasswordReset(email) }
         )
         Spacer(Modifier.height(8.dp))
         SecondaryButton("Create an account", onClick = actions.openCreateAccount)
@@ -536,6 +560,8 @@ private fun LoginScreen(state: PhoneAgentUiState, actions: AppActions) {
 
 @Composable
 private fun CreateAccountScreen(state: PhoneAgentUiState, actions: AppActions) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     OnboardingFrame(
         headerTitle = "Get started",
         title = "Create your account.",
@@ -553,11 +579,61 @@ private fun CreateAccountScreen(state: PhoneAgentUiState, actions: AppActions) {
             if (state.loading) "Opening Google" else "Create with Google",
             Icons.Filled.AccountCircle,
             enabled = !state.loading,
-            onClick = { actions.startGoogleAuth(GoogleAuthFlow.CreateAccount) }
+            onClick = { actions.startGoogleAuth(AuthFlow.CreateAccount) }
+        )
+        Spacer(Modifier.height(14.dp))
+        Text("or create with email", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        AuthEmailPasswordFields(
+            email = email,
+            password = password,
+            onEmailChange = { email = it },
+            onPasswordChange = { password = it }
+        )
+        Text(
+            "Use at least 8 characters.",
+            color = Muted,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Spacer(Modifier.height(10.dp))
+        PrimaryButton(
+            if (state.loading) "Creating" else "Create with email",
+            Icons.AutoMirrored.Filled.Send,
+            enabled = !state.loading,
+            onClick = { actions.startEmailPasswordAuth(AuthFlow.CreateAccount, email, password) }
         )
         Spacer(Modifier.height(8.dp))
         SecondaryButton("I already have an account", onClick = actions.openLogin)
     }
+}
+
+@Composable
+private fun AuthEmailPasswordFields(
+    email: String,
+    password: String,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = email,
+        onValueChange = onEmailChange,
+        label = { Text("Email address") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        modifier = Modifier.fillMaxWidth()
+    )
+    Spacer(Modifier.height(8.dp))
+    OutlinedTextField(
+        value = password,
+        onValueChange = onPasswordChange,
+        label = { Text("Password") },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable

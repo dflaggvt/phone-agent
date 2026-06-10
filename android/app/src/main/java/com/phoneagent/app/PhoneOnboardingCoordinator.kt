@@ -9,6 +9,10 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -37,13 +41,13 @@ internal class PhoneOnboardingCoordinator(
 ) {
     private val credentialManager = CredentialManager.create(activity)
 
-    fun startGoogleAuth(flow: GoogleAuthFlow) {
+    fun startGoogleAuth(flow: AuthFlow) {
         scope.launch {
             try {
                 setState(getState().copy(loading = true, status = authLoadingStatus(flow), error = null))
-                val idToken = runCatching { googleIdToken(filterByAuthorizedAccounts = flow == GoogleAuthFlow.Login) }
+                val idToken = runCatching { googleIdToken(filterByAuthorizedAccounts = flow == AuthFlow.Login) }
                     .recoverCatching { error ->
-                        if (flow == GoogleAuthFlow.Login && error is NoCredentialException) {
+                        if (flow == AuthFlow.Login && error is NoCredentialException) {
                             googleIdToken(filterByAuthorizedAccounts = false)
                         } else {
                             throw error
@@ -61,6 +65,50 @@ internal class PhoneOnboardingCoordinator(
             } catch (error: Exception) {
                 setState(getState().copy(loading = false, status = "Setup", error = readableError(error)))
                 toast("Could not sign in with Google.")
+            }
+        }
+    }
+
+    fun startEmailPasswordAuth(flow: AuthFlow, email: String, password: String) {
+        val normalizedEmail = email.trim()
+        authFormError(normalizedEmail, password)?.let { message ->
+            setState(getState().copy(loading = false, status = "Setup", error = message))
+            toast(message)
+            return
+        }
+        scope.launch {
+            try {
+                setState(getState().copy(loading = true, status = authLoadingStatus(flow), error = null))
+                when (flow) {
+                    AuthFlow.Login -> firebaseAuth.signInWithEmailAndPassword(normalizedEmail, password).await()
+                    AuthFlow.CreateAccount -> firebaseAuth.createUserWithEmailAndPassword(normalizedEmail, password).await()
+                }
+                completeAuthenticatedSession()
+            } catch (error: Exception) {
+                val message = emailPasswordAuthError(flow, error)
+                setState(getState().copy(loading = false, status = "Setup", error = message))
+                toast(message)
+            }
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        val normalizedEmail = email.trim()
+        if (!isValidAuthEmail(normalizedEmail)) {
+            val message = "Enter the email address for your account."
+            setState(getState().copy(loading = false, status = "Setup", error = message))
+            toast(message)
+            return
+        }
+        scope.launch {
+            try {
+                setState(getState().copy(loading = true, status = "Sending", error = null))
+                firebaseAuth.sendPasswordResetEmail(normalizedEmail).await()
+                setState(getState().copy(loading = false, status = "Setup", error = null))
+                toast("If an account exists, a reset email has been sent.")
+            } catch (error: Exception) {
+                setState(getState().copy(loading = false, status = "Setup", error = null))
+                toast("If an account exists, a reset email has been sent.")
             }
         }
     }
@@ -220,10 +268,10 @@ internal class PhoneOnboardingCoordinator(
         }
     }
 
-    private suspend fun rejectUnexpectedAccountState(flow: GoogleAuthFlow, isNewUser: Boolean): Boolean {
-        if (!shouldRejectGoogleAuthResult(flow, isNewUser)) return false
+    private suspend fun rejectUnexpectedAccountState(flow: AuthFlow, isNewUser: Boolean): Boolean {
+        if (!shouldRejectFederatedAuthResult(flow, isNewUser)) return false
         when (flow) {
-            GoogleAuthFlow.Login -> {
+            AuthFlow.Login -> {
                 runCatching { firebaseAuth.currentUser?.delete()?.await() }
                 firebaseAuth.signOut()
                 setState(
@@ -234,7 +282,7 @@ internal class PhoneOnboardingCoordinator(
                     )
                 )
             }
-            GoogleAuthFlow.CreateAccount -> {
+            AuthFlow.CreateAccount -> {
                 firebaseAuth.signOut()
                 setState(
                     PhoneAgentUiState(
@@ -250,16 +298,50 @@ internal class PhoneOnboardingCoordinator(
 
 }
 
-internal fun shouldRejectGoogleAuthResult(flow: GoogleAuthFlow, isNewUser: Boolean): Boolean =
+internal fun shouldRejectFederatedAuthResult(flow: AuthFlow, isNewUser: Boolean): Boolean =
     when (flow) {
-        GoogleAuthFlow.Login -> isNewUser
-        GoogleAuthFlow.CreateAccount -> !isNewUser
+        AuthFlow.Login -> isNewUser
+        AuthFlow.CreateAccount -> !isNewUser
     }
 
-private fun authLoadingStatus(flow: GoogleAuthFlow): String =
+internal fun authFormError(email: String, password: String): String? =
+    when {
+        !isValidAuthEmail(email) -> "Enter a valid email address."
+        password.length < 8 -> "Use a password with at least 8 characters."
+        else -> null
+    }
+
+internal fun isValidAuthEmail(email: String): Boolean =
+    email.length in 5..254 &&
+        email.count { it == '@' } == 1 &&
+        email.substringBefore('@').isNotBlank() &&
+        email.substringAfter('@').contains('.') &&
+        !email.any(Char::isWhitespace)
+
+private fun authLoadingStatus(flow: AuthFlow): String =
     when (flow) {
-        GoogleAuthFlow.Login -> "Signing in"
-        GoogleAuthFlow.CreateAccount -> "Creating"
+        AuthFlow.Login -> "Signing in"
+        AuthFlow.CreateAccount -> "Creating"
+    }
+
+private fun emailPasswordAuthError(flow: AuthFlow, error: Throwable): String =
+    when (error) {
+        is FirebaseAuthUserCollisionException -> "That account already exists. Log in to continue."
+        is FirebaseAuthWeakPasswordException -> "Use a password with at least 8 characters."
+        is FirebaseAuthInvalidUserException -> "Email or password is incorrect."
+        is FirebaseAuthInvalidCredentialsException -> when (flow) {
+            AuthFlow.CreateAccount -> "Enter a valid email address."
+            AuthFlow.Login -> "Email or password is incorrect."
+        }
+        else -> {
+            val message = error.message.orEmpty()
+            when {
+                message.contains("network", ignoreCase = true) -> "Check your connection and try again."
+                message.contains("password", ignoreCase = true) && flow == AuthFlow.CreateAccount -> "Use a password with at least 8 characters."
+                message.contains("email", ignoreCase = true) && flow == AuthFlow.CreateAccount -> "Enter a valid email address."
+                else -> "Could not finish authentication. Please try again."
+            }
+        }
     }
 
 internal fun protectedNumberVerificationError(error: Throwable?): String {

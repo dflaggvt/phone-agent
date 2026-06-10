@@ -124,6 +124,8 @@ class ComposeActivity : ComponentActivity() {
                         openLogin = { uiState = uiState.copy(screen = Screen.Login, error = null) },
                         openCreateAccount = { uiState = uiState.copy(screen = Screen.CreateAccount, error = null) },
                         startGoogleAuth = onboardingCoordinator::startGoogleAuth,
+                        startEmailPasswordAuth = onboardingCoordinator::startEmailPasswordAuth,
+                        sendPasswordReset = onboardingCoordinator::sendPasswordReset,
                         startPhoneVerification = onboardingCoordinator::startPhoneVerification,
                         verifyPhoneCode = onboardingCoordinator::verifyPhoneCode,
                         saveAssistantName = onboardingCoordinator::saveAssistantName,

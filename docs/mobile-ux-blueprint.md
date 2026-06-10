@@ -1536,8 +1536,8 @@ Required screens:
 
 1. Splash/title screen with temporary logo, product name, short value promise, and account actions.
 2. Account choice actions: `Create account` and `Log in`.
-3. Create account: Google.
-4. Log in: Google for an existing account.
+3. Create account: Google first, with email/password as a secondary account path.
+4. Log in: Google first, with email/password as a secondary account path for existing accounts and Play review access.
 5. Verify code when mobile-number OTP is used for protected-number verification.
 6. Protected mobile-number verification when a Google-authenticated account does not yet have a verified phone.
 7. Name assistant.
@@ -1550,7 +1550,7 @@ Do not show the main authenticated shell until account bootstrap succeeds. If ba
 
 After account bootstrap succeeds, users with incomplete setup must be routed to dedicated onboarding screens on app launch. Do not use the Today tab as the primary place to complete activation. Today may show assistant readiness after onboarding, but it must not contain a checklist-style onboarding module.
 
-Auth and onboarding must not collapse into a single ambiguous form. `Create account` is for first-time users and uses Google sign-in before routing into onboarding. `Log in` is for returning users and uses Google sign-in to restore the existing account; if the provider reports that the login attempt created a new account, the app must undo that accidental creation when possible and tell the user to create an account instead. Returning users with incomplete setup resume the next required onboarding step, not a fresh signup form.
+Auth and onboarding must not collapse into a single ambiguous form. `Create account` is for first-time users and uses Google or email/password before routing into onboarding. `Log in` is for returning users and uses Google or email/password to restore the existing account; the login path must never silently create a new account. If a federated provider reports that the login attempt created a new account, the app must undo that accidental creation when possible and tell the user to create an account instead. Returning users with incomplete setup resume the next required onboarding step, not a fresh signup form.
 
 Auth screen copy must match the user's intent. The login screen should not use generic setup copy, phone-number fields, or imply account creation. It should say the user is accessing an existing assistant and may resume setup only if the existing account is incomplete. The protected-number verification screen should explain that the phone number is the number the assistant protects and uses for routing/account recovery, not a second account-creation step.
 
@@ -1563,7 +1563,7 @@ Onboarding screen behavior:
 - Show at most `1` secondary action on any onboarding screen.
 - Every required setup screen shown after authentication must include a single `Use another account` secondary action unless the screen has a more specific recovery action. It signs out, clears local display cache, and returns to the unauthenticated title screen so users are never trapped in setup for the wrong account.
 - Keep each screen to `1` decision or task.
-- Do not ask for the user's display name before authentication. Returning users should log in with Google; display name can be collected later only when needed.
+- Do not ask for the user's display name before authentication. Returning users should log in with Google or email/password; display name can be collected later only when needed.
 - Show setup progress in copy or compact status text, not as a dense checklist.
 - Route back into onboarding after reloads until core setup is complete.
 - The final test-call screen may offer `Open app` after forwarding instructions have been viewed, because the first real handled call depends on carrier behavior and user action outside the app.
@@ -1687,15 +1687,16 @@ User-facing copy must not mention internal voice, telephony, webhook, or provide
 
 Production behavior:
 
-- The app uses Firebase Auth for Google sign-in and Firebase Phone Auth to send a real SMS or voice OTP.
-- Google sign-in authenticates the account, but it does not replace mobile-number verification. If a user starts with Google, the next required setup step is linking and verifying the mobile number that the assistant will protect.
+- The app uses Firebase Auth for Google sign-in and email/password account auth, and Firebase Phone Auth to send a real SMS or voice OTP for the protected mobile number.
+- Google or email/password authenticates the account, but it does not replace mobile-number verification. After account authentication, the next required setup step is linking and verifying the mobile number that the assistant will protect.
 - Phone verification after Google sign-in must link the phone credential to the existing Firebase user rather than creating a second account.
 - After a phone credential links successfully, the app must force-refresh the Firebase ID token before loading setup state. Returning users with a previously verified protected number must not be sent back to verification just because a later Google token omits the phone claim.
 - If the verified phone number is already attached to a different Firebase account, the app must not silently switch accounts or create a phone-only login path. It should show a calm product-owned error explaining that the number is already connected to another account and provide a support/recovery path.
 - The verification code is never returned by the Phone Agent backend.
 - The setup code must not be displayed in production.
 - The button label is `Send code`.
-- The create-account and login screens should offer Google only. Phone-number OTP remains available for protected-number verification, not account creation or returning-user login.
+- The create-account and login screens should offer Google as the preferred path and email/password as a secondary path. Phone-number OTP remains available for protected-number verification, not account creation or returning-user login.
+- Email/password create-account requires a valid email and a password of at least `8` characters. Email/password login must only sign into an existing Firebase user. Password reset is available from the login screen and sends a Firebase reset email without exposing whether a private account exists beyond normal Firebase email-delivery behavior.
 - If Firebase configuration is missing, show a blocking setup error for the build rather than a fake verification path.
 
 Retell/provider details must not be visible on this screen. The app should explain behavior in user language.

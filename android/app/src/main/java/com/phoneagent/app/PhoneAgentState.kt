@@ -56,7 +56,7 @@ internal sealed interface Screen {
     data class AddNote(val targetPhoneNumber: String = "") : Screen
 }
 
-internal enum class GoogleAuthFlow {
+internal enum class AuthFlow {
     Login,
     CreateAccount
 }
@@ -72,7 +72,9 @@ internal data class AppActions(
     val refresh: () -> Unit,
     val openLogin: () -> Unit,
     val openCreateAccount: () -> Unit,
-    val startGoogleAuth: (GoogleAuthFlow) -> Unit,
+    val startGoogleAuth: (AuthFlow) -> Unit,
+    val startEmailPasswordAuth: (AuthFlow, String, String) -> Unit,
+    val sendPasswordReset: (String) -> Unit,
     val startPhoneVerification: (String) -> Unit,
     val verifyPhoneCode: (String, String) -> Unit,
     val saveAssistantName: (String) -> Unit,

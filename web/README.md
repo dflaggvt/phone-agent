@@ -40,5 +40,7 @@ After deployment, use the deployed Vercel domain or custom domain for:
 - Marketing site: `/`
 - Privacy policy: `/privacy`
 - Terms of service: `/terms`
+- Account deletion request page: `/account-deletion`
 
-Before public launch, replace the beta support email and legal copy with counsel-approved versions.
+The account deletion page is intentionally not linked from the landing page and is marked `noindex`.
+Before public launch, review legal copy with counsel.

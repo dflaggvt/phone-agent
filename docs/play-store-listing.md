@@ -8,7 +8,7 @@
 - Track for first release: Closed testing.
 - Target audience: adults.
 - Ads: no ads.
-- Login required: yes, Google sign-in. Protected mobile-number verification is required before call routing.
+- Login required: yes, Google sign-in or email/password. Protected mobile-number verification is required before call routing.
 - Paid features: yes, pay-as-you-go assistant usage with a spending cap.
 
 ## Short Description
@@ -37,17 +37,17 @@ docs/play-release-notes/closed-test-v0.1.2.md
 
 ## App Access Instructions For Review/Testers
 
-Call Held supports Google sign-in and protected mobile-number verification. Closed testers should:
+Call Held supports Google sign-in, email/password sign-in, and protected mobile-number verification. Closed testers should:
 
 1. Install the closed test build.
-2. Continue with Google.
+2. Create an account or log in with Google. If a reviewer account has been created for Play review, log in with the provided email/password instead.
 3. Verify the protected mobile number when prompted.
 4. Complete guided onboarding.
 5. Add a test payment method when prompted.
 6. Follow the in-app forwarding instructions.
 7. Place a test call to the assigned assistant number.
 
-If Google review requires access without a personal phone number, create a dedicated reviewer test phone number in Firebase Authentication and document it in the Play Console app access field. Do not include reviewer credentials in source control.
+If Google review requires app access credentials, create a dedicated Firebase email/password reviewer account and a dedicated reviewer test phone number in Firebase Authentication, then document only those credentials in the Play Console app access field. Do not include reviewer credentials in source control.
 
 ## Data Safety Draft
 
@@ -103,7 +103,10 @@ Call Held should not sell user data. External sharing of call recaps, decision r
 
 ### Deletion
 
-Before public launch, the product must provide a user-accessible data deletion request path and documented retention policy. For closed testing, deletion requests are handled manually by the operator until automated deletion/export endpoints are complete.
+- Account deletion URL: `https://callheld.com/account-deletion`.
+- Users can request full account deletion or partial deletion of selected data categories.
+- Deletion requests are handled through `support@callheld.com` and through the in-app account removal path where available.
+- Limited records may be retained for legal, security, fraud-prevention, accounting, dispute-resolution, or compliance purposes.
 
 ## Content Ratings And Policy Notes
 
@@ -122,6 +125,7 @@ Before closed or public release:
 - Feature graphic.
 - Phone screenshots for onboarding, home, call detail, assistant, billing, and topics.
 - Privacy policy URL.
+- Account deletion URL.
 - Website URL. Status: Vercel-ready site exists in `web/`; deploy and use `/privacy`.
 - Support email.
 - Terms of service URL.
