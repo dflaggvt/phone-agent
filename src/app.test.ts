@@ -1091,6 +1091,21 @@ describe("app", () => {
         expect(body.topic.decisions).toHaveLength(1);
         expect(body.topic.openQuestions).toHaveLength(1);
         expect(body.topic.tasks).toHaveLength(1);
+        expect(body.topic.communicationCount).toBe(1);
+        expect(body.topic.timeline).toHaveLength(1);
+        expect(body.topic.timeline[0].communicationItemId).toBe(communicationItemId);
+        expect(body.topic.timeline[0].title).toContain("Call from");
+        expect(body.topic.timeline[0].summary).toContain("framing is approved");
+      });
+
+    await request(app)
+      .get("/v1/topics")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        const topic = body.topics.find((candidate: { id: string }) => candidate.id === topicThreadId);
+        expect(topic.timeline).toHaveLength(1);
+        expect(topic.timeline[0].communicationItemId).toBe(communicationItemId);
       });
 
     await request(app)

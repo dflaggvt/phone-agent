@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Firestore } from "@google-cloud/firestore";
+import { FieldPath, type Firestore } from "@google-cloud/firestore";
 import type {
   CommunicationActor,
   CommunicationChannel,
@@ -53,6 +53,26 @@ export class FirestoreCommunicationItemRepository implements CommunicationItemRe
   async get(id: string): Promise<CommunicationItem | undefined> {
     const doc = await this.collection().doc(id).get();
     return doc.exists ? communicationItemFromFirestore(doc.id, doc.data() ?? {}) : undefined;
+  }
+
+  async listByIdsForUser(userId: string, ids: string[]): Promise<CommunicationItem[]> {
+    const uniqueIds = [...new Set(ids.filter((id) => id.length > 0))];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const items: CommunicationItem[] = [];
+    for (let index = 0; index < uniqueIds.length; index += 30) {
+      const chunk = uniqueIds.slice(index, index + 30);
+      const snapshot = await this.collection()
+        .where(FieldPath.documentId(), "in", chunk)
+        .get();
+      items.push(...snapshot.docs.map((doc) => communicationItemFromFirestore(doc.id, doc.data())));
+    }
+
+    return items
+      .filter((item) => item.userId === userId)
+      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
   }
 
   async findByProviderItem(sourceProvider: string, providerItemId: string): Promise<CommunicationItem | undefined> {

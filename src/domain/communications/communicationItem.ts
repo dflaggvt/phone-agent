@@ -119,6 +119,7 @@ export interface CommunicationItemRepository {
   create(input: CreateCommunicationItemInput): Promise<CommunicationItem>;
   upsertFromProvider(input: UpsertCommunicationItemFromProviderInput): Promise<CommunicationItem>;
   get(id: string): Promise<CommunicationItem | undefined>;
+  listByIdsForUser(userId: string, ids: string[]): Promise<CommunicationItem[]>;
   findByProviderItem(sourceProvider: string, providerItemId: string): Promise<CommunicationItem | undefined>;
   listRecentForUser(userId: string, limit?: number): Promise<CommunicationItem[]>;
   updateExtractions(

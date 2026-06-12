@@ -51,6 +51,13 @@ export class InMemoryCommunicationItemRepository implements CommunicationItemRep
     return this.items.get(id);
   }
 
+  async listByIdsForUser(userId: string, ids: string[]): Promise<CommunicationItem[]> {
+    const uniqueIds = [...new Set(ids)];
+    return uniqueIds
+      .map((id) => this.items.get(id))
+      .filter((item): item is CommunicationItem => item !== undefined && item.userId === userId);
+  }
+
   async findByProviderItem(sourceProvider: string, providerItemId: string): Promise<CommunicationItem | undefined> {
     const id = this.providerIndex.get(providerKey(sourceProvider, providerItemId));
     return id ? this.items.get(id) : undefined;

@@ -1404,7 +1404,11 @@ private fun TopicDetailScreen(state: PhoneAgentUiState, topicId: String, actions
             item { QuietCard("No open items", "Decisions, questions, tasks, and conflicts will appear here when extracted or created.") }
             item { SectionLabel("Timeline") }
             if (topic.timeline.isEmpty()) {
-                item { QuietCard("No communications yet", "Calls, notes, calendar events, and documents will appear here when attached.") }
+                if (topic.communicationCount > 0) {
+                    item { QuietCard("Timeline syncing", "Attached communications will appear here after the latest sync.") }
+                } else {
+                    item { QuietCard("No communications yet", "Calls, notes, calendar events, and documents will appear here when attached.") }
+                }
             } else {
                 topic.timeline.forEach { item { QuietCard(it.title, it.body) } }
             }

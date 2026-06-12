@@ -245,6 +245,8 @@ Core fields:
 
 Topic threads are the main product object and a primary security boundary.
 
+Topic API responses used by mobile clients should include compact, provider-neutral timeline rows for attached communication items. The backend remains the source of truth for topic-to-communication attachment; clients should not infer timeline membership from caller names, summaries, or timestamps. A topic with attached communication IDs should not render as having no communications merely because the client did not separately hydrate each communication item.
+
 ## Decisions, Open Questions, And Tasks
 
 Structured topic state should be stored separately from summaries:

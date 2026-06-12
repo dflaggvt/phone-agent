@@ -918,6 +918,7 @@ Visual rules:
 - Empty decision/question/task states must remain readable on the atmospheric background; do not use low-contrast gray body text directly on purple.
 - Use compact glass rows or quiet cards for empty states.
 - Timeline items should be compact rows/cards with source and summary separated.
+- If a topic has `communicationCount > 0`, the timeline must render at least the most recent attached communication row. The empty `No communications yet` state is only valid when both the attached communication count and hydrated timeline count are `0`.
 - Bottom content padding must keep the final timeline item visible above the bottom navigation.
 
 ### Current Brief
