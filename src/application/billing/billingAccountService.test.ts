@@ -238,7 +238,7 @@ describe("BillingAccountService", () => {
       defaultConfig: {
         userId: "unused",
         billing: {
-          retellNumberProvisioningAllowed: true
+          assistantNumberProvisioningAllowed: true
         }
       }
     });
@@ -274,7 +274,7 @@ describe("BillingAccountService", () => {
     expect(account.providerSubscriptionStatus).toBe("canceled");
     await expect(userRepository.get("user_123")).resolves.toEqual(expect.objectContaining({
       billing: expect.objectContaining({
-        retellNumberProvisioningAllowed: false
+        assistantNumberProvisioningAllowed: false
       })
     }));
   });

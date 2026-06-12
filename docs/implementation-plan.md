@@ -119,12 +119,12 @@ Scope:
 
 Implementation tasks:
 
-- Add provider-neutral user configuration with owned phone number, Retell forwarding number, Retell agent ID, live transfer number, plan, usage limits, and onboarding status. Status: implemented for authenticated user config, route lookup, billing state, onboarding state, and assistant profile; remaining work is self-serve provider-number provisioning at scale.
+- Add provider-neutral user configuration with owned phone number, assistant forwarding number, voice agent ID, live transfer number, plan, usage limits, provisioning status, and onboarding status. Status: implemented for authenticated user config, route lookup, billing state, onboarding state, assistant profile, and provider-neutral assistant-number routing.
 - Add assistant profile model with onboarding-required assistant name plus post-activation defaults for greeting style, disclosure style, warmth, brevity, proactivity, transfer policy, calendar policy, and unknown caller policy. Status: implemented for backend model, onboarding capture, Android editing, and voice-context rendering.
 - Add optional Android contact sync and backend contact resolver so first-time callers can be identified from the user's address book. Status: implemented for backend sync/resolution, production Compose contact sync UI, and disconnect/delete controls.
 - Replace account bootstrap and per-user API-token auth with Firebase Auth ID-token verification. Status: implemented.
 - Remove development-only phone verification fallback. Phone ownership must come from Firebase Phone Auth before assistant-number provisioning. Status: implemented.
-- Add Retell number provisioning adapter for purchase/update/list without leaking Retell payloads into the domain. Status: pending.
+- Add assistant-number provisioning service with a Retell voice-number adapter for purchase/update/list without leaking Retell payloads into the domain. Status: implemented; purchase-on-demand is the chosen production path, with idempotent assignment and `failed`/`needs_operator_review` statuses for provider failures.
 - Resolve inbound Retell calls by forwarding number instead of hard-coded user ID. Status: implemented.
 - Replace single-user onboarding assumptions with user-derived setup state. Status: implemented for Firebase-authenticated users, per-user phone routing, billing state, assistant profile, and onboarding status.
 - Remove API-token beta auth from the mobile product path. Client APIs require verified Firebase ID tokens. Status: implemented.

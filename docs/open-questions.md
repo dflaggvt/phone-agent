@@ -73,8 +73,8 @@ This document tracks unresolved product, technical, legal, and business question
 
 - Which account recovery, device transfer, and support escalation policies do we need on top of Firebase Phone Auth?
 - What Firebase Phone Auth account recovery, abuse prevention, quota, and support policies are required before public launch?
-- Should Retell numbers be purchased on demand, pre-pooled by area code, or assigned manually during beta?
-- What user state is required before paid Retell resources can be provisioned: phone verified, payment method, invite code, or all three?
+- How should operator recovery work when assistant-number purchase returns an ambiguous provider/network outcome and the account enters `needs_operator_review`?
+- Resolved: assistant-number release/delete should be automatic and immediate on account removal because assigned numbers create ongoing provider cost. If provider release fails, the account removal request should fail safely and keep the local number mapping visible for retry/support instead of clearing it locally.
 - Should the default Retell architecture be one shared agent template with per-call dynamic variables, or one Retell agent per user for customization isolation?
 - Should Firestore remain the MVP store for topic threads, or should PostgreSQL be introduced before topic-heavy work?
 - What indexing strategy supports topic candidates by participants, embeddings, recency, and other non-keyword metadata?

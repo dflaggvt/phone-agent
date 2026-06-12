@@ -546,8 +546,9 @@ class ComposeActivity : ComponentActivity() {
     }
 
     private fun dial() {
-        val assistantNumber = uiState.user.assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER }
-        val code = "*71${assistantNumber.toForwardingDigits()}"
+        val assistantNumber = uiState.user.assistantNumber
+        val code = assistantNumber.takeIf { it.isNotBlank() }?.let { "*71${it.toForwardingDigits()}" }.orEmpty()
+        if (code.isBlank()) return
         startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(code)}")))
     }
 

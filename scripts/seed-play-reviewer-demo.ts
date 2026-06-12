@@ -298,10 +298,11 @@ function reviewerUserConfig() {
     },
     phoneRouting: {
       primaryPhoneNumber: REVIEWER_PROTECTED_NUMBER,
-      retellPhoneNumber: REVIEWER_ASSISTANT_NUMBER,
-      retellAgentId: "play_review_demo_agent",
-      retellNumberProvider: "custom",
-      retellNumberAssignedAt: daysAgo(12, 9, 2),
+      assistantPhoneNumber: REVIEWER_ASSISTANT_NUMBER,
+      voiceAgentId: "play_review_demo_agent",
+      providerNumberType: "custom",
+      assistantNumberAssignedAt: daysAgo(12, 9, 2),
+      assistantNumberProvisioningStatus: "assigned",
       forwardingInstructionsViewedAt: daysAgo(11, 11, 20),
       transferPhoneNumber: REVIEWER_TRANSFER_NUMBER
     },
@@ -309,7 +310,7 @@ function reviewerUserConfig() {
       plan: "play_review_demo",
       monthlyIncludedMinutes: 50,
       monthlyClassificationLimit: 1000,
-      retellNumberProvisioningAllowed: false
+      assistantNumberProvisioningAllowed: false
     },
     onboarding: {
       accountCreatedAt: daysAgo(12, 9, 0),

@@ -55,8 +55,6 @@ export const contactSyncSchema = z.object({
 
 const phoneRoutingUpdateSchema = z.object({
   primaryPhoneNumber: z.string().min(3).max(40).optional(),
-  retellPhoneNumber: z.string().min(3).max(40).optional(),
-  retellAgentId: z.string().min(1).max(200).optional(),
   transferPhoneNumber: z.string().min(3).max(40).optional()
 });
 
@@ -77,9 +75,8 @@ export const assistantProfileUpdateSchema = z.object({
 });
 
 export const assistantNumberAssignmentSchema = z.object({
-  areaCode: z.number().int().min(200).max(999).optional(),
-  phoneNumber: z.string().min(3).max(40).optional()
-});
+  areaCode: z.number().int().min(200).max(999).optional()
+}).strict();
 
 export const userConfigUpdateSchema = z.object({
   displayName: z.string().min(1).max(200).optional(),

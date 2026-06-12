@@ -15,9 +15,8 @@ export interface RetellCallClient {
   createOutboundPhoneCall(input: CreateOutboundPhoneCallInput): Promise<PhoneCallResponse>;
 }
 
-export interface PurchaseRetellPhoneNumberInput {
+export interface PurchaseVoiceNumberInput {
   areaCode?: number;
-  phoneNumber?: string;
   inboundAgentId?: string;
   outboundAgentId?: string;
   inboundWebhookUrl: string;
@@ -25,14 +24,17 @@ export interface PurchaseRetellPhoneNumberInput {
   provider?: "twilio" | "telnyx";
 }
 
-export interface RetellPhoneNumberClient {
-  purchasePhoneNumber(input: PurchaseRetellPhoneNumberInput): Promise<PhoneNumberResponse>;
-  updatePhoneNumber(phoneNumber: string, input: {
+export interface VoiceNumberProviderClient {
+  purchaseNumber(input: PurchaseVoiceNumberInput): Promise<PhoneNumberResponse>;
+  retrieveNumber(assistantPhoneNumber: string): Promise<PhoneNumberResponse>;
+  listNumbers(): Promise<PhoneNumberResponse[]>;
+  updateNumber(assistantPhoneNumber: string, input: {
     inboundAgentId?: string | null;
     outboundAgentId?: string | null;
     inboundWebhookUrl?: string | null;
     nickname?: string | null;
   }): Promise<PhoneNumberResponse>;
+  releaseNumber(assistantPhoneNumber: string): Promise<void>;
 }
 
 export class RetellSdkCallClient implements RetellCallClient {
@@ -55,17 +57,16 @@ export class RetellSdkCallClient implements RetellCallClient {
   }
 }
 
-export class RetellSdkPhoneNumberClient implements RetellPhoneNumberClient {
+export class RetellVoiceNumberProviderClient implements VoiceNumberProviderClient {
   private readonly client: Retell;
 
   constructor(apiKey: string) {
     this.client = new Retell({ apiKey });
   }
 
-  purchasePhoneNumber(input: PurchaseRetellPhoneNumberInput): Promise<PhoneNumberResponse> {
+  purchaseNumber(input: PurchaseVoiceNumberInput): Promise<PhoneNumberResponse> {
     const body: PhoneNumberCreateParams = {
       area_code: input.areaCode,
-      phone_number: input.phoneNumber,
       inbound_agent_id: input.inboundAgentId ?? null,
       outbound_agent_id: input.outboundAgentId ?? input.inboundAgentId ?? null,
       inbound_webhook_url: input.inboundWebhookUrl,
@@ -76,7 +77,15 @@ export class RetellSdkPhoneNumberClient implements RetellPhoneNumberClient {
     return this.client.phoneNumber.create(body);
   }
 
-  updatePhoneNumber(phoneNumber: string, input: {
+  retrieveNumber(assistantPhoneNumber: string): Promise<PhoneNumberResponse> {
+    return this.client.phoneNumber.retrieve(assistantPhoneNumber);
+  }
+
+  listNumbers(): Promise<PhoneNumberResponse[]> {
+    return this.client.phoneNumber.list();
+  }
+
+  updateNumber(assistantPhoneNumber: string, input: {
     inboundAgentId?: string | null;
     outboundAgentId?: string | null;
     inboundWebhookUrl?: string | null;
@@ -88,7 +97,11 @@ export class RetellSdkPhoneNumberClient implements RetellPhoneNumberClient {
       inbound_webhook_url: input.inboundWebhookUrl,
       nickname: input.nickname
     };
-    return this.client.phoneNumber.update(phoneNumber, body);
+    return this.client.phoneNumber.update(assistantPhoneNumber, body);
+  }
+
+  releaseNumber(assistantPhoneNumber: string): Promise<void> {
+    return this.client.phoneNumber.delete(assistantPhoneNumber);
   }
 }
 
@@ -98,12 +111,24 @@ export class MissingRetellCallClient implements RetellCallClient {
   }
 }
 
-export class MissingRetellPhoneNumberClient implements RetellPhoneNumberClient {
-  async purchasePhoneNumber(): Promise<PhoneNumberResponse> {
+export class MissingVoiceNumberProviderClient implements VoiceNumberProviderClient {
+  async purchaseNumber(): Promise<PhoneNumberResponse> {
     throw badRequest("retell_api_key_missing", "RETELL_API_KEY is required to provision Retell phone numbers.");
   }
 
-  async updatePhoneNumber(): Promise<PhoneNumberResponse> {
+  async retrieveNumber(): Promise<PhoneNumberResponse> {
+    throw badRequest("retell_api_key_missing", "RETELL_API_KEY is required to retrieve Retell phone numbers.");
+  }
+
+  async listNumbers(): Promise<PhoneNumberResponse[]> {
+    throw badRequest("retell_api_key_missing", "RETELL_API_KEY is required to list Retell phone numbers.");
+  }
+
+  async updateNumber(): Promise<PhoneNumberResponse> {
     throw badRequest("retell_api_key_missing", "RETELL_API_KEY is required to update Retell phone numbers.");
+  }
+
+  async releaseNumber(): Promise<void> {
+    throw badRequest("retell_api_key_missing", "RETELL_API_KEY is required to release Retell phone numbers.");
   }
 }

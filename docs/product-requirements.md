@@ -73,7 +73,7 @@ The MVP remains Android-first and phone-first, but it should be built on the cro
 
 - Self-serve account bootstrap for Google Play users.
 - Per-user assistant profile with name, tone, greeting, disclosure, transfer, calendar, and interruption preferences.
-- Per-user phone routing configuration: user's real mobile number, assigned AI forwarding number, Retell agent/template mapping, transfer destination, and forwarding verification state.
+- Per-user phone routing configuration: user's real mobile number, assigned assistant forwarding number, provider-neutral voice agent mapping, transfer destination, provisioning state, and forwarding verification state.
 - Frictionless first-run onboarding flow that uses dedicated setup screens, not an activation card inside the Today tab, and gets a new user from install to first successful assistant-handled call with the fewest required decisions.
 - Existing mobile number conditional forwarding to an AI-controlled number, where missed or declined calls forward to the assistant after the user's phone rings.
 - Retell-backed inbound call handling through provider abstraction.
@@ -91,7 +91,7 @@ The MVP remains Android-first and phone-first, but it should be built on the cro
 - Basic topic thread detail state: title, description, participants, decisions, open questions, tasks, documents, timeline, status, and permissions.
 - AI-generated topic suggestions from call summaries. A single communication item should produce at most one pending topic-review decision; repeated classifier runs or title variations must update, collapse, or hide duplicate suggestions rather than asking the user to create the same topic twice. Suggested topic titles should be durable, short, reusable names such as `Medical Appointments`, `Home Services`, or `School Logistics`; they must not read like call summaries, include the user’s name, include caller-specific phrasing, or include one-off dates and times.
 - Firebase Auth account foundation with Google and email/password sign-in, plus Firebase Phone Auth for protected-number verification.
-- Per-user phone number and Retell routing configuration.
+- Per-user phone number and assistant routing configuration.
 - Usage/cost visibility and conservative plan limits.
 - Payment method collection, spending caps, and subscription/usage billing gates before paid infrastructure is provisioned for public users.
 - Agent behavior eval suite for regression prevention.
@@ -121,7 +121,7 @@ Required account states:
 - Phone verified: Firebase phone claim exists and user can continue phone forwarding setup.
 - Mobile-number account recovery: if Google sign-in and phone verification point to different Firebase accounts, the verified mobile-number account should be recovered as the canonical phone account and the user must not see raw provider credential-collision language.
 - Assistant named: user has named the assistant or accepted the default name.
-- Assistant number assigned: a Retell-managed or imported number is mapped to the user.
+- Assistant number assigned: a provider-managed forwarding number is mapped to the user.
 - Forwarding configured: carrier forwarding has been tested or manually confirmed.
 - First handled call complete: the assistant has proven basic utility.
 
@@ -165,15 +165,16 @@ The full customizable fields are:
 
 Retell receives these settings through an adapter as dynamic variables and agent overrides. The domain must not store "Retell prompt text" as the durable customization object.
 
-## Retell Provisioning Requirements
+## Assistant Number Provisioning Requirements
 
-Retell is the first voice platform. For each onboarded user, the backend should support:
+Retell is the first voice platform, but the product model is an assistant number, not a Retell number. For each onboarded user, the backend should support:
 
-- Assigning an existing Retell number from inventory.
-- Purchasing a Retell number when allowed by plan, verification, and cost policy.
-- Binding the number to the shared Phone Agent Retell agent/template or a user-specific Retell agent when necessary.
+- Purchasing an assistant number on demand when allowed by plan, verification, and cost policy.
+- Binding the number to the shared Phone Agent voice agent/template or a user-specific voice agent when necessary.
 - Setting the inbound webhook URL so the backend can inject per-call user context.
-- Storing provider IDs and phone numbers in user-owned routing configuration.
+- Storing provider-neutral assistant number, provider metadata, and provisioning state in user-owned routing configuration.
+- Avoiding duplicate provider purchases by making assistant-number assignment idempotent per user.
+- Sending ambiguous provider purchase outcomes to operator review instead of retrying blindly.
 - Releasing or disabling numbers when a user cancels or violates policy.
 
 The preferred long-term model is shared Retell agent templates plus per-call dynamic context. One Retell agent per user is acceptable only as a migration bridge or when a provider limitation requires it.

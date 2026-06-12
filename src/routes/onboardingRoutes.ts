@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { BillingAccountService } from "../application/billing/billingAccountService.js";
 import type { UserConfigService } from "../application/users/userConfigService.js";
-import type { VoiceNumberProvisioningService } from "../application/users/voiceNumberProvisioningService.js";
+import type { AssistantNumberProvisioningService } from "../application/users/assistantNumberProvisioningService.js";
 import type { CallRepository } from "../domain/calls/callRepository.js";
 import type { CommunicationItemRepository } from "../domain/communications/communicationItem.js";
 import { assistantNumberAssignmentSchema } from "./clientSchemas.js";
@@ -14,20 +14,26 @@ export function onboardingRoutes(input: {
   calls: CallRepository;
   communicationItems: CommunicationItemRepository;
   userConfigs: UserConfigService;
-  voiceNumberProvisioning: VoiceNumberProvisioningService;
+  assistantNumberProvisioning: AssistantNumberProvisioningService;
 }) {
   const router = Router();
 
   router.post("/onboarding/assistant-number", asyncHandler(async (req, res) => {
     const parsed = assistantNumberAssignmentSchema.parse(req.body);
     await input.billing.assertPaidInfrastructureAllowed(currentUserId(res));
-    const assignment = await input.voiceNumberProvisioning.assignRetellNumber({
+    const assignment = await input.assistantNumberProvisioning.assignAssistantNumber({
       userId: currentUserId(res),
-      areaCode: parsed.areaCode,
-      phoneNumber: parsed.phoneNumber
+      areaCode: parsed.areaCode
     });
     const config = await input.userConfigs.getOrCreate(currentUserId(res));
-    res.status(200).json({ assignment, user: redactedUserConfig(config) });
+    res.status(200).json({
+      assignment: {
+        assistantPhoneNumber: assignment.assistantPhoneNumber,
+        alreadyAssigned: assignment.alreadyAssigned,
+        provisioningStatus: assignment.provisioningStatus
+      },
+      user: redactedUserConfig(config)
+    });
   }));
 
   router.post("/onboarding/forwarding-instructions-viewed", asyncHandler(async (_req, res) => {
@@ -45,7 +51,7 @@ export function onboardingRoutes(input: {
     const userConfig = await input.userConfigs.getOrCreate(userId);
     const [communicationList, callList, billingAccount] = await Promise.all([
       input.communicationItems.listRecentForUser(userId, 10),
-      input.calls.listCallsForRoute(userConfig.phoneRouting.retellPhoneNumber ?? ""),
+      input.calls.listCallsForRoute(userConfig.phoneRouting.assistantPhoneNumber ?? ""),
       input.billing.getOrCreateAccount(userId)
     ]);
 
@@ -87,7 +93,7 @@ export function onboardingRoutes(input: {
       {
         id: "assistant_number",
         label: "Assign assistant forwarding number",
-        complete: Boolean(userConfig.phoneRouting.retellPhoneNumber),
+        complete: Boolean(userConfig.phoneRouting.assistantPhoneNumber),
         action: "assistant_number"
       },
       {
@@ -127,7 +133,7 @@ export function onboardingRoutes(input: {
           assistantProfileConfigured: Boolean(userConfig.onboarding.assistantProfileConfiguredAt),
           billingRequired: input.billingRequiredForProvisioning,
           billingActive: billingAccount.status === "active",
-          assistantNumberAssigned: Boolean(userConfig.phoneRouting.retellPhoneNumber),
+          assistantNumberAssigned: Boolean(userConfig.phoneRouting.assistantPhoneNumber),
           firstCallReceived: callList.length > 0,
           firstUsefulHandledCall: hasCompletedCall && hasUsefulCommunication,
           communicationCount: communicationList.length

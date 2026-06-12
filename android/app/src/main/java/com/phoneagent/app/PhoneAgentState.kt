@@ -182,8 +182,15 @@ internal data class UserSummary(val json: JSONObject) {
     val phoneNumber: String = auth?.optString("phoneNumber").orEmpty()
     val phoneVerified: Boolean = auth?.optString("phoneVerificationStatus") == "verified" || auth?.optString("primaryPhoneVerifiedAt").orEmpty().isNotBlank()
     private val phoneRouting: JSONObject? = json.optJSONObject("phoneRouting")
-    val assistantNumber: String = phoneRouting?.optString("retellPhoneNumber").orEmpty()
-    val assistantNumberDisplay: String = assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER_DISPLAY }
+    val assistantNumber: String = phoneRouting?.optString("assistantPhoneNumber").orEmpty()
+    val assistantNumberProvisioningStatus: String = phoneRouting?.optString("assistantNumberProvisioningStatus", "unassigned") ?: "unassigned"
+    val assistantNumberDisplay: String = when {
+        assistantNumber.isNotBlank() -> assistantNumber
+        assistantNumberProvisioningStatus == "provisioning" -> "Assigning number"
+        assistantNumberProvisioningStatus == "failed" -> "Needs support"
+        assistantNumberProvisioningStatus == "needs_operator_review" -> "Needs support"
+        else -> "Not assigned"
+    }
     val initials: String = displayName.split(" ").mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString("").ifBlank { "PA" }
 
     companion object {

@@ -126,7 +126,7 @@ Android local cache:
 - Logout must clear the local Room cache for the signed-out user. Future multi-account support should partition Room records by authenticated user ID before multiple signed-in accounts are allowed on one device.
 - Room migrations must be explicit. Destructive migration is not used in debug or release; cache resets require an intentional reviewed path because local state affects user trust during startup.
 
-Setup state is derived server-side from existing system state so future iOS/web clients can share the same activation logic. Required activation should stay intentionally short: authenticated account, verified phone number, assistant name, assigned assistant number, forwarding guidance/test call, and first useful handled call. Calendar connection, topic creation, assistant notes, relationship tuning, and deeper voice behavior are progressive setup after activation.
+Setup state is derived server-side from existing system state so future iOS/web clients can share the same activation logic. Required activation should stay intentionally short: authenticated account, verified phone number, assistant name, assigned assistant number, forwarding guidance/test call, and first useful handled call. Calendar connection, topic creation, assistant notes, relationship tuning, and deeper voice behavior are progressive setup after activation. Assistant-number state is provider-neutral in the product/domain model: the app sees `assistantPhoneNumber`, `voiceAgentId`, assignment time, and provisioning status, while Retell-specific phone-number payloads stay inside the voice-number provider adapter.
 
 Android first-run onboarding should consume the shared setup state but present it as a dedicated guided flow rather than a checklist inside the main app shell. The auth entry supports Firebase Google sign-in and Firebase email/password for account creation and login, with Firebase Phone Auth reserved for protected-number verification after authentication. The client must present separate `Create account` and `Log in` paths. `Create account` establishes the Firebase/user account through Google or `createUserWithEmailAndPassword` and then routes into onboarding. `Log in` restores an existing account through Google or `signInWithEmailAndPassword` and must not silently create a new Firebase user; if Firebase reports `additionalUserInfo.isNewUser` on the federated login path, the app must clean up that accidental auth user when possible, sign out, and ask the user to create an account. Conversely, an existing account encountered from the create path should be sent to login rather than treated as a new setup. Email/password errors must be translated into product-owned copy such as invalid email, weak password, account already exists, or email/password incorrect. Phone OTP is used only for protected-number verification after an authenticated account exists, not account creation or returning-user login. Google or email/password creates or opens the account, while phone verification links the protected mobile number to the same Firebase user. After phone linking succeeds, Android must force-refresh the Firebase ID token before loading setup state so the backend receives the trusted `phone_number` claim immediately. The backend must preserve an already verified protected number when later Firebase ID tokens omit the phone claim, because provider refresh tokens do not always restate linked phone data. The protected mobile number is the account-recovery anchor for the phone product, but the client must not silently switch to a separate phone-only Firebase account when a phone credential is already attached elsewhere. That collision should produce a product-owned recovery/support state until explicit account merge is implemented. Until account, phone verification, assistant name, assistant number, and forwarding instruction viewing are complete, launch should route to the next onboarding screen with bottom navigation hidden. The final test-call and first useful-call review can continue as post-onboarding activation prompts because they depend on external carrier forwarding and real inbound call behavior.
 
@@ -153,7 +153,7 @@ Required voice concepts:
 - Real-time AI conversation loop.
 - Latency-sensitive voice pipeline.
 
-Retell must remain behind a provider adapter. Future replacements include Twilio, Telnyx, Vonage, SIP, OpenAI Realtime, Twilio ConversationRelay, or a custom STT/LLM/TTS pipeline.
+Retell must remain behind provider adapters. The first production implementation uses Retell for both the live voice runtime and assistant-number purchase/update/list operations, but domain services depend on provider-neutral call context and assistant-number assignment objects. Future replacements include Twilio, Telnyx, Vonage, SIP, OpenAI Realtime, Twilio ConversationRelay, or a custom STT/LLM/TTS pipeline.
 
 ## Provider Abstractions
 
@@ -165,6 +165,8 @@ Voice provider interfaces should expose normalized domain types:
 - `VoiceCallRecordingEvent`
 - `VoiceInboundContextRequest`
 - `VoiceTransferRequest`
+- `VoiceNumberProviderClient`
+- `VoiceNumberAssignment`
 
 Cross-channel providers should follow the same pattern:
 
@@ -320,7 +322,7 @@ Every user-owned resource needs authorization tests before production exposure.
 
 Current production-readiness foundation:
 
-- `UserConfig` stores user-owned phone configuration, Retell mapping, onboarding state, and billing limits.
+- `UserConfig` stores user-owned phone configuration, provider-neutral assistant-number assignment, onboarding state, and billing limits.
 - `AssistantProfile` stores durable user-facing assistant behavior preferences. Retell receives a provider-specific rendering of this profile, but the application owns the canonical profile.
 - Retell inbound calls are resolved by the called forwarding number so one backend can serve multiple users.
 - Android client APIs use Firebase ID tokens from Google sign-in, email/password auth, and protected-number phone verification. The backend verifies tokens with Firebase Admin and derives user identity from the verified Firebase `uid`.
@@ -347,7 +349,7 @@ Onboarding states:
 - `account_created`: backend user profile exists for the Firebase `uid`.
 - `phone_captured`: primary mobile number is copied from the verified Firebase phone claim unless the user later adds another verified route.
 - `assistant_profile_configured`: assistant name is saved; deeper behavior preferences may still be defaults.
-- `retell_number_assigned`: the user has a mapped AI forwarding number.
+- `assistant_number_assigned`: the user has a mapped AI forwarding number.
 - `forwarding_instructions_viewed`: carrier-specific setup has been shown.
 - `forwarding_tested`: a call to the user's Retell number was received or manually confirmed.
 - `first_useful_call_reviewed`: the user has seen a meaningful handled call outcome.
@@ -360,20 +362,23 @@ Provisioning rules:
 - Backend user IDs are derived from Firebase `uid`; client-supplied user IDs are ignored.
 - Assistant-number provisioning requires a verified Firebase phone claim.
 - Public assistant-number provisioning requires billing state `active`, a payment method, and a monthly spending cap unless the user is on an explicit beta/internal bypass.
+- Public assistant-number provisioning is purchase-on-demand for this release. The backend infers the preferred area code from the verified protected number when the client does not send one.
+- `POST /v1/onboarding/assistant-number` is idempotent: an already assigned user receives the existing assistant number without another provider purchase.
+- The backend records provisioning status as `unassigned`, `provisioning`, `assigned`, `failed`, or `needs_operator_review`. Clear provider errors become `failed`; ambiguous provider/network outcomes become `needs_operator_review` to avoid duplicate paid number purchases.
 - The backend must reject missing, expired, malformed, or wrong-project Firebase ID tokens.
 - Production builds must not expose development verification codes.
 
 - Phone verification and plan eligibility are required before automatic number purchase.
 - A configurable beta allowlist may bypass billing while the product is private.
-- Number purchase must be idempotent per user.
 - A user may have multiple phone routes later, but the MVP supports one primary mobile number and one AI forwarding number.
 
-Retell provisioning adapter responsibilities:
+Voice-number provider adapter responsibilities:
 
 - Purchase a number with optional area code.
 - Assign or update inbound/outbound agent IDs.
 - Set inbound webhook URL.
 - Retrieve/list provider-owned numbers for reconciliation.
+- Release/delete numbers only through explicit account-removal or operator workflows.
 - Return provider-neutral `VoiceNumberAssignment` objects.
 
 Domain services must treat Retell number purchase as an external side effect with cost, audit, retry, and rollback implications.
@@ -446,7 +451,8 @@ Runtime billing activation:
 
 Account removal:
 
-- `DELETE /v1/account` is authenticated and destructive. It cancels paid access, disables active device push tokens, unmaps phone routing, marks `UserConfig.accountStatus` as `deleted`, attempts Firebase user deletion through the auth admin adapter, and returns a minimal success response.
+- `DELETE /v1/account` is authenticated and destructive. It cancels paid access, releases/deletes the assigned assistant number through the voice-number provider adapter when one exists, disables active device push tokens, unmaps phone routing, marks `UserConfig.accountStatus` as `deleted`, attempts Firebase user deletion through the auth admin adapter, and returns a minimal success response.
+- Assistant-number release is a billable-resource cleanup step. The backend must not clear the local `assistantPhoneNumber` or report successful account removal if provider-side release fails, because losing the local mapping while the provider number keeps billing creates an operator blind spot.
 - Deleted accounts must be rejected by authenticated client middleware with `account_removed`.
 - Full hard deletion of user-owned communication records should run behind this endpoint according to retention policy. Until purge jobs are complete, deleted user data must remain inaccessible through client APIs and unavailable to voice-provider context injection.
 

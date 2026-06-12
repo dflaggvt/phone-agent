@@ -1091,7 +1091,7 @@ private fun LazyListScope.reviewItems(
 
 @Composable
 private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
-    val assistantNumber = state.user.assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER }
+    val assistantNumber = state.user.assistantNumber
     val reviewCount = state.actionReviewCount()
     val visibleSuggestions = state.suggestions.take(6)
     val hiddenSuggestionCount = state.suggestions.size - visibleSuggestions.size
@@ -1159,7 +1159,9 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
             WorkCard {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionTile("Add note", "For an upcoming call", Icons.AutoMirrored.Filled.NoteAdd, Modifier.weight(1f)) { actions.openAddNote("") }
-                    ActionTile("Test call", state.user.assistantNumberDisplay, Icons.Filled.Call, Modifier.weight(1f)) { actions.callNumber(assistantNumber) }
+                    ActionTile("Test call", state.user.assistantNumberDisplay, Icons.Filled.Call, Modifier.weight(1f)) {
+                        if (assistantNumber.isNotBlank()) actions.callNumber(assistantNumber)
+                    }
                 }
             }
         }
@@ -1319,10 +1321,10 @@ private fun LazyListScope.searchItems(
 @Composable
 private fun ForwardingScreen(state: PhoneAgentUiState, actions: AppActions) {
     val context = LocalContext.current
-    val assistantNumber = state.user.assistantNumber.ifBlank { BuildConfig.PHONE_AGENT_NUMBER }
+    val assistantNumber = state.user.assistantNumber
     val assistantNumberDisplay = state.user.assistantNumberDisplay
-    val missedCallCode = "*71${assistantNumber.toForwardingDigits()}"
-    val fullForwardCode = "*72${assistantNumber.toForwardingDigits()}"
+    val missedCallCode = assistantNumber.takeIf { it.isNotBlank() }?.let { "*71${it.toForwardingDigits()}" }.orEmpty()
+    val fullForwardCode = assistantNumber.takeIf { it.isNotBlank() }?.let { "*72${it.toForwardingDigits()}" }.orEmpty()
     DetailFrame(title = "Forward calls", state = state, actions = actions) {
         item {
             Surface(color = Color.White.copy(alpha = 0.12f), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))) {
@@ -1331,15 +1333,19 @@ private fun ForwardingScreen(state: PhoneAgentUiState, actions: AppActions) {
                     Text("Missed-call forwarding", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                     Text("Unanswered calls go to ${state.user.assistantName.ifBlank { "your assistant" }}.", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp, lineHeight = 19.sp)
                     Spacer(Modifier.height(8.dp))
-                    Text(missedCallCode, color = Color(0xFFD8D1FF), fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                    Text(missedCallCode.ifBlank { "Assistant number not ready" }, color = Color(0xFFD8D1FF), fontSize = 23.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Text("Assistant number     $assistantNumberDisplay", color = Color.White.copy(alpha = 0.86f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PrimaryButton("Dial code", Icons.Filled.Call, Modifier.weight(1f), onClick = actions.dial)
+                        PrimaryButton("Dial code", Icons.Filled.Call, Modifier.weight(1f)) {
+                            if (missedCallCode.isNotBlank()) actions.dial()
+                        }
                         SecondaryButton("Copy number", Modifier.weight(1f)) {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Assistant number", assistantNumber))
+                            if (assistantNumber.isNotBlank()) {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Assistant number", assistantNumber))
+                            }
                         }
                     }
                 }
@@ -1348,7 +1354,7 @@ private fun ForwardingScreen(state: PhoneAgentUiState, actions: AppActions) {
         item {
             GlassRows(
                 listOf(
-                    "Full forwarding" to fullForwardCode,
+                    "Full forwarding" to fullForwardCode.ifBlank { "Not ready" },
                     "Turn forwarding off" to "*73"
                 )
             )

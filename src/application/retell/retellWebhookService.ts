@@ -137,7 +137,7 @@ export class RetellWebhookService {
 
     return {
       call_inbound: {
-        override_agent_id: userConfig.phoneRouting.retellAgentId ?? this.dependencies.defaultAgentId,
+        override_agent_id: userConfig.phoneRouting.voiceAgentId ?? this.dependencies.defaultAgentId,
         agent_override: {
           retell_llm: {
             begin_message: openingLine
@@ -238,7 +238,7 @@ export class RetellWebhookService {
   }
 
   private async resolveUserByRetellNumber(phoneNumber: string) {
-    const byNumber = await this.dependencies.users?.getByRetellPhoneNumber(phoneNumber);
+    const byNumber = await this.dependencies.users?.getByAssistantPhoneNumber(phoneNumber);
     if (byNumber) {
       return byNumber;
     }
@@ -347,7 +347,7 @@ function billingUnavailableDecision(
   const openingLine = `${owner}'s assistant is currently unavailable. Please try again later.`;
   return {
     call_inbound: {
-      override_agent_id: user.phoneRouting.retellAgentId ?? defaultAgentId,
+      override_agent_id: user.phoneRouting.voiceAgentId ?? defaultAgentId,
       agent_override: {
         retell_llm: {
           begin_message: openingLine

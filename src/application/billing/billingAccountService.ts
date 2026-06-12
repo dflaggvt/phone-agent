@@ -107,12 +107,12 @@ export class BillingAccountService {
         subscriptionId: account.providerSubscriptionId
       });
     }
-    await this.dependencies.users.upsert({
-      userId,
-      billing: {
-        retellNumberProvisioningAllowed: false
-      }
-    });
+      await this.dependencies.users.upsert({
+        userId,
+        billing: {
+          assistantNumberProvisioningAllowed: false
+        }
+      });
     return this.dependencies.billingAccounts.upsert({
       userId,
       providerSubscriptionStatus: "canceled",

@@ -18,7 +18,7 @@ import { RetellWebhookService } from "./application/retell/retellWebhookService.
 import { TopicSuggestionService } from "./application/topics/topicSuggestionService.js";
 import { TopicThreadService } from "./application/topics/topicThreadService.js";
 import { UserConfigService } from "./application/users/userConfigService.js";
-import { VoiceNumberProvisioningService } from "./application/users/voiceNumberProvisioningService.js";
+import { AssistantNumberProvisioningService } from "./application/users/assistantNumberProvisioningService.js";
 import type { AuthVerifier } from "./application/auth/authVerifier.js";
 import type { AppEnv } from "./config/env.js";
 import { FirebaseAccountAdmin, NoopAuthAccountAdmin } from "./infrastructure/firebase/firebaseAccountAdmin.js";
@@ -71,9 +71,9 @@ import { InMemoryWebhookEventRepository } from "./infrastructure/persistence/inM
 import { OpenAiCommunicationClassifier } from "./infrastructure/openai/openAiCommunicationClassifier.js";
 import {
   MissingRetellCallClient,
-  MissingRetellPhoneNumberClient,
+  MissingVoiceNumberProviderClient,
   RetellSdkCallClient,
-  RetellSdkPhoneNumberClient
+  RetellVoiceNumberProviderClient
 } from "./infrastructure/retell/retellClient.js";
 import { RetellWebhookVerifier } from "./infrastructure/retell/retellWebhookVerifier.js";
 import { MissingBillingProviderClient, StripeBillingClient } from "./infrastructure/stripe/stripeBillingClient.js";
@@ -97,6 +97,8 @@ import { forbidden, HttpError, unauthorized } from "./shared/httpErrors.js";
 import type { AppLogger } from "./shared/logger.js";
 import { createRateLimiter } from "./shared/rateLimit.js";
 import type { PushDeliveryClient } from "./application/notifications/pushDeliveryClient.js";
+import type { VoiceNumberProviderClient } from "./infrastructure/retell/retellClient.js";
+import type { UserConfig } from "./domain/users/userConfig.js";
 
 export interface AppDependencies {
   env: AppEnv;
@@ -104,6 +106,8 @@ export interface AppDependencies {
   authVerifier?: AuthVerifier;
   authAccountAdmin?: AuthAccountAdmin;
   pushDelivery?: PushDeliveryClient;
+  voiceNumberProvider?: VoiceNumberProviderClient;
+  initialUserConfigs?: UserConfig[];
 }
 
 export function createApp(dependencies: AppDependencies) {
@@ -165,7 +169,7 @@ export function createApp(dependencies: AppDependencies) {
     : new InMemoryTopicSuggestionRepository();
   const userConfigRepository = firestore
     ? new FirestoreUserConfigRepository(firestore)
-    : new InMemoryUserConfigRepository();
+    : new InMemoryUserConfigRepository(dependencies.initialUserConfigs);
   const usageRepository = firestore
     ? new FirestoreUsageEventRepository(firestore)
     : new InMemoryUsageEventRepository();
@@ -181,7 +185,7 @@ export function createApp(dependencies: AppDependencies) {
         plan: dependencies.env.BILLING_PLAN,
         monthlyIncludedMinutes: dependencies.env.BILLING_MONTHLY_INCLUDED_MINUTES,
         monthlyClassificationLimit: dependencies.env.BILLING_MONTHLY_CLASSIFICATION_LIMIT,
-        retellNumberProvisioningAllowed: dependencies.env.SELF_SERVE_RETELL_PROVISIONING
+        assistantNumberProvisioningAllowed: dependencies.env.SELF_SERVE_RETELL_PROVISIONING
       }
     }
   });
@@ -236,18 +240,20 @@ export function createApp(dependencies: AppDependencies) {
       personalCallMinuteOveragePriceId: dependencies.env.STRIPE_PRICE_PERSONAL_CALL_MINUTE_OVERAGE
     }
   });
+  const voiceNumberProvider = dependencies.voiceNumberProvider
+    ?? (dependencies.env.RETELL_API_KEY
+      ? new RetellVoiceNumberProviderClient(dependencies.env.RETELL_API_KEY)
+      : new MissingVoiceNumberProviderClient());
   const accountRemoval = new AccountRemovalService({
     billing,
     pushDeviceTokens,
     users: userConfigs,
+    voiceNumbers: voiceNumberProvider,
     authAccountAdmin
   });
   const retellCallClient = dependencies.env.RETELL_API_KEY
     ? new RetellSdkCallClient(dependencies.env.RETELL_API_KEY)
     : new MissingRetellCallClient();
-  const retellPhoneNumberClient = dependencies.env.RETELL_API_KEY
-    ? new RetellSdkPhoneNumberClient(dependencies.env.RETELL_API_KEY)
-    : new MissingRetellPhoneNumberClient();
 
   const retellVerifier = new RetellWebhookVerifier({
     enabled: dependencies.env.RETELL_INBOUND_WEBHOOK_VERIFY,
@@ -321,10 +327,10 @@ export function createApp(dependencies: AppDependencies) {
     defaultFromNumber: dependencies.env.RETELL_DEFAULT_FROM_NUMBER
   });
 
-  const voiceNumberProvisioning = new VoiceNumberProvisioningService({
+  const assistantNumberProvisioning = new AssistantNumberProvisioningService({
     users: userConfigs,
-    retellPhoneNumbers: retellPhoneNumberClient,
-    defaultRetellAgentId: dependencies.env.RETELL_DEFAULT_AGENT_ID,
+    voiceNumbers: voiceNumberProvider,
+    defaultVoiceAgentId: dependencies.env.RETELL_DEFAULT_AGENT_ID,
     publicBaseUrl: dependencies.env.APP_PUBLIC_BASE_URL,
     selfServeProvisioningEnabled: dependencies.env.SELF_SERVE_RETELL_PROVISIONING
   });
@@ -406,7 +412,7 @@ export function createApp(dependencies: AppDependencies) {
     calls,
     communicationItems,
     userConfigs,
-    voiceNumberProvisioning
+    assistantNumberProvisioning
   }));
   app.use("/v1", notificationRoutes({ notifications }));
   app.use("/v1", callRoutes({ calls, activeCalls, userConfigs }));

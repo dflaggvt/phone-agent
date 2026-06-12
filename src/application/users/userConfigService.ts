@@ -19,8 +19,8 @@ export class UserConfigService {
     return (await this.dependencies.users.get(userId)) ?? this.dependencies.users.upsert({ ...this.dependencies.defaultConfig, userId });
   }
 
-  async getByRetellPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
-    return this.dependencies.users.getByRetellPhoneNumber(phoneNumber);
+  async getByAssistantPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
+    return this.dependencies.users.getByAssistantPhoneNumber(phoneNumber);
   }
 
   upsert(input: UpsertUserConfigInput): Promise<UserConfig> {
@@ -65,13 +65,16 @@ export class UserConfigService {
     });
   }
 
-  async assertCanProvisionRetellNumber(userId: string): Promise<UserConfig> {
+  async assertCanProvisionAssistantNumber(userId: string): Promise<UserConfig> {
     const user = await this.getOrCreate(userId);
     if (!user.auth.primaryPhoneVerifiedAt) {
       throw forbidden("phone_not_verified", "Verify the user's mobile number before assigning an assistant number.");
     }
-    if (!user.billing.retellNumberProvisioningAllowed) {
-      throw forbidden("retell_number_provisioning_not_allowed", "This account is not allowed to provision paid Retell numbers yet.");
+    if (!user.onboarding.assistantProfileConfiguredAt) {
+      throw forbidden("assistant_profile_not_configured", "Name the assistant before assigning an assistant number.");
+    }
+    if (!user.billing.assistantNumberProvisioningAllowed) {
+      throw forbidden("assistant_number_provisioning_not_allowed", "This account is not allowed to provision paid assistant numbers yet.");
     }
     return user;
   }

@@ -2,7 +2,7 @@
 
 ## Current Readiness
 
-Phone Agent is a private alpha moving toward Google Play closed testing. It has real backend deployment, Firebase auth, Retell voice handling, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, privacy-safe product analytics, user-scoped calendar state, route-scoped call history, durable provider webhook idempotency, shared backend rate limiting, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
+Phone Agent is a private alpha moving toward Google Play closed testing. It has real backend deployment, Firebase auth, Retell voice handling behind provider adapters, provider-neutral assistant-number routing, Stripe billing foundation, Android onboarding, FCM notifications, topic-thread foundations, privacy-safe product analytics, user-scoped calendar state, route-scoped call history, durable provider webhook idempotency, shared backend rate limiting, and basic observability. It is not ready for public Google Play launch until the launch blockers below are closed.
 
 Working readiness score: `6/10`.
 
@@ -17,9 +17,10 @@ Required:
 - Cloud Run backend deployed.
 - Firebase Phone Auth enabled for Android.
 - Retell inbound call flow working.
+- Assistant-number purchase-on-demand is isolated behind a provider adapter and gated by phone verification, assistant profile setup, billing state, and idempotent provisioning status.
 - Android debug install usable by the founder.
 - Payment method setup and billing gates available in test mode.
-- Subscription cancellation and app-initiated account removal controls available; full retained-record purge jobs still need production hardening.
+- Subscription cancellation and app-initiated account removal controls available. Account removal releases assigned assistant numbers before clearing local routing; full retained-record purge jobs still need production hardening.
 - FCM push notification delivery working.
 - Crash reporting included in Android builds.
 
@@ -54,7 +55,7 @@ Required:
 - Legal review of call recording, AI disclosure, TCPA/outbound AI limits, privacy policy, terms, refunds, and data deletion.
 - Edge rate limiting at Cloud Armor, API Gateway, or equivalent. The backend now has shared Firestore-backed limits, but edge controls are still required for public beta.
 - Cloud alerting for `5xx`, uptime, latency, webhook failures, billing failures, voice-provider failures, FCM failures, and negative-margin usage.
-- Operator runbooks for failed billing, failed Retell webhooks, stuck onboarding, and user deletion.
+- Operator runbooks for failed billing, failed Retell webhooks, ambiguous assistant-number provisioning, stuck onboarding, and user deletion.
 - Secret rotation for keys previously pasted in chat.
 - Billing reconciliation and analytics export commands scheduled and monitored.
 - No known duplicate subscription or duplicate meter-event path.

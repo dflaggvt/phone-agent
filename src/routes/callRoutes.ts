@@ -13,7 +13,7 @@ export function callRoutes(input: {
 
   router.get("/calls", asyncHandler(async (_req, res) => {
     const userConfig = await input.userConfigs.getOrCreate(currentUserId(res));
-    const sessions = await input.calls.listCallsForRoute(userConfig.phoneRouting.retellPhoneNumber ?? "");
+    const sessions = await input.calls.listCallsForRoute(userConfig.phoneRouting.assistantPhoneNumber ?? "");
     res.status(200).json({ calls: sessions });
   }));
 
@@ -21,7 +21,7 @@ export function callRoutes(input: {
     const userConfig = await input.userConfigs.getOrCreate(currentUserId(res));
     const activeCall = await input.activeCalls.getActiveCall({
       userId: userConfig.userId,
-      userRetellPhoneNumber: userConfig.phoneRouting.retellPhoneNumber
+      userAssistantPhoneNumber: userConfig.phoneRouting.assistantPhoneNumber
     });
     res.status(200).json({ activeCall: activeCall ?? null });
   }));

@@ -51,7 +51,7 @@ internal fun previewState(selectedTab: Tab = Tab.Home, screen: Screen = Screen.M
     screen = screen,
     selectedTab = selectedTab,
     status = "Active",
-    user = UserSummary(JSONObject("""{"displayName":"Daryl Flagg","assistantName":"Addison","phoneRouting":{"retellPhoneNumber":"+19143593659"}}""")),
+    user = UserSummary(JSONObject("""{"displayName":"Daryl Flagg","assistantName":"Addison","phoneRouting":{"assistantPhoneNumber":"+19143593659","assistantNumberProvisioningStatus":"assigned"}}""")),
     billing = BillingAccount(JSONObject("""{"status":"active","monthlySpendingCapCents":4000}""")),
     topics = listOf(
         TopicThread(JSONObject("""{"id":"topic_basement","title":"Basement Project","description":"Inspection, estimate, budget, and contractor decisions for the basement renovation.","communicationCount":4,"decisions":[{"title":"Framing approved"}],"timeline":[{"title":"Contractor call","summary":"Greg asked whether the estimate includes permit fees and said the plumbing change is needed by Friday."}]}""")),

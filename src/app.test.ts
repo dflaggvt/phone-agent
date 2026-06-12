@@ -4,6 +4,9 @@ import { createApp } from "./app.js";
 import type { AuthVerifier, VerifiedAuthUser } from "./application/auth/authVerifier.js";
 import type { PushDeliveryClient, PushDeliveryInput, PushDeliveryResult } from "./application/notifications/pushDeliveryClient.js";
 import type { AppEnv } from "./config/env.js";
+import { createUserConfig, type UserConfig } from "./domain/users/userConfig.js";
+import type { PurchaseVoiceNumberInput, VoiceNumberProviderClient } from "./infrastructure/retell/retellClient.js";
+import type { PhoneNumberResponse } from "retell-sdk/resources/phone-number.js";
 import { createLogger } from "./shared/logger.js";
 
 const testEnv: AppEnv = {
@@ -12,8 +15,8 @@ const testEnv: AppEnv = {
   LOG_LEVEL: "silent",
   PERSISTENCE_DRIVER: "memory",
   FIREBASE_PROJECT_ID: "phone-agent-test",
-  SELF_SERVE_RETELL_PROVISIONING: false,
-  APP_PUBLIC_BASE_URL: undefined,
+  SELF_SERVE_RETELL_PROVISIONING: true,
+  APP_PUBLIC_BASE_URL: "https://example.com",
   RETELL_API_KEY: undefined,
   RETELL_DEFAULT_AGENT_ID: "agent_default",
   RETELL_DEFAULT_FROM_NUMBER: "+15551230000",
@@ -60,8 +63,103 @@ class FakePushDeliveryClient implements PushDeliveryClient {
   }
 }
 
-function createTestApp(env: AppEnv = testEnv, pushDelivery?: PushDeliveryClient) {
-  return createApp({ env, logger: createLogger("silent"), authVerifier: new FakeAuthVerifier(), pushDelivery });
+const queuedAssistantNumbers: string[] = [];
+
+class FakeVoiceNumberProvider implements VoiceNumberProviderClient {
+  readonly purchased: PurchaseVoiceNumberInput[] = [];
+  readonly released: string[] = [];
+  private readonly numbers = new Map<string, PhoneNumberResponse>();
+  private generatedCount = 0;
+
+  async purchaseNumber(input: PurchaseVoiceNumberInput): Promise<PhoneNumberResponse> {
+    this.purchased.push(input);
+    const phoneNumber = queuedAssistantNumbers.shift() ?? this.generatedPhoneNumber(input.areaCode);
+    const response = this.numberResponse(phoneNumber, input);
+    this.numbers.set(phoneNumber, response);
+    return response;
+  }
+
+  async retrieveNumber(assistantPhoneNumber: string): Promise<PhoneNumberResponse> {
+    return this.numbers.get(assistantPhoneNumber) ?? this.numberResponse(assistantPhoneNumber);
+  }
+
+  async listNumbers(): Promise<PhoneNumberResponse[]> {
+    return [...this.numbers.values()];
+  }
+
+  async updateNumber(assistantPhoneNumber: string, input: {
+    inboundAgentId?: string | null;
+    outboundAgentId?: string | null;
+    inboundWebhookUrl?: string | null;
+    nickname?: string | null;
+  }): Promise<PhoneNumberResponse> {
+    const existing = this.numbers.get(assistantPhoneNumber) ?? this.numberResponse(assistantPhoneNumber);
+    const updated = {
+      ...existing,
+      inbound_agent_id: input.inboundAgentId ?? existing.inbound_agent_id,
+      outbound_agent_id: input.outboundAgentId ?? existing.outbound_agent_id,
+      inbound_webhook_url: input.inboundWebhookUrl ?? existing.inbound_webhook_url,
+      nickname: input.nickname ?? existing.nickname,
+      last_modification_timestamp: Date.now()
+    };
+    this.numbers.set(assistantPhoneNumber, updated);
+    return updated;
+  }
+
+  async releaseNumber(assistantPhoneNumber: string): Promise<void> {
+    this.released.push(assistantPhoneNumber);
+    this.numbers.delete(assistantPhoneNumber);
+  }
+
+  private generatedPhoneNumber(areaCode?: number): string {
+    this.generatedCount += 1;
+    const area = String(areaCode ?? 555).padStart(3, "0");
+    return `+1${area}555${String(this.generatedCount).padStart(4, "0")}`;
+  }
+
+  private numberResponse(phoneNumber: string, input: Partial<PurchaseVoiceNumberInput> = {}): PhoneNumberResponse {
+    return {
+      phone_number: phoneNumber,
+      area_code: Number(phoneNumber.replace(/\D/g, "").slice(-10, -7)),
+      inbound_agent_id: input.inboundAgentId ?? "agent_default",
+      outbound_agent_id: input.outboundAgentId ?? input.inboundAgentId ?? "agent_default",
+      inbound_webhook_url: input.inboundWebhookUrl ?? "https://example.com/webhooks/retell/inbound",
+      nickname: input.nickname ?? null,
+      phone_number_type: "retell-twilio" as const,
+      last_modification_timestamp: Date.now()
+    };
+  }
+}
+
+class TimeoutVoiceNumberProvider extends FakeVoiceNumberProvider {
+  override async purchaseNumber(input: PurchaseVoiceNumberInput): Promise<PhoneNumberResponse> {
+    this.purchased.push(input);
+    const error = new Error("provider timed out") as Error & { code: string };
+    error.code = "ETIMEDOUT";
+    throw error;
+  }
+}
+
+class ReleaseFailingVoiceNumberProvider extends FakeVoiceNumberProvider {
+  override async releaseNumber(assistantPhoneNumber: string): Promise<void> {
+    this.released.push(assistantPhoneNumber);
+    throw new Error("provider release failed");
+  }
+}
+
+function createTestApp(
+  env: AppEnv = testEnv,
+  pushDelivery?: PushDeliveryClient,
+  options: { voiceNumberProvider?: VoiceNumberProviderClient; initialUserConfigs?: UserConfig[] } = {}
+) {
+  return createApp({
+    env,
+    logger: createLogger("silent"),
+    authVerifier: new FakeAuthVerifier(),
+    pushDelivery,
+    voiceNumberProvider: options.voiceNumberProvider ?? new FakeVoiceNumberProvider(),
+    initialUserConfigs: options.initialUserConfigs
+  });
 }
 
 function auth(uid = "daryl", phoneNumber = "+15557650000", displayName = "Daryl") {
@@ -73,19 +171,65 @@ async function assignDefaultRoute(
   uid = "daryl",
   phoneNumber = "+15557650000",
   displayName = "Daryl",
-  retellPhoneNumber = "+15557650000"
+  assistantPhoneNumber = "+15557650000"
 ) {
+  queuedAssistantNumbers.push(assistantPhoneNumber);
   await request(app)
-    .patch("/v1/me/config")
+    .patch("/v1/me/assistant-profile")
     .set(auth(uid, phoneNumber, displayName))
-    .send({
-      phoneRouting: {
-        retellPhoneNumber,
-        retellAgentId: "agent_default",
-        transferPhoneNumber: phoneNumber
-      }
-    })
+    .send({ assistantName: "Assistant" })
     .expect(200);
+  await request(app)
+    .post("/v1/onboarding/assistant-number")
+    .set(auth(uid, phoneNumber, displayName))
+    .send({ areaCode: areaCodeFor(assistantPhoneNumber) })
+    .expect(200);
+}
+
+function seededUserConfig(input: {
+  uid: string;
+  phoneNumber: string;
+  displayName: string;
+  assistantPhoneNumber: string;
+  voiceAgentId?: string;
+}): UserConfig {
+  const now = new Date();
+  return createUserConfig({
+    userId: `firebase_${input.uid}`,
+    displayName: input.displayName,
+    auth: {
+      firebaseUid: input.uid,
+      phoneNumber: input.phoneNumber,
+      primaryPhoneVerifiedAt: now
+    },
+    assistantProfile: {
+      assistantName: "Assistant"
+    },
+    phoneRouting: {
+      primaryPhoneNumber: input.phoneNumber,
+      assistantPhoneNumber: input.assistantPhoneNumber,
+      voiceAgentId: input.voiceAgentId ?? "agent_default",
+      providerNumberType: "twilio",
+      assistantNumberAssignedAt: now,
+      assistantNumberProvisioningStatus: "assigned",
+      transferPhoneNumber: input.phoneNumber
+    },
+    billing: {
+      assistantNumberProvisioningAllowed: true
+    },
+    onboarding: {
+      accountCreatedAt: now,
+      assistantProfileConfiguredAt: now
+    },
+    now
+  });
+}
+
+function areaCodeFor(phoneNumber: string): number | undefined {
+  const digits = phoneNumber.replace(/\D/g, "");
+  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  const areaCode = national.slice(0, 3);
+  return areaCode.length === 3 ? Number(areaCode) : undefined;
 }
 
 describe("app", () => {
@@ -149,8 +293,16 @@ describe("app", () => {
   });
 
   it("degrades live assistant runtime without caller context when billing is inactive", async () => {
-    const app = createTestApp({ ...testEnv, BILLING_REQUIRED_FOR_PROVISIONING: true });
-    await assignDefaultRoute(app, "maya", "+15550001111", "Maya", "+15559990000");
+    const app = createTestApp({ ...testEnv, BILLING_REQUIRED_FOR_PROVISIONING: true }, undefined, {
+      initialUserConfigs: [
+        seededUserConfig({
+          uid: "maya",
+          phoneNumber: "+15550001111",
+          displayName: "Maya",
+          assistantPhoneNumber: "+15559990000"
+        })
+      ]
+    });
     await request(app)
       .post("/v1/agent-notes")
       .set(auth("maya", "+15550001111", "Maya"))
@@ -380,8 +532,10 @@ describe("app", () => {
       });
   });
 
-  it("removes an authenticated account and blocks subsequent access", async () => {
-    const app = createTestApp();
+  it("removes an authenticated account, releases the assistant number, and blocks subsequent access", async () => {
+    const voiceNumberProvider = new FakeVoiceNumberProvider();
+    const app = createTestApp(testEnv, undefined, { voiceNumberProvider });
+    await assignDefaultRoute(app, "daryl", "+15557650000", "Daryl", "+15559990000");
 
     await request(app)
       .post("/v1/push-tokens")
@@ -402,12 +556,39 @@ describe("app", () => {
         expect(body.removed).toBe(true);
       });
 
+    expect(voiceNumberProvider.released).toEqual(["+15559990000"]);
+
     await request(app)
       .get("/v1/me")
       .set(auth())
       .expect(403)
       .expect(({ body }) => {
         expect(body.error.code).toBe("account_removed");
+      });
+  });
+
+  it("does not clear local routing when assistant number release fails during account removal", async () => {
+    const voiceNumberProvider = new ReleaseFailingVoiceNumberProvider();
+    const app = createTestApp(testEnv, undefined, { voiceNumberProvider });
+    await assignDefaultRoute(app, "daryl", "+15557650000", "Daryl", "+15559990000");
+
+    await request(app)
+      .delete("/v1/account")
+      .set(auth())
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("assistant_number_release_failed");
+      });
+
+    expect(voiceNumberProvider.released).toEqual(["+15559990000"]);
+
+    await request(app)
+      .get("/v1/me")
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.accountStatus).toBe("active");
+        expect(body.user.phoneRouting.assistantPhoneNumber).toBe("+15559990000");
       });
   });
 
@@ -610,7 +791,17 @@ describe("app", () => {
   });
 
   it("stores assistant customization and injects it into Retell call context", async () => {
-    const app = createTestApp();
+    const app = createTestApp(testEnv, undefined, {
+      initialUserConfigs: [
+        seededUserConfig({
+          uid: "maya",
+          phoneNumber: "+15550001111",
+          displayName: "Maya",
+          assistantPhoneNumber: "+15559990000",
+          voiceAgentId: "agent_maya"
+        })
+      ]
+    });
     const mayaAuth = auth("maya", "+15550001111", "Maya");
 
     await request(app)
@@ -630,20 +821,6 @@ describe("app", () => {
         expect(body.assistantProfile.assistantName).toBe("Clara");
         expect(body.assistantProfile.profileVersion).toBe(2);
       });
-
-    await request(app)
-      .patch("/v1/me/config")
-      .set(mayaAuth)
-      .send({
-        phoneRouting: {
-          retellPhoneNumber: "+15559990000",
-          retellAgentId: "agent_maya"
-        },
-        billing: {
-          retellNumberProvisioningAllowed: true
-        }
-      })
-      .expect(200);
 
     const inbound = await request(app)
       .post("/webhooks/retell/inbound")
@@ -667,7 +844,13 @@ describe("app", () => {
   });
 
   it("blocks assistant-number provisioning until the account is allowed", async () => {
-    const app = createTestApp();
+    const app = createTestApp({ ...testEnv, SELF_SERVE_RETELL_PROVISIONING: false });
+
+    await request(app)
+      .patch("/v1/me/assistant-profile")
+      .set(auth("maya", "+15550001111", "Maya"))
+      .send({ assistantName: "Clara" })
+      .expect(200);
 
     await request(app)
       .post("/v1/onboarding/assistant-number")
@@ -675,7 +858,7 @@ describe("app", () => {
       .send({ areaCode: 914 })
       .expect(403)
       .expect(({ body }) => {
-        expect(body.error.code).toBe("retell_number_provisioning_not_allowed");
+        expect(body.error.code).toBe("assistant_number_provisioning_not_allowed");
       });
   });
 
@@ -688,13 +871,9 @@ describe("app", () => {
     });
 
     await request(app)
-      .patch("/v1/me/config")
+      .patch("/v1/me/assistant-profile")
       .set(auth("maya", "+15550001111", "Maya"))
-      .send({
-        billing: {
-          retellNumberProvisioningAllowed: true
-        }
-      })
+      .send({ assistantName: "Clara" })
       .expect(200);
 
     await request(app)
@@ -705,6 +884,92 @@ describe("app", () => {
       .expect(({ body }) => {
         expect(body.error.code).toBe("billing_payment_required");
       });
+  });
+
+  it("assigns assistant numbers idempotently without exposing provider routing details", async () => {
+    const voiceNumberProvider = new FakeVoiceNumberProvider();
+    const app = createTestApp(testEnv, undefined, { voiceNumberProvider });
+
+    queuedAssistantNumbers.push("+19145550100");
+    await request(app)
+      .patch("/v1/me/assistant-profile")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({ assistantName: "Clara" })
+      .expect(200);
+
+    await request(app)
+      .post("/v1/onboarding/assistant-number")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({})
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.assignment.assistantPhoneNumber).toBe("+19145550100");
+        expect(body.assignment.alreadyAssigned).toBe(false);
+        expect(body.user.phoneRouting.assistantPhoneNumber).toBe("+19145550100");
+        expect(JSON.stringify(body)).not.toContain("retellPhoneNumber");
+        expect(JSON.stringify(body)).not.toContain("voiceAgentId");
+        expect(JSON.stringify(body)).not.toContain("providerNumberType");
+      });
+
+    await request(app)
+      .post("/v1/onboarding/assistant-number")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({})
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.assignment.assistantPhoneNumber).toBe("+19145550100");
+        expect(body.assignment.alreadyAssigned).toBe(true);
+      });
+
+    expect(voiceNumberProvider.purchased).toHaveLength(1);
+    expect(voiceNumberProvider.purchased[0]?.areaCode).toBe(914);
+  });
+
+  it("does not retry ambiguous assistant-number provisioning without operator review", async () => {
+    const voiceNumberProvider = new TimeoutVoiceNumberProvider();
+    const app = createTestApp(testEnv, undefined, { voiceNumberProvider });
+
+    await request(app)
+      .patch("/v1/me/assistant-profile")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({ assistantName: "Clara" })
+      .expect(200);
+
+    await request(app)
+      .post("/v1/onboarding/assistant-number")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({})
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("assistant_number_needs_operator_review");
+      });
+
+    await request(app)
+      .post("/v1/onboarding/assistant-number")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({})
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("assistant_number_needs_operator_review");
+      });
+
+    expect(voiceNumberProvider.purchased).toHaveLength(1);
+  });
+
+  it("rejects client-supplied assistant number overrides during provisioning", async () => {
+    const app = createTestApp();
+
+    await request(app)
+      .patch("/v1/me/assistant-profile")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({ assistantName: "Clara" })
+      .expect(200);
+
+    await request(app)
+      .post("/v1/onboarding/assistant-number")
+      .set(auth("maya", "+19145551111", "Maya"))
+      .send({ phoneNumber: "+19145550100" })
+      .expect(400);
   });
 
   it("stores Retell call events for call history", async () => {

@@ -13,13 +13,23 @@ export class FirestoreUserConfigRepository implements UserConfigRepository {
     return doc.exists ? userConfigFromFirestore(doc.id, doc.data() ?? {}) : undefined;
   }
 
-  async getByRetellPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
+  async getByAssistantPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
+    const normalized = normalizePhone(phoneNumber);
     const snapshot = await this.collection()
-      .where("phoneRouting.retellPhoneNumber", "==", normalizePhone(phoneNumber))
+      .where("phoneRouting.assistantPhoneNumber", "==", normalized)
       .limit(1)
       .get();
     const doc = snapshot.docs[0];
-    return doc ? userConfigFromFirestore(doc.id, doc.data()) : undefined;
+    if (doc) {
+      return userConfigFromFirestore(doc.id, doc.data());
+    }
+
+    const legacySnapshot = await this.collection()
+      .where("phoneRouting.retellPhoneNumber", "==", normalized)
+      .limit(1)
+      .get();
+    const legacyDoc = legacySnapshot.docs[0];
+    return legacyDoc ? userConfigFromFirestore(legacyDoc.id, legacyDoc.data()) : undefined;
   }
 
   async upsert(input: UpsertUserConfigInput): Promise<UserConfig> {
@@ -78,10 +88,14 @@ function userConfigFromFirestore(id: string, data: Record<string, unknown>): Use
     assistantProfile: parseAssistantProfile(assistantProfile),
     phoneRouting: {
       primaryPhoneNumber: getString(phoneRouting?.primaryPhoneNumber),
-      retellPhoneNumber: getString(phoneRouting?.retellPhoneNumber),
-      retellAgentId: getString(phoneRouting?.retellAgentId),
-      retellNumberProvider: getRetellProvider(phoneRouting?.retellNumberProvider),
-      retellNumberAssignedAt: firestoreDate(phoneRouting?.retellNumberAssignedAt),
+      assistantPhoneNumber: getString(phoneRouting?.assistantPhoneNumber) ?? getString(phoneRouting?.retellPhoneNumber),
+      voiceAgentId: getString(phoneRouting?.voiceAgentId) ?? getString(phoneRouting?.retellAgentId),
+      providerNumberType: getProviderNumberType(phoneRouting?.providerNumberType) ?? getProviderNumberType(phoneRouting?.retellNumberProvider),
+      assistantNumberAssignedAt: firestoreDate(phoneRouting?.assistantNumberAssignedAt) ?? firestoreDate(phoneRouting?.retellNumberAssignedAt),
+      assistantNumberProvisioningStatus: getProvisioningStatus(phoneRouting?.assistantNumberProvisioningStatus)
+        ?? (getString(phoneRouting?.assistantPhoneNumber) || getString(phoneRouting?.retellPhoneNumber) ? "assigned" : undefined),
+      assistantNumberLastErrorCode: getString(phoneRouting?.assistantNumberLastErrorCode),
+      assistantNumberProvisioningAttemptId: getString(phoneRouting?.assistantNumberProvisioningAttemptId),
       forwardingInstructionsViewedAt: firestoreDate(phoneRouting?.forwardingInstructionsViewedAt),
       transferPhoneNumber: getString(phoneRouting?.transferPhoneNumber)
     },
@@ -89,7 +103,9 @@ function userConfigFromFirestore(id: string, data: Record<string, unknown>): Use
       plan: getString(billing?.plan) ?? "beta",
       monthlyIncludedMinutes: getNumber(billing?.monthlyIncludedMinutes) ?? 300,
       monthlyClassificationLimit: getNumber(billing?.monthlyClassificationLimit) ?? 1000,
-      retellNumberProvisioningAllowed: getBoolean(billing?.retellNumberProvisioningAllowed) ?? false
+      assistantNumberProvisioningAllowed: getBoolean(billing?.assistantNumberProvisioningAllowed)
+        ?? getBoolean(billing?.retellNumberProvisioningAllowed)
+        ?? false
     },
     onboarding: {
       accountCreatedAt: firestoreDate(onboarding?.accountCreatedAt),
@@ -103,11 +119,11 @@ function userConfigFromFirestore(id: string, data: Record<string, unknown>): Use
   };
 }
 
-function normalizeRouting<T extends { primaryPhoneNumber?: string; retellPhoneNumber?: string; transferPhoneNumber?: string }>(routing: T): T {
+function normalizeRouting<T extends { primaryPhoneNumber?: string; assistantPhoneNumber?: string; transferPhoneNumber?: string }>(routing: T): T {
   return {
     ...routing,
     primaryPhoneNumber: routing.primaryPhoneNumber ? normalizePhone(routing.primaryPhoneNumber) : undefined,
-    retellPhoneNumber: routing.retellPhoneNumber ? normalizePhone(routing.retellPhoneNumber) : undefined,
+    assistantPhoneNumber: routing.assistantPhoneNumber ? normalizePhone(routing.assistantPhoneNumber) : undefined,
     transferPhoneNumber: routing.transferPhoneNumber ? normalizePhone(routing.transferPhoneNumber) : undefined
   };
 }
@@ -132,8 +148,18 @@ function getBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
-function getRetellProvider(value: unknown): "twilio" | "telnyx" | "custom" | undefined {
+function getProviderNumberType(value: unknown): "twilio" | "telnyx" | "custom" | undefined {
   return value === "twilio" || value === "telnyx" || value === "custom" ? value : undefined;
+}
+
+function getProvisioningStatus(value: unknown): UserConfig["phoneRouting"]["assistantNumberProvisioningStatus"] | undefined {
+  return value === "unassigned"
+    || value === "provisioning"
+    || value === "assigned"
+    || value === "failed"
+    || value === "needs_operator_review"
+    ? value
+    : undefined;
 }
 
 function getAccountStatus(value: unknown): UserConfig["accountStatus"] {

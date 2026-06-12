@@ -173,7 +173,7 @@ sequenceDiagram
     App->>Store: Mark read/dismissed
 ```
 
-## Multi-User Onboarding And Retell Provisioning
+## Multi-User Onboarding And Assistant-Number Provisioning
 
 ```mermaid
 sequenceDiagram
@@ -182,7 +182,8 @@ sequenceDiagram
     participant Auth as Backend auth middleware
     participant Users as User config store
     participant Billing as Billing service
-    participant Provision as Voice provisioning service
+    participant Provision as Assistant number provisioning
+    participant VoiceNumber as Voice number provider adapter
     participant Retell as Retell phone-number API
     participant Onboarding as Onboarding status
 
@@ -195,13 +196,18 @@ sequenceDiagram
     App->>Billing: Add card and set spending cap
     Billing-->>Users: billing_active
     App->>Provision: Request assistant number(area code optional)
-    Provision->>Users: Check auth, verification, billing, existing assignment
-    Provision->>Retell: Purchase/update number with inbound webhook
-    Retell-->>Provision: phone number assignment
-    Provision->>Users: Store Retell mapping
+    Provision->>Users: Check phone verification, assistant profile, billing, existing assignment
+    Provision->>Users: Store provisioning attempt(status=provisioning)
+    Provision->>VoiceNumber: Purchase on demand with webhook and agent binding
+    VoiceNumber->>Retell: Create/update/list phone number
+    Retell-->>VoiceNumber: Provider number payload
+    VoiceNumber-->>Provision: Provider-neutral assignment
+    Provision->>Users: Store assistant number mapping(status=assigned)
     App->>Onboarding: Fetch status
     Onboarding-->>App: next forwarding/test-call step
 ```
+
+If Retell returns a clear provider error, provisioning stores `failed` with a sanitized error code. If the purchase outcome is ambiguous after a timeout or network failure, provisioning stores `needs_operator_review` so retries do not accidentally purchase duplicate paid numbers.
 
 ## Assistant Profile To Voice Provider
 
@@ -442,10 +448,25 @@ classDiagram
         +getCallDetail(providerCallId)
     }
 
+    class VoiceNumberProviderClient {
+        <<interface>>
+        +purchaseNumber(request)
+        +updateNumber(assistantPhoneNumber, request)
+        +listNumbers()
+        +releaseNumber(assistantPhoneNumber)
+    }
+
     class RetellVoiceProvider {
         +normalizeCallEvent(raw)
         +provideInboundContext(request)
         +bridgeToUser(callId, destination)
+    }
+
+    class RetellVoiceNumberProviderClient {
+        +purchaseNumber(request)
+        +updateNumber(assistantPhoneNumber, request)
+        +listNumbers()
+        +releaseNumber(assistantPhoneNumber)
     }
 
     class EmailProvider {
@@ -474,6 +495,7 @@ classDiagram
 
     CommunicationProvider <|-- VoiceProvider
     VoiceProvider <|.. RetellVoiceProvider
+    VoiceNumberProviderClient <|.. RetellVoiceNumberProviderClient
     CommunicationProvider <|-- EmailProvider
     CommunicationProvider <|-- SmsProvider
     CommunicationProvider <|-- CalendarProvider

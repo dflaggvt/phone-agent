@@ -4,13 +4,19 @@ import { createUserConfig } from "../../domain/users/userConfig.js";
 export class InMemoryUserConfigRepository implements UserConfigRepository {
   private readonly configs = new Map<string, UserConfig>();
 
+  constructor(initialConfigs: UserConfig[] = []) {
+    initialConfigs.forEach((config) => {
+      this.configs.set(config.userId, config);
+    });
+  }
+
   async get(userId: string): Promise<UserConfig | undefined> {
     return this.configs.get(userId);
   }
 
-  async getByRetellPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
+  async getByAssistantPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined> {
     const normalized = normalizePhone(phoneNumber);
-    return [...this.configs.values()].find((config) => normalizePhone(config.phoneRouting.retellPhoneNumber) === normalized);
+    return [...this.configs.values()].find((config) => normalizePhone(config.phoneRouting.assistantPhoneNumber) === normalized);
   }
 
   async upsert(input: UpsertUserConfigInput): Promise<UserConfig> {

@@ -622,18 +622,6 @@ h2 {
   white-space: nowrap;
 }
 
-.trust-section {
-  background: #181029;
-}
-
-.trust-list {
-  display: grid;
-  gap: 18px;
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.65;
-}
-
 .beta-section {
   background: var(--paper);
   color: var(--ink);

@@ -29,7 +29,7 @@ describe("UsageService", () => {
         plan: "personal",
         monthlyIncludedMinutes: 50,
         monthlyClassificationLimit: 100,
-        retellNumberProvisioningAllowed: true
+        assistantNumberProvisioningAllowed: true
       }
     });
     await billingAccounts.upsert({
@@ -75,7 +75,7 @@ describe("UsageService", () => {
       }
     });
 
-    await users.upsert({ userId: "user_123", billing: { plan: "personal", monthlyIncludedMinutes: 0, monthlyClassificationLimit: 100, retellNumberProvisioningAllowed: true } });
+    await users.upsert({ userId: "user_123", billing: { plan: "personal", monthlyIncludedMinutes: 0, monthlyClassificationLimit: 100, assistantNumberProvisioningAllowed: true } });
     await billingAccounts.upsert({ userId: "user_123", providerCustomerId: "cus_123", status: "active", monthlySpendingCapCents: 4000, currentPeriodSpendCents: 1900 });
 
     await service.recordCallMinutes({ userId: "user_123", minutes: 2, sourceId: "call_duplicate" });
@@ -104,7 +104,7 @@ describe("UsageService", () => {
       }
     });
 
-    await users.upsert({ userId: "user_123", billing: { plan: "personal", monthlyIncludedMinutes: 0, monthlyClassificationLimit: 100, retellNumberProvisioningAllowed: true } });
+    await users.upsert({ userId: "user_123", billing: { plan: "personal", monthlyIncludedMinutes: 0, monthlyClassificationLimit: 100, assistantNumberProvisioningAllowed: true } });
     await billingAccounts.upsert({ userId: "user_123", providerCustomerId: "cus_123", status: "active", monthlySpendingCapCents: 2500, currentPeriodSpendCents: 1200 });
 
     await service.recordCallMinutes({ userId: "user_123", minutes: 3, sourceId: "call_warning" });

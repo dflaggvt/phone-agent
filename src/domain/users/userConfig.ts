@@ -1,9 +1,12 @@
 export interface UserPhoneRouting {
   primaryPhoneNumber?: string;
-  retellPhoneNumber?: string;
-  retellAgentId?: string;
-  retellNumberProvider?: "twilio" | "telnyx" | "custom";
-  retellNumberAssignedAt?: Date;
+  assistantPhoneNumber?: string;
+  voiceAgentId?: string;
+  providerNumberType?: "twilio" | "telnyx" | "custom";
+  assistantNumberAssignedAt?: Date;
+  assistantNumberProvisioningStatus?: "unassigned" | "provisioning" | "assigned" | "failed" | "needs_operator_review";
+  assistantNumberLastErrorCode?: string;
+  assistantNumberProvisioningAttemptId?: string;
   transferPhoneNumber?: string;
   forwardingInstructionsViewedAt?: Date;
 }
@@ -12,7 +15,7 @@ export interface UserBillingLimits {
   plan: string;
   monthlyIncludedMinutes: number;
   monthlyClassificationLimit: number;
-  retellNumberProvisioningAllowed: boolean;
+  assistantNumberProvisioningAllowed: boolean;
 }
 
 export interface UserAuthState {
@@ -71,7 +74,7 @@ export interface UpsertUserConfigInput {
 
 export interface UserConfigRepository {
   get(userId: string): Promise<UserConfig | undefined>;
-  getByRetellPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined>;
+  getByAssistantPhoneNumber(phoneNumber: string): Promise<UserConfig | undefined>;
   upsert(input: UpsertUserConfigInput): Promise<UserConfig>;
 }
 
@@ -89,7 +92,7 @@ export function createUserConfig(input: UpsertUserConfigInput & { now?: Date }):
       plan: input.billing?.plan ?? "beta",
       monthlyIncludedMinutes: input.billing?.monthlyIncludedMinutes ?? 300,
       monthlyClassificationLimit: input.billing?.monthlyClassificationLimit ?? 1000,
-      retellNumberProvisioningAllowed: input.billing?.retellNumberProvisioningAllowed ?? false
+      assistantNumberProvisioningAllowed: input.billing?.assistantNumberProvisioningAllowed ?? false
     },
     onboarding: {
       accountCreatedAt: now,

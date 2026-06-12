@@ -37,15 +37,15 @@ export class ActiveCallService {
     }
   ) {}
 
-  async getActiveCall(input: { userId?: string; userRetellPhoneNumber?: string } = {}, now = new Date()): Promise<ActiveCallView | undefined> {
+  async getActiveCall(input: { userId?: string; userAssistantPhoneNumber?: string } = {}, now = new Date()): Promise<ActiveCallView | undefined> {
     const sessions = await this.dependencies.calls.listCalls();
-    const userRetellPhoneNumber = normalizePhoneNumber(input.userRetellPhoneNumber);
-    if (!userRetellPhoneNumber) {
+    const userAssistantPhoneNumber = normalizePhoneNumber(input.userAssistantPhoneNumber);
+    if (!userAssistantPhoneNumber) {
       return undefined;
     }
     const maxActiveAgeMs = this.dependencies.maxActiveAgeMs ?? 2 * 60 * 60 * 1000;
     const active = sessions.find((session) => {
-      if (userRetellPhoneNumber && !sessionMatchesRoute(session, userRetellPhoneNumber)) {
+      if (userAssistantPhoneNumber && !sessionMatchesRoute(session, userAssistantPhoneNumber)) {
         return false;
       }
       if (session.status === "completed" || session.status === "failed") {
@@ -141,9 +141,9 @@ function getString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function sessionMatchesRoute(session: CallSession, normalizedRetellPhoneNumber: string): boolean {
-  return normalizePhoneNumber(session.toNumber) === normalizedRetellPhoneNumber
-    || normalizePhoneNumber(session.fromNumber) === normalizedRetellPhoneNumber;
+function sessionMatchesRoute(session: CallSession, normalizedAssistantPhoneNumber: string): boolean {
+  return normalizePhoneNumber(session.toNumber) === normalizedAssistantPhoneNumber
+    || normalizePhoneNumber(session.fromNumber) === normalizedAssistantPhoneNumber;
 }
 
 function normalizePhoneNumber(value?: string): string | undefined {

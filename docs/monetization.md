@@ -34,7 +34,8 @@ Initial beta defaults:
 - Warning thresholds: `50%`, `80%`, and `100%` of cap.
 - Hard stop at cap unless the user increases it.
 - Grace behavior at cap: assistant can still show history and settings, but new AI-handled calls should be blocked, routed to a plain fallback message, or handled only if the provider supports a no-cost fallback.
-- Cancellation behavior: set local billing state to `canceled`, cancel the provider subscription when one exists, disable paid resource provisioning, and block new paid assistant work. Do not erase account history unless the user separately chooses account removal.
+- Cancellation behavior: set local billing state to `canceled`, cancel the provider subscription when one exists, disable paid resource provisioning, and block new paid assistant work. Do not erase account history or release the assigned assistant number unless the user separately chooses account removal.
+- Account removal behavior: cancel paid access, immediately release/delete the assigned assistant number through the voice-number provider adapter to stop ongoing number cost, then clear local routing and sign-in access. If provider-side release fails, keep the local assistant-number mapping and fail the removal request so support can retry without losing cost visibility.
 
 Recommended paid launch pricing:
 
@@ -145,7 +146,7 @@ User billing states:
 - `cap_reached`: paid usage blocked until cap increase or next billing period.
 - `past_due`: payment failed; paid usage paused after grace period.
 - `suspended`: abuse, chargeback, or policy block.
-- `canceled`: paid resources should be released or disabled after retention window.
+- `canceled`: new paid usage is blocked and paid provisioning is disabled; assigned assistant numbers remain until the user removes the account or a separate operator cleanup policy is invoked.
 
 Paid action gates:
 
