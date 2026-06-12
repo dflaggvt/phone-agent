@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="560" viewBox="0 0 1440 560" role="img" aria-labelledby="title desc">
+  <title id="title">Call Held logo concepts</title>
+  <desc id="desc">Three vector logo concepts for Call Held: Held Ring, Protected Call, and Topic Thread.</desc>
+  <defs>
+    <linearGradient id="purpleBase" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#7257C8"/>
+      <stop offset="1" stop-color="#17082F"/>
+    </linearGradient>
+    <linearGradient id="softBase" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#7D65D9"/>
+      <stop offset="1" stop-color="#261047"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#17082F" flood-opacity=".22"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="560" fill="#F6F2FB"/>
+
+  <g transform="translate(100 72)">
+    <rect width="340" height="340" rx="72" fill="url(#purpleBase)" filter="url(#shadow)"/>
+    <path d="M219 108C203 96 183 89 162 89C108 89 66 130 66 184C66 239 108 280 162 280C183 280 203 273 219 261" fill="none" stroke="#FFF8EE" stroke-width="36" stroke-linecap="round"/>
+    <path d="M238 105V265" stroke="#FFF8EE" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="265" cy="99" r="15" fill="#66D7A6"/>
+    <text x="0" y="402" fill="#17082F" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">Held Ring</text>
+    <text x="0" y="438" fill="#5B536A" font-family="Inter, Arial, sans-serif" font-size="22">Recommended: simple, ownable, scales well.</text>
+  </g>
+
+  <g transform="translate(550 72)">
+    <rect width="340" height="340" rx="72" fill="url(#softBase)" filter="url(#shadow)"/>
+    <path d="M101 222C132 274 207 274 239 222" fill="none" stroke="#FFF8EE" stroke-width="32" stroke-linecap="round"/>
+    <path d="M111 217C94 178 106 132 141 108C181 82 233 94 259 134" fill="none" stroke="#FFF8EE" stroke-width="32" stroke-linecap="round"/>
+    <path d="M158 149C176 138 201 143 214 162L229 184C236 195 233 209 222 216L206 226C188 199 171 175 152 149Z" fill="#66D7A6"/>
+    <circle cx="259" cy="133" r="13" fill="#F4BE55"/>
+    <text x="0" y="402" fill="#17082F" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">Protected Call</text>
+    <text x="0" y="438" fill="#5B536A" font-family="Inter, Arial, sans-serif" font-size="22">More literal: call safety and assistant guardrail.</text>
+  </g>
+
+  <g transform="translate(1000 72)">
+    <rect width="340" height="340" rx="72" fill="#17082F" filter="url(#shadow)"/>
+    <path d="M91 145C91 112 118 86 151 86H198C231 86 258 112 258 145V175C258 208 231 234 198 234H170L124 268V234C105 234 91 218 91 199V145Z" fill="#FFF8EE"/>
+    <path d="M127 150H222" stroke="#17082F" stroke-width="17" stroke-linecap="round"/>
+    <path d="M127 187H184" stroke="#17082F" stroke-width="17" stroke-linecap="round"/>
+    <circle cx="229" cy="104" r="13" fill="#66D7A6"/>
+    <text x="0" y="402" fill="#17082F" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">Topic Thread</text>
+    <text x="0" y="438" fill="#5B536A" font-family="Inter, Arial, sans-serif" font-size="22">Clear communication symbol, but less distinctive.</text>
+  </g>
+</svg>

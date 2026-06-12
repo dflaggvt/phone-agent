@@ -19,6 +19,21 @@ export interface TopicSuggestion {
   decidedAt?: Date;
 }
 
+export interface TopicSuggestionSourceCommunication {
+  id: string;
+  channel: string;
+  channelLabel: string;
+  displayName?: string;
+  phoneNumber?: string;
+  occurredAt: Date;
+  summary?: string;
+}
+
+export interface TopicSuggestionListItem extends TopicSuggestion {
+  suggestedTopicTitle: string;
+  sourceCommunication?: TopicSuggestionSourceCommunication;
+}
+
 export interface CreateTopicSuggestionInput {
   userId: string;
   communicationItemId: string;

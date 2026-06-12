@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a fresh, ideal-state mobile product blueprint for Phone Agent. It is intentionally not based on the current Android implementation.
+This is a fresh, ideal-state mobile product blueprint for Phone Agent, whose consumer-facing app brand is Call Held. It is intentionally not based on the current Android implementation.
 
 The current app should be treated as disposable scaffolding. This document defines the target consumer-grade product experience. Implementation should conform to this blueprint, not the reverse.
 
@@ -12,7 +12,7 @@ The production Android client is Kotlin with Jetpack Compose. The previous hand-
 
 Compose implementation requirements:
 
-- Use Material 3 as the Android foundation for accessibility, state, touch targets, text fields, buttons, chips, surfaces, and theme plumbing, but wrap it in Phone Agent product components so the app does not look like stock Material.
+- Use Material 3 as the Android foundation for accessibility, state, touch targets, text fields, buttons, chips, surfaces, and theme plumbing, but wrap it in Call Held product components so the app does not look like stock Material.
 - Use MVVM for production Android screens: Compose renders state, ViewModels expose `StateFlow`, repositories perform backend/cache work, and Activity code is limited to Android integration edges such as permissions, auth callbacks, dial intents, and browser launches.
 - Use Hilt for dependency injection. Do not manually construct backend clients, repositories, or Room databases in Activities.
 - Use Retrofit and OkHttp for REST calls. Do not add new app API calls through raw `HttpURLConnection`.
@@ -35,9 +35,9 @@ Initial Compose migration slice:
 
 ## Product Design Thesis
 
-Phone Agent is not a voicemail inbox, call-screening utility, call center dashboard, or Retell control panel.
+Call Held is not a voicemail inbox, call-screening utility, call center dashboard, or Retell control panel.
 
-Phone Agent is a personal communication intelligence layer. It receives fragmented communications, understands what real-world situation they belong to, remembers what matters, protects the user's attention, and turns communication into decisions, tasks, calendar events, answers, and shared follow-ups.
+Call Held is a personal communication intelligence layer. It receives fragmented communications, understands what real-world situation they belong to, remembers what matters, protects the user's attention, and turns communication into decisions, tasks, calendar events, answers, and shared follow-ups.
 
 The app should feel like the user's private chief of staff for communications:
 
@@ -62,7 +62,7 @@ The app should feel like the user's private chief of staff for communications:
 
 ## Experience North Star
 
-When the user opens Phone Agent, they should know within `5` seconds:
+When the user opens Call Held, they should know within `5` seconds:
 
 - Whether the assistant is active.
 - Whether anyone needs them now.
@@ -73,7 +73,7 @@ When the user opens Phone Agent, they should know within `5` seconds:
 
 The ideal daily habit:
 
-1. User opens Phone Agent in the morning.
+1. User opens Call Held in the morning.
 2. Today shows `3-7` things that matter.
 3. User clears decisions, answers, and topic suggestions in under `3` minutes.
 4. User trusts that routine communication will not interrupt them.
@@ -118,7 +118,7 @@ Home is the daily command center. It owns the first-screen briefing, recent call
 
 Assistant is the live control surface. It answers: "What is my assistant doing now, and what can I tell it?" It owns live-call requests, quick context notes, forwarding/test-call actions, and immediate channel readiness. It must not duplicate billing, profile, broad settings, full call history, or long-term topic management.
 
-Profile is account and configuration. It owns identity, assistant name/behavior settings, forwarding, billing, calendar, contacts, notification preferences, privacy, support, diagnostics, and logout. The header presence/avatar may also open Profile.
+Profile is account and configuration. It owns identity, assistant name/behavior settings, forwarding, billing, calendar, contacts, notification preferences, privacy, support, and logout. Internal diagnostics must not appear as a top-level consumer-facing Profile action. The header presence/avatar may also open Profile.
 
 Topics remain the durable memory product. The technical domain object may remain `TopicThread`, but consumer UI should say "Topics" and "Topic" instead of "Threads" and "Thread." Topics are promoted on Home through quiet topic-name tiles and opened through a `See all topics` drill-in rather than occupying a permanent tab.
 
@@ -172,7 +172,7 @@ The authenticated app chrome should follow the calmer, integrated pattern of pre
 Header elements:
 
 - Left: circular user avatar, then notification/needs-you icon.
-- Center: compact Phone Agent wordmark.
+- Center: compact Call Held wordmark.
 - Right: search or utility icon.
 
 The selected tab title should appear in content when needed, not as the only thing in the top bar. The top bar should make the app feel stable and persistent across Home, Assistant, and Profile.
@@ -256,7 +256,7 @@ Sections:
 - Billing: plan, card, spending cap, invoices.
 - Calendar and connected channels.
 - Privacy and notification preferences.
-- Support and diagnostics.
+- Support.
 - Logout.
 
 Logout:
@@ -577,7 +577,7 @@ Primary question: "What is my assistant doing now, and what can I tell it?"
 
 ### Bottom Nav Item 3: Profile
 
-Purpose: account, setup, billing, identity, privacy, channels, diagnostics, and logout.
+Purpose: account, setup, billing, identity, privacy, channels, support, and logout.
 
 Primary question: "How is my assistant/account configured?"
 
@@ -835,19 +835,27 @@ Create screen target:
 
 The assistant may suggest up to `5` new topics.
 
-Suggestion card includes:
+Collapsed suggestion card includes:
 
-- Suggested title.
-- Why it exists.
-- Source communications count.
-- Confidence.
-- Initial participants.
+- One small label: `Suggested topic` or `Topic match`.
+- Topic title, max `2` lines.
+- Source line, max `1` line: `From Theresa · Call · Jun 11, 5:17 PM`.
+- One short reason, max `2` lines and under `120` characters.
+
+Collapsed suggestion cards must not show confidence percentages, source-call boxes, full summaries, AI reasoning, participant lists, transcript snippets, source communication counts, or action explainer copy. Those details belong in a future expanded/detail state, not the primary Assistant queue.
 
 Actions:
 
-- Create.
-- Merge into existing.
-- Dismiss.
+- `Create topic` for new-topic suggestions.
+- `Add to topic` for existing-topic suggestions.
+- `Dismiss` for rejection.
+
+Action feedback:
+
+- Buttons must never be inert. While saving, show the global saving state or row-level disabled state.
+- Topic suggestion actions use explicit review-action surfaces, not decorative text buttons. Each visible action target is at least `52dp` tall, spans its half of the card row, and has a direct click handler on the visible surface.
+- After success, remove the card from the visible queue and show a short confirmation such as `Topic created` or `Suggestion dismissed`.
+- If the action fails, keep the card visible and show a recoverable error.
 
 Confidence thresholds:
 
@@ -1244,7 +1252,7 @@ The Assistant tab should not feel like a diagnostic dashboard. Technical URLs, w
 The current native Android Assistant tab should use this hierarchy:
 
 - Top command card: assistant name, active/setup/live chip, one plain-language explanation, and exactly `3` compact metric pills in one horizontal row.
-- Needs review: show action-oriented items the assistant needs from the user. Ordering is live transfer requests, live answer requests, topic suggestions, decision cards, conflicts, and sensitive-memory reviews. If none exist, use a slim empty state that explains the assistant will ask here when it needs input.
+- Needs review: show action-oriented items the assistant needs from the user. Ordering is live transfer requests, live answer requests, topic suggestions, decision cards, conflicts, and sensitive-memory reviews. Topic suggestion cards must explain what accepting does in user language, not only show an internal confidence score. If none exist, use a slim empty state that explains the assistant will ask here when it needs input.
 - Prepared notes: active user-authored notes the assistant can use on the next call, capped at `3` rows before drill-in.
 - Recent activity: privacy-safe notification/activity rows from the assistant, capped at `4` rows.
 - Minimal actions: only `Add note` and `Test call`. These are live-use actions, not settings. Forwarding, billing, contacts, calendar, privacy, rules, model/provider status, and channel setup controls belong in Profile or dedicated settings/detail screens.
@@ -1534,17 +1542,16 @@ The first-run flow must assume the user is not Daryl, has no Retell number, has 
 
 Required screens:
 
-1. Splash/title screen with temporary logo, product name, short value promise, and account actions.
-2. Account choice actions: `Create account` and `Log in`.
-3. Create account: Google first, with email/password as a secondary account path.
-4. Log in: Google first, with email/password as a secondary account path for existing accounts and Play review access.
-5. Verify code when mobile-number OTP is used for protected-number verification.
-6. Protected mobile-number verification when a Google-authenticated account does not yet have a verified phone.
-7. Name assistant.
-8. Assign assistant number.
-9. Configure forwarding.
-10. Test assistant.
-11. First handled call review.
+1. Native launch splash while authentication state loads. Do not add an artificial delay; route as soon as state is known.
+2. Create account: the first real signed-out screen, using a full-screen brand-led account chooser with `Continue with Email` and `Continue with Google`. The email row expands into email/password fields on the same screen; do not show unsupported Apple/Facebook options.
+3. Log in: full-screen brand-led account chooser with `Sign in with Email` and `Sign in with Google` for existing accounts and Play review access. The email row expands into email/password fields and password reset on the same screen; do not show unsupported Apple/Facebook options.
+4. Verify code when mobile-number OTP is used for protected-number verification.
+5. Protected mobile-number verification when a Google-authenticated account does not yet have a verified phone.
+6. Name assistant.
+7. Assign assistant number.
+8. Configure forwarding.
+9. Test assistant.
+10. First handled call review.
 
 Do not show the main authenticated shell until account bootstrap succeeds. If backend auth is unavailable, show a recoverable setup error rather than a fake demo account.
 
@@ -1554,7 +1561,20 @@ Auth and onboarding must not collapse into a single ambiguous form. `Create acco
 
 Auth screen copy must match the user's intent. The login screen should not use generic setup copy, phone-number fields, or imply account creation. It should say the user is accessing an existing assistant and may resume setup only if the existing account is incomplete. The protected-number verification screen should explain that the phone number is the number the assistant protects and uses for routing/account recovery, not a second account-creation step.
 
-The first unauthenticated screen must not look like a setup form. It should behave like a title/splash screen: centered temporary logo mark, `Phone Agent` product name, one short promise line, and the two account actions below. No input fields, setup card, checklist, or provider-specific language should appear on this screen.
+Create-account and login screens should use a calm full-screen provider-choice layout inspired by premium consumer apps:
+
+- Login has a top-left close target `48-56dp` that returns to Create Account. Create Account is the first real signed-out screen and should not show a close button unless there is a meaningful prior screen.
+- Centered Call Held wordmark in the upper half.
+- Create-account headline copy is `Create an account`; login headline copy is `Log in to your account`.
+- Headline centered, `25-27sp`, bold, max `2` lines.
+- Provider rows are compact white pill buttons, height `48-52dp`, radius `999dp`, horizontal margins `24-40dp`, leading icon/text mark `26-32dp`, and label `19-20sp` medium-to-semi-bold, not bold or extra-bold.
+- Supported methods only: Email and Google. Do not render Facebook, Apple, phone-number login, or any fake provider path.
+- Email provider row expands an inline white card with email/password fields and the submit action. Password reset appears only on the login screen after the email form is open.
+- Legal copy sits below provider rows at `14-16sp` with clickable links to `https://callheld.com/terms` and `https://callheld.com/privacy`.
+- Bottom switch copy is explicit: `Have an account? Log in` on create-account and `Need an account? Sign up` on login.
+- Error state appears as one compact white card under the headline or above the provider rows; it must not push the primary provider buttons off-screen on a `360x780dp` viewport.
+
+The first unauthenticated screen must not be a separate choice screen or timed interstitial. After the native splash/auth check, show Create Account directly with centered Call Held branding, provider actions, legal copy, and the `Have an account? Log in` switch. No separate promise sentence, setup card, checklist, forced 3-second delay, or provider-specific technical language should appear before account creation.
 
 Onboarding screen behavior:
 
@@ -1692,7 +1712,7 @@ Production behavior:
 - Phone verification after Google sign-in must link the phone credential to the existing Firebase user rather than creating a second account.
 - After a phone credential links successfully, the app must force-refresh the Firebase ID token before loading setup state. Returning users with a previously verified protected number must not be sent back to verification just because a later Google token omits the phone claim.
 - If the verified phone number is already attached to a different Firebase account, the app must not silently switch accounts or create a phone-only login path. It should show a calm product-owned error explaining that the number is already connected to another account and provide a support/recovery path.
-- The verification code is never returned by the Phone Agent backend.
+- The verification code is never returned by the Call Held backend.
 - The setup code must not be displayed in production.
 - The button label is `Send code`.
 - The create-account and login screens should offer Google as the preferred path and email/password as a secondary path. Phone-number OTP remains available for protected-number verification, not account creation or returning-user login.
@@ -1883,7 +1903,7 @@ Fields:
 
 - Agent may check free/busy.
 - Agent may create events when policy allows.
-- Agent may update only Phone Agent-created events.
+- Agent may update only Call Held-created events.
 - User gets notification for every create/update/delete.
 
 ### Calendar Activity
@@ -1948,6 +1968,10 @@ Sensitive topic behavior:
 - Require explicit user confirmation before durable memory promotion.
 
 ## Notifications Blueprint
+
+### Permission Timing
+
+Android notification permission must not appear on the first signed-out screen. The app may register device capabilities in the background after authentication, but the runtime notification prompt should appear only after the user has an authenticated account and reaches the main app shell or a notification-related setup surface. A denied permission must not block account creation, protected-number verification, forwarding setup, or core onboarding.
 
 ### Notification Types
 
@@ -2086,7 +2110,7 @@ Screen specs:
 
 Required copy:
 
-- "Phone Agent Personal is $19/month and includes your assistant number and 50 assistant minutes."
+- "Call Held Personal is $19/month and includes your assistant number and 50 assistant minutes."
 - "You can change or pause this anytime."
 - "Set the most you want to spend this month if usage goes above the included minutes."
 

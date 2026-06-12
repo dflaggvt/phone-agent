@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
@@ -228,15 +227,104 @@ internal fun CallRow(call: CallRecord, actions: AppActions) {
 }
 
 @Composable
-internal fun SuggestionCard(suggestion: TopicSuggestion, actions: AppActions) {
+internal fun SuggestionCard(suggestion: TopicSuggestion, actions: AppActions, enabled: Boolean = true) {
     WorkCard {
-        Text("Review topic suggestion / ${(suggestion.confidence * 100).toInt()}%", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        Text(suggestion.title, color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-        Text(suggestion.reason, color = Muted, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(8.dp))
+        Text(
+            suggestion.reviewLabel,
+            color = Muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            suggestion.title,
+            color = Ink,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 22.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            suggestion.compactSourceLabel,
+            color = Muted,
+            fontSize = 13.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (suggestion.compactReason.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                suggestion.compactReason,
+                color = Muted,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PrimaryButton("Accept", Icons.AutoMirrored.Filled.Send, Modifier.weight(1f)) { actions.acceptSuggestion(suggestion.id) }
-            SecondaryButton("Dismiss", Modifier.weight(1f)) { actions.dismissSuggestion(suggestion.id) }
+            ReviewActionButton(
+                text = suggestion.acceptLabel,
+                icon = Icons.Filled.Add,
+                emphasized = true,
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                actions.acceptSuggestion(suggestion.id)
+            }
+            ReviewActionButton(
+                text = suggestion.dismissLabel,
+                emphasized = false,
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                actions.dismissSuggestion(suggestion.id)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewActionButton(
+    text: String,
+    emphasized: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(14.dp)
+    val background = when {
+        emphasized && enabled -> Brand
+        emphasized -> Brand.copy(alpha = 0.42f)
+        else -> Color.White.copy(alpha = 0.50f)
+    }
+    val foreground = if (emphasized) Color.White else Ink
+    val border = if (emphasized) null else BorderStroke(1.dp, Line)
+    Surface(
+        modifier = modifier
+            .height(52.dp)
+            .clip(shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = shape,
+        color = background,
+        border = border
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(23.dp))
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(text, color = foreground, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

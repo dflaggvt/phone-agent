@@ -51,6 +51,9 @@ interface PhoneAgentCacheDao {
     @Query("DELETE FROM cached_topic_suggestions")
     suspend fun clearTopicSuggestions()
 
+    @Query("DELETE FROM cached_topic_suggestions WHERE id = :id")
+    suspend fun deleteTopicSuggestion(id: String)
+
     @Query("DELETE FROM cached_notifications")
     suspend fun clearNotifications()
 }

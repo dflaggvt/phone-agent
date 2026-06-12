@@ -4,7 +4,7 @@
 
 - App name: Call Held.
 - Package name: `com.phoneagent.app`.
-- Category: Productivity.
+- Category: Communication.
 - Track for first release: Closed testing.
 - Target audience: adults.
 - Ads: no ads.
@@ -48,6 +48,29 @@ Call Held supports Google sign-in, email/password sign-in, and protected mobile-
 7. Place a test call to the assigned assistant number.
 
 If Google review requires app access credentials, create a dedicated Firebase email/password reviewer account and a dedicated reviewer test phone number in Firebase Authentication, then document only those credentials in the Play Console app access field. Do not include reviewer credentials in source control.
+
+### Reviewer Demo Data
+
+The Play reviewer account should be seeded with non-sensitive demo data before submitting a closed-test build. The demo account must not depend on real provider calls, real phone-number provisioning, real Stripe activity, or a real user's private communications.
+
+Use:
+
+```text
+npm run play:seed-reviewer-demo
+```
+
+The seed creates deterministic, safe demo records for the dedicated reviewer user:
+
+- Completed onboarding and active demo billing state.
+- Fake protected phone number and fake assistant forwarding number.
+- Sample topics such as Home Repair, Family Schedule, and Work Follow-Ups.
+- Sample handled calls with summaries, intent, urgency, and follow-up text.
+- Sample communication items attached to topics.
+- Sample contact sync status.
+- A pending live-answer request so the Assistant/Review surface demonstrates how a caller can ask the user a question.
+- A user-authored assistant note.
+
+The seed is intended for the dedicated reviewer account only. It must not be run against normal users unless the target `PLAY_REVIEWER_USER_ID` is deliberately overridden for a controlled test account.
 
 ## Data Safety Draft
 
@@ -121,7 +144,7 @@ Call Held should not sell user data. External sharing of call recaps, decision r
 
 Before closed or public release:
 
-- App icon at Play Console required sizes.
+- App icon at Play Console required sizes. Status: 512x512 Play icon exists, Android launcher density assets are generated from the same Call Held icon, and the first app screen uses the same brand mark.
 - Feature graphic.
 - Phone screenshots for onboarding, home, call detail, assistant, billing, and topics.
 - Privacy policy URL.

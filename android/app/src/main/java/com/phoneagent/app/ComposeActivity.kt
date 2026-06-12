@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,6 +38,7 @@ import kotlinx.coroutines.launch
 class ComposeActivity : ComponentActivity() {
     companion object {
         const val ACTION_PUSH_REFRESH = "com.phoneagent.app.PUSH_REFRESH"
+        private const val LOG_TAG = "PhoneAgent"
     }
 
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -59,6 +61,7 @@ class ComposeActivity : ComponentActivity() {
     private lateinit var billingCoordinator: BillingCoordinator
     private lateinit var contactSyncCoordinator: ContactSyncCoordinator
     private lateinit var fcmRegistrationCoordinator: FcmRegistrationCoordinator
+    private var notificationPermissionRequestedThisSession = false
 
     private val pushReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -112,7 +115,6 @@ class ComposeActivity : ComponentActivity() {
                 track(eventName, screen = screen, action = action, result = result, attributes = attributes)
             }
         )
-        requestNotificationPermission()
         setContent {
             val state by viewModel.uiState.collectAsState()
             PhoneAgentTheme {
@@ -196,7 +198,7 @@ class ComposeActivity : ComponentActivity() {
     private fun initialize() {
         if (FirebaseApp.getApps(this).isEmpty()) {
             uiState = uiState.copy(
-                screen = Screen.AuthChoice,
+                screen = Screen.CreateAccount,
                 status = "Setup",
                 error = "Authentication is not configured for this build."
             )
@@ -204,7 +206,7 @@ class ComposeActivity : ComponentActivity() {
         }
         FirebaseCrashlytics.getInstance().setCustomKey("ui", "compose")
         if (firebaseAuth?.currentUser == null) {
-            uiState = uiState.copy(screen = Screen.AuthChoice, status = "Setup", loading = false)
+            uiState = uiState.copy(screen = Screen.CreateAccount, status = "Setup", loading = false)
         } else {
             uiState = uiState.copy(screen = Screen.Startup, status = "Syncing", loading = true, error = null)
             scope.launch {
@@ -232,6 +234,13 @@ class ComposeActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
         }
+    }
+
+    private fun requestNotificationPermissionIfReady() {
+        if (notificationPermissionRequestedThisSession) return
+        if (uiState.screen !is Screen.Main) return
+        notificationPermissionRequestedThisSession = true
+        requestNotificationPermission()
     }
 
     private fun selectTab(tab: Tab) {
@@ -306,7 +315,7 @@ class ComposeActivity : ComponentActivity() {
     private suspend fun loadData(forceStatus: Boolean = false, keepScreen: Boolean = false) {
         val user = firebaseAuth?.currentUser
         if (user == null) {
-            uiState = uiState.copy(screen = Screen.AuthChoice, loading = false, status = "Setup")
+            uiState = uiState.copy(screen = Screen.CreateAccount, loading = false, status = "Setup")
             return
         }
         track("data_refresh_started", screen = uiState.selectedTab.label.lowercase(), action = "refresh")
@@ -314,6 +323,7 @@ class ComposeActivity : ComponentActivity() {
             val loaded = viewModel.refreshData(user.idToken(), forceStatus, keepScreen)
             homeScreenViewModel.update(loaded)
             assistantLiveViewModel.update(loaded)
+            requestNotificationPermissionIfReady()
             track(
                 "data_refresh_succeeded",
                 screen = uiState.selectedTab.label.lowercase(),
@@ -349,7 +359,7 @@ class ComposeActivity : ComponentActivity() {
         onboardingCoordinator.clearCredentialState()
         firebaseAuth?.signOut()
         scope.launch { viewModel.clearCache() }
-        uiState = PhoneAgentUiState(screen = Screen.AuthChoice, status = "Setup")
+        uiState = PhoneAgentUiState(screen = Screen.CreateAccount, status = "Setup")
     }
 
     private fun removeAccount() {
@@ -362,7 +372,7 @@ class ComposeActivity : ComponentActivity() {
                 onboardingCoordinator.clearCredentialState()
                 firebaseAuth?.signOut()
                 viewModel.clearCache()
-                uiState = PhoneAgentUiState(screen = Screen.AuthChoice, status = "Setup")
+                uiState = PhoneAgentUiState(screen = Screen.CreateAccount, status = "Setup")
                 toast("Account removed.")
             } catch (error: Exception) {
                 uiState = uiState.copy(loading = false, status = "Profile", error = readableError(error))
@@ -402,12 +412,53 @@ class ComposeActivity : ComponentActivity() {
 
     private fun decideTopicSuggestion(id: String, accept: Boolean) {
         scope.launch {
+            val suggestion = uiState.suggestions.firstOrNull { it.id == id }
+            val screenName = when (uiState.screen) {
+                Screen.Review -> "review"
+                else -> uiState.selectedTab.label.lowercase()
+            }
+            val action = if (accept) "accept" else "dismiss"
             try {
-                uiState = uiState.copy(loading = true, status = "Saving")
+                Log.i(LOG_TAG, "Topic suggestion $action started id=$id")
+                track(
+                    "topic_suggestion_decision_started",
+                    screen = screenName,
+                    action = action,
+                    objectType = "topic_suggestion",
+                    objectId = id
+                )
+                uiState = uiState.copy(
+                    loading = true,
+                    status = if (accept) "Creating" else "Dismissing",
+                    error = null
+                )
                 viewModel.decideTopicSuggestion(requireToken(), id, accept)
-                loadData(forceStatus = true)
+                viewModel.removeTopicSuggestion(id)
+                uiState = uiState.copy(loading = false, status = "Active", error = null)
+                toast(if (accept) suggestion?.acceptedToast ?: "Topic updated." else "Suggestion dismissed.")
+                track(
+                    "topic_suggestion_decision_completed",
+                    screen = screenName,
+                    action = action,
+                    result = "success",
+                    objectType = "topic_suggestion",
+                    objectId = id
+                )
+                Log.i(LOG_TAG, "Topic suggestion $action succeeded id=$id")
+                loadData(forceStatus = true, keepScreen = true)
             } catch (error: Exception) {
-                uiState = uiState.copy(loading = false, error = readableError(error))
+                val message = readableError(error)
+                Log.w(LOG_TAG, "Topic suggestion $action failed id=$id", error)
+                track(
+                    "topic_suggestion_decision_completed",
+                    screen = screenName,
+                    action = action,
+                    result = "failed",
+                    objectType = "topic_suggestion",
+                    objectId = id
+                )
+                uiState = uiState.copy(loading = false, status = "Active", error = message)
+                toast(if (accept) "Could not create topic. Try again." else "Could not dismiss suggestion. Try again.")
             }
         }
     }
@@ -536,11 +587,13 @@ class ComposeActivity : ComponentActivity() {
                 message.contains("unreachable", ignoreCase = true) ||
                 message.contains("unable to resolve host", ignoreCase = true) ||
                 message.contains("no address associated", ignoreCase = true) ->
-                "We could not reach Phone Agent. Check your connection and try again."
+                "We could not reach Call Held. Check your connection and try again."
             message.contains("HTTP 401", ignoreCase = true) || message.contains("HTTP 403", ignoreCase = true) ->
                 "Please sign in again to continue."
             message.contains("HTTP", ignoreCase = true) ->
-                "Phone Agent could not finish that request. Please try again."
+                "Call Held could not finish that request. Please try again."
+            message.contains("parameter", ignoreCase = true) && message.contains("method", ignoreCase = true) ->
+                "Call Held could not finish that request. Please try again."
             message.isNotBlank() && message.length <= 120 -> message
             else -> "Something went wrong. Please try again."
         }

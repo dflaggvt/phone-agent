@@ -65,7 +65,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         String target = value(intent.getStringExtra(EXTRA_NOTIFICATION_TARGET));
 
         if (requestId.length() == 0) {
-            showResult(context, notificationId, target, "Open Phone Agent", "Open the app to finish this action.", false);
+            showResult(context, notificationId, target, "Open Call Held", "Open the app to finish this action.", false);
             return;
         }
 
@@ -80,13 +80,13 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         PendingResult pending = goAsync();
         FirebaseUser user = currentUser(context);
         if (user == null) {
-            finishAction(context, pending, actionKey, notificationId, target, "Open Phone Agent", "Open the app to finish this action.", false);
+            finishAction(context, pending, actionKey, notificationId, target, "Open Call Held", "Open the app to finish this action.", false);
             return;
         }
 
         user.getIdToken(false).addOnCompleteListener(task -> {
             if (!task.isSuccessful() || task.getResult() == null || task.getResult().getToken() == null) {
-                finishAction(context, pending, actionKey, notificationId, target, "Open Phone Agent", "Open the app to finish this action.", false);
+                finishAction(context, pending, actionKey, notificationId, target, "Open Call Held", "Open the app to finish this action.", false);
                 return;
             }
             String token = task.getResult().getToken();
@@ -160,7 +160,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
             post("/v1/answer-requests/" + answerId + "/reply", payload, token);
             return new ActionResult("Answer sent", "The assistant will relay your answer.", true);
         }
-        throw new IllegalStateException("Open Phone Agent to continue.");
+        throw new IllegalStateException("Open Call Held to continue.");
     }
 
     private void post(String path, JSONObject payload, String token) throws Exception {
@@ -265,7 +265,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
                 "Assistant alerts",
                 NotificationManager.IMPORTANCE_HIGH
         );
-        channel.setDescription("Privacy-safe alerts when Phone Agent needs attention.");
+        channel.setDescription("Privacy-safe alerts when Call Held needs attention.");
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) {
             manager.createNotificationChannel(channel);

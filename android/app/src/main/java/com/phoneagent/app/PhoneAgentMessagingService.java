@@ -41,7 +41,7 @@ public class PhoneAgentMessagingService extends FirebaseMessagingService {
             return;
         }
         createNotificationChannel();
-        String title = valueOrDefault(data.get("title"), "Phone Agent");
+        String title = valueOrDefault(data.get("title"), "Call Held");
         String body = valueOrDefault(data.get("body"), "You have a new assistant update.");
         String target = valueOrDefault(data.get("target"), "assistant");
         String priority = valueOrDefault(data.get("priority"), "normal");
@@ -153,7 +153,7 @@ public class PhoneAgentMessagingService extends FirebaseMessagingService {
                 "Assistant alerts",
                 NotificationManager.IMPORTANCE_HIGH
         );
-        channel.setDescription("Privacy-safe alerts when Phone Agent needs attention.");
+        channel.setDescription("Privacy-safe alerts when Call Held needs attention.");
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager != null) {
             manager.createNotificationChannel(channel);

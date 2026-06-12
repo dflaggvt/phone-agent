@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Call Held refined logo directions</title>
+  <desc id="desc">Three refined logo directions for Call Held with polished geometry, app icon previews, and horizontal lockups.</desc>
+  <defs>
+    <linearGradient id="violetField" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#8068DF"/>
+      <stop offset=".46" stop-color="#4D338C"/>
+      <stop offset="1" stop-color="#130622"/>
+    </linearGradient>
+    <linearGradient id="inkField" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2B2442"/>
+      <stop offset="1" stop-color="#0D0717"/>
+    </linearGradient>
+    <linearGradient id="plumField" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#6B58C8"/>
+      <stop offset="1" stop-color="#24113F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="22" flood-color="#120622" flood-opacity=".16"/>
+    </filter>
+    <filter id="smallShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#120622" flood-opacity=".20"/>
+    </filter>
+    <style>
+      .page-title { fill:#140722; font-family: Inter, Arial, sans-serif; font-size: 44px; font-weight: 850; letter-spacing: -0.02em; }
+      .page-copy { fill:#675F72; font-family: Inter, Arial, sans-serif; font-size: 22px; font-weight: 500; }
+      .label { fill:#140722; font-family: Inter, Arial, sans-serif; font-size: 30px; font-weight: 850; letter-spacing: -0.015em; }
+      .note { fill:#675F72; font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 500; }
+      .tag { fill:#0C8069; font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 850; letter-spacing: .10em; }
+      .word { fill:#140722; font-family: Inter, Arial, sans-serif; font-size: 58px; font-weight: 840; letter-spacing: -0.045em; }
+      .wordDark { fill:#FFF8EF; font-family: Inter, Arial, sans-serif; font-size: 58px; font-weight: 840; letter-spacing: -0.045em; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1040" fill="#F8F5FC"/>
+
+  <text x="88" y="92" class="page-title">Call Held refined logo directions</text>
+  <text x="88" y="132" class="page-copy">Less sketch, more shippable: exact geometry, restrained color, readable app-icon silhouettes.</text>
+
+  <!-- Direction 1 -->
+  <g transform="translate(88 190)">
+    <rect x="0" y="0" width="1424" height="230" rx="42" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <g transform="translate(42 35)">
+      <rect width="160" height="160" rx="38" fill="url(#violetField)"/>
+      <g filter="url(#smallShadow)">
+        <path d="M105 49C96 42 85 38 73 38C47 38 27 59 27 85C27 111 47 132 73 132C85 132 96 128 105 121" fill="none" stroke="#FFF7ED" stroke-width="16" stroke-linecap="round"/>
+        <path d="M113 49V121" stroke="#FFF7ED" stroke-width="16" stroke-linecap="round"/>
+        <path d="M47 85H112" stroke="#FFF7ED" stroke-width="16" stroke-linecap="round"/>
+        <circle cx="119" cy="39" r="6" fill="#7BE0B2"/>
+      </g>
+    </g>
+    <g transform="translate(250 70)">
+      <text x="0" y="0" class="tag">RECOMMENDED</text>
+      <text x="0" y="54" class="label">The Holdmark</text>
+      <text x="0" y="88" class="note">A clean custom symbol: open call loop, horizontal held line, vertical pause gate. Strong at small sizes.</text>
+    </g>
+    <g transform="translate(958 75)">
+      <g transform="translate(0 0) scale(.62)">
+        <path d="M105 49C96 42 85 38 73 38C47 38 27 59 27 85C27 111 47 132 73 132C85 132 96 128 105 121" fill="none" stroke="#140722" stroke-width="16" stroke-linecap="round"/>
+        <path d="M113 49V121" stroke="#140722" stroke-width="16" stroke-linecap="round"/>
+        <path d="M47 85H112" stroke="#140722" stroke-width="16" stroke-linecap="round"/>
+      </g>
+      <text x="112" y="66" class="word">Call Held</text>
+    </g>
+  </g>
+
+  <!-- Direction 2 -->
+  <g transform="translate(88 466)">
+    <rect x="0" y="0" width="1424" height="230" rx="42" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <g transform="translate(42 35)">
+      <rect width="160" height="160" rx="38" fill="url(#inkField)"/>
+      <g filter="url(#smallShadow)">
+        <rect x="35" y="47" width="90" height="66" rx="25" fill="#FFF7ED"/>
+        <path d="M48 80H110" stroke="#140722" stroke-width="12" stroke-linecap="round"/>
+        <path d="M80 48V112" stroke="#140722" stroke-width="12" stroke-linecap="round"/>
+        <path d="M28 61C19 70 14 82 14 95C14 108 19 120 28 129" fill="none" stroke="#8D7BEA" stroke-width="10" stroke-linecap="round"/>
+        <path d="M132 61C141 70 146 82 146 95C146 108 141 120 132 129" fill="none" stroke="#7BE0B2" stroke-width="10" stroke-linecap="round"/>
+      </g>
+    </g>
+    <g transform="translate(250 73)">
+      <text x="0" y="0" class="label">Quiet Gate</text>
+      <text x="0" y="34" class="note">More premium and abstract: the assistant sits between caller signal and user attention.</text>
+    </g>
+    <g transform="translate(958 75)">
+      <g transform="translate(0 0) scale(.62)">
+        <rect x="35" y="47" width="90" height="66" rx="25" fill="#140722"/>
+        <path d="M48 80H110" stroke="#FFF7ED" stroke-width="12" stroke-linecap="round"/>
+        <path d="M80 48V112" stroke="#FFF7ED" stroke-width="12" stroke-linecap="round"/>
+        <path d="M28 61C19 70 14 82 14 95C14 108 19 120 28 129" fill="none" stroke="#6C58CF" stroke-width="10" stroke-linecap="round"/>
+        <path d="M132 61C141 70 146 82 146 95C146 108 141 120 132 129" fill="none" stroke="#0C8069" stroke-width="10" stroke-linecap="round"/>
+      </g>
+      <text x="112" y="66" class="word">Call Held</text>
+    </g>
+  </g>
+
+  <!-- Direction 3 -->
+  <g transform="translate(88 742)">
+    <rect x="0" y="0" width="1424" height="230" rx="42" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <g transform="translate(42 35)">
+      <rect width="160" height="160" rx="38" fill="url(#plumField)"/>
+      <g filter="url(#smallShadow)">
+        <path d="M43 54H103C124 54 140 70 140 91C140 112 124 128 103 128H77L45 148V128H43C22 128 6 112 6 91C6 70 22 54 43 54Z" fill="#FFF7ED"/>
+        <path d="M39 85H105" stroke="#140722" stroke-width="12" stroke-linecap="round"/>
+        <path d="M39 108H77" stroke="#140722" stroke-width="12" stroke-linecap="round"/>
+        <path d="M127 38V73" stroke="#7BE0B2" stroke-width="11" stroke-linecap="round"/>
+      </g>
+    </g>
+    <g transform="translate(250 73)">
+      <text x="0" y="0" class="label">Held Reply</text>
+      <text x="0" y="34" class="note">Most literal communication mark. Clear, but less differentiated from other messaging apps.</text>
+    </g>
+    <g transform="translate(958 75)">
+      <g transform="translate(0 0) scale(.62)">
+        <path d="M43 54H103C124 54 140 70 140 91C140 112 124 128 103 128H77L45 148V128H43C22 128 6 112 6 91C6 70 22 54 43 54Z" fill="#140722"/>
+        <path d="M39 85H105" stroke="#FFF7ED" stroke-width="12" stroke-linecap="round"/>
+        <path d="M39 108H77" stroke="#FFF7ED" stroke-width="12" stroke-linecap="round"/>
+        <path d="M127 38V73" stroke="#0C8069" stroke-width="11" stroke-linecap="round"/>
+      </g>
+      <text x="112" y="66" class="word">Call Held</text>
+    </g>
+  </g>
+</svg>

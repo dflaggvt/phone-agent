@@ -15,7 +15,8 @@
     "stripe:configure-catalog": "node scripts/stripe-configure-catalog.mjs",
     "billing:reconcile": "node scripts/billing-reconcile.mjs",
     "analytics:export": "node scripts/analytics-export.mjs",
-    "play:upload-closed-test": "node scripts/google-play-upload-closed-test.mjs"
+    "play:upload-closed-test": "node scripts/google-play-upload-closed-test.mjs",
+    "play:seed-reviewer-demo": "tsx scripts/seed-play-reviewer-demo.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.6.0",

@@ -55,6 +55,12 @@ internal class PhoneAgentViewModel @Inject constructor(
         repository.decideTopicSuggestion(token, suggestionId, accept)
     }
 
+    fun removeTopicSuggestion(suggestionId: String) {
+        mutableUiState.value = mutableUiState.value.copy(
+            suggestions = mutableUiState.value.suggestions.filterNot { it.id == suggestionId }
+        )
+    }
+
     suspend fun registerPushToken(token: String, request: PushTokenRegistrationRequest) {
         repository.registerPushToken(token, request)
     }
@@ -90,8 +96,7 @@ internal class PhoneAgentViewModel @Inject constructor(
     private fun nextScreenAfterSnapshot(snapshot: AppSnapshot, current: PhoneAgentUiState, keepScreen: Boolean): Screen {
         if (keepScreen) return current.screen
         val shouldRouteOnboarding =
-            current.screen is Screen.AuthChoice ||
-                current.screen is Screen.Login ||
+            current.screen is Screen.Login ||
                 current.screen is Screen.CreateAccount ||
                 current.screen is Screen.VerifyPhone ||
                 current.screen is Screen.CodeEntry ||

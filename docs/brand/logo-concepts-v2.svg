@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="720" viewBox="0 0 1500 720" role="img" aria-labelledby="title desc">
+  <title id="title">Call Held logo concepts, second exploration</title>
+  <desc id="desc">Four premium vector logo concepts for Call Held, focused on held signals, protected calls, and calm communication.</desc>
+  <defs>
+    <linearGradient id="night" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#735BCB"/>
+      <stop offset=".48" stop-color="#4D3289"/>
+      <stop offset="1" stop-color="#16072E"/>
+    </linearGradient>
+    <linearGradient id="softNight" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#6D58C7"/>
+      <stop offset="1" stop-color="#20103F"/>
+    </linearGradient>
+    <linearGradient id="cream" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFDF7"/>
+      <stop offset="1" stop-color="#EFE8DD"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#21113D" flood-opacity=".18"/>
+    </filter>
+    <filter id="markShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#16072E" flood-opacity=".24"/>
+    </filter>
+    <style>
+      .label { fill: #16072E; font-family: Inter, Arial, sans-serif; font-size: 34px; font-weight: 820; }
+      .note { fill: #60586D; font-family: Inter, Arial, sans-serif; font-size: 20px; font-weight: 500; }
+      .tag { fill: #0B7E68; font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 820; letter-spacing: .08em; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="720" fill="#F8F4FC"/>
+
+  <g transform="translate(74 70)">
+    <rect width="312" height="312" rx="68" fill="url(#night)" filter="url(#cardShadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M96 165C96 123 126 92 168 92C208 92 238 122 238 162C238 203 208 232 168 232C126 232 96 202 96 165Z" fill="none" stroke="#FFF8EE" stroke-width="24" stroke-linecap="round"/>
+      <path d="M239 89V235" stroke="#FFF8EE" stroke-width="26" stroke-linecap="round"/>
+      <path d="M79 120C67 132 60 148 60 165C60 183 67 199 79 211" fill="none" stroke="#CFC4EE" stroke-width="16" stroke-linecap="round" opacity=".82"/>
+      <path d="M54 89C33 109 22 135 22 165C22 196 33 222 54 242" fill="none" stroke="#CFC4EE" stroke-width="12" stroke-linecap="round" opacity=".42"/>
+      <circle cx="241" cy="75" r="12" fill="#65D7A7"/>
+    </g>
+    <text x="0" y="382" class="tag">RECOMMENDED</text>
+    <text x="0" y="424" class="label">Held Signal</text>
+    <text x="0" y="456" class="note">Incoming call energy, calmly contained.</text>
+  </g>
+
+  <g transform="translate(430 70)">
+    <rect width="312" height="312" rx="68" fill="#16072E" filter="url(#cardShadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M82 149C82 112 112 82 149 82H177C214 82 244 112 244 149V163C244 200 214 230 177 230H149C112 230 82 200 82 163V149Z" fill="url(#cream)"/>
+      <path d="M118 139C129 119 151 108 174 113C198 118 216 137 218 161" fill="none" stroke="#16072E" stroke-width="21" stroke-linecap="round"/>
+      <path d="M120 184H205" stroke="#16072E" stroke-width="21" stroke-linecap="round"/>
+      <path d="M235 96C256 116 267 142 267 172C267 202 256 228 235 248" fill="none" stroke="#65D7A7" stroke-width="14" stroke-linecap="round"/>
+    </g>
+    <text x="0" y="424" class="label">Quiet Answer</text>
+    <text x="0" y="456" class="note">A soft assistant layer around the call.</text>
+  </g>
+
+  <g transform="translate(786 70)">
+    <rect width="312" height="312" rx="68" fill="url(#softNight)" filter="url(#cardShadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M155 75C201 75 237 111 237 157C237 202 201 238 155 238C110 238 74 202 74 157C74 111 110 75 155 75Z" fill="none" stroke="#FFF8EE" stroke-width="23" stroke-linecap="round" stroke-dasharray="188 70"/>
+      <path d="M156 111V203" stroke="#FFF8EE" stroke-width="24" stroke-linecap="round"/>
+      <path d="M120 157H193" stroke="#FFF8EE" stroke-width="24" stroke-linecap="round"/>
+      <circle cx="226" cy="91" r="12" fill="#F4BE55"/>
+      <circle cx="244" cy="109" r="8" fill="#65D7A7"/>
+    </g>
+    <text x="0" y="424" class="label">Held Halo</text>
+    <text x="0" y="456" class="note">Calm, premium, a little more abstract.</text>
+  </g>
+
+  <g transform="translate(1142 70)">
+    <rect width="312" height="312" rx="68" fill="#FFF8EE" filter="url(#cardShadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M154 64C206 64 248 106 248 158C248 210 206 252 154 252C102 252 60 210 60 158C60 106 102 64 154 64Z" fill="#17082F"/>
+      <path d="M102 146C102 119 123 98 150 98H165C192 98 213 119 213 146V169C213 196 192 217 165 217H150C123 217 102 196 102 169V146Z" fill="#FFF8EE"/>
+      <path d="M121 139C131 125 148 119 164 123C181 127 194 140 198 157" fill="none" stroke="#17082F" stroke-width="17" stroke-linecap="round"/>
+      <path d="M121 178H194" stroke="#17082F" stroke-width="17" stroke-linecap="round"/>
+      <path d="M61 106C47 121 39 139 39 158C39 177 47 195 61 210" fill="none" stroke="#765DE0" stroke-width="15" stroke-linecap="round"/>
+      <circle cx="230" cy="91" r="12" fill="#65D7A7"/>
+    </g>
+    <text x="0" y="424" class="label">Call Capsule</text>
+    <text x="0" y="456" class="note">Most app-icon-like, strong at tiny sizes.</text>
+  </g>
+
+  <g transform="translate(74 595)">
+    <text x="0" y="0" fill="#16072E" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="820">Best direction: Held Signal</text>
+    <text x="0" y="38" fill="#60586D" font-family="Inter, Arial, sans-serif" font-size="21">
+      It avoids the generic phone handset, says “the call is being handled,” and gives Call Held a recognizable motion language for future UI states.
+    </text>
+  </g>
+</svg>

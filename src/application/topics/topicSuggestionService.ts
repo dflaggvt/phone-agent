@@ -9,6 +9,7 @@ import type {
 import type { CommunicationClassifier, CommunicationClassificationResult } from "../../domain/topics/communicationClassifier.js";
 import type {
   TopicSuggestion,
+  TopicSuggestionListItem,
   TopicSuggestionRepository
 } from "../../domain/topics/topicSuggestion.js";
 import type { TopicThread, TopicThreadRepository } from "../../domain/topics/topicThread.js";
@@ -29,8 +30,9 @@ export class TopicSuggestionService {
     }
   ) {}
 
-  listPending(userId: string) {
-    return this.dependencies.suggestions.listPendingForUser(userId);
+  async listPending(userId: string): Promise<TopicSuggestionListItem[]> {
+    const suggestions = await this.dependencies.suggestions.listPendingForUser(userId);
+    return Promise.all(suggestions.map((suggestion) => this.enrichSuggestion(suggestion)));
   }
 
   async analyzeCommunication(item: CommunicationItem): Promise<TopicSuggestion[]> {
@@ -98,6 +100,19 @@ export class TopicSuggestionService {
     return suggestion.suggestedTopicThreadId
       ? this.dependencies.topics.get(suggestion.suggestedTopicThreadId)
       : undefined;
+  }
+
+  private async enrichSuggestion(suggestion: TopicSuggestion): Promise<TopicSuggestionListItem> {
+    const [communication, targetTopic] = await Promise.all([
+      this.dependencies.communicationItems.get(suggestion.communicationItemId),
+      suggestion.suggestedTopicThreadId ? this.dependencies.topics.get(suggestion.suggestedTopicThreadId) : undefined
+    ]);
+
+    return {
+      ...suggestion,
+      suggestedTopicTitle: suggestion.suggestedTitle ?? targetTopic?.title ?? "Suggested topic",
+      sourceCommunication: communication ? summarizeSourceCommunication(communication) : undefined
+    };
   }
 
   private async classifyWithProvider(item: CommunicationItem, topics: TopicThread[]): Promise<CommunicationClassificationResult | undefined> {
@@ -208,4 +223,44 @@ export class TopicSuggestionService {
       extractedTasks: extracted.extractedTasks
     });
   }
+}
+
+function summarizeSourceCommunication(item: CommunicationItem) {
+  const sender = item.sender ?? item.participants[0];
+  return {
+    id: item.id,
+    channel: item.channel,
+    channelLabel: communicationChannelLabel(item.channel),
+    displayName: sender?.displayName,
+    phoneNumber: sender?.phoneNumber,
+    occurredAt: item.occurredAt,
+    summary: truncate(item.summary ?? item.bodyText ?? "", 180)
+  };
+}
+
+function communicationChannelLabel(channel: CommunicationItem["channel"]): string {
+  switch (channel) {
+    case "phone_call":
+      return "Call";
+    case "sms":
+      return "Text";
+    case "email":
+      return "Email";
+    case "calendar_event":
+      return "Calendar";
+    case "document":
+      return "Document";
+    case "manual_note":
+      return "Note";
+    case "agent_message":
+      return "Agent message";
+  }
+}
+
+function truncate(value: string, maxLength: number): string | undefined {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1).trimEnd()}…` : trimmed;
 }

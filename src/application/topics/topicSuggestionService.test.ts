@@ -22,6 +22,10 @@ describe("TopicSuggestionService", () => {
       direction: "inbound",
       sourceProvider: "retell",
       providerItemId: "call_classifier_123",
+      sender: {
+        displayName: "Chris Contractor",
+        phoneNumber: "+15551234567"
+      },
       summary: "Contractor asked whether the plumbing change order includes permit fees."
     });
 
@@ -57,5 +61,12 @@ describe("TopicSuggestionService", () => {
     expect(updatedItem?.extractedFacts[0]?.text).toContain("permit fees");
     expect(updatedItem?.extractedTasks[0]?.title).toContain("Confirm");
     expect(updatedItem?.extractedOpenQuestions[0]?.question).toContain("permit fees");
+
+    const pending = await service.listPending("default-user");
+    expect(pending[0]?.suggestedTopicTitle).toBe("Basement Project");
+    expect(pending[0]?.sourceCommunication?.channelLabel).toBe("Call");
+    expect(pending[0]?.sourceCommunication?.displayName).toBe("Chris Contractor");
+    expect(pending[0]?.sourceCommunication?.phoneNumber).toBe("+15551234567");
+    expect(pending[0]?.sourceCommunication?.summary).toContain("plumbing change order");
   });
 });

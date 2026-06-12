@@ -117,7 +117,7 @@ internal class PhoneOnboardingCoordinator(
         if (firebaseAuth.currentUser == null) {
             setState(
                 PhoneAgentUiState(
-                    screen = Screen.AuthChoice,
+                    screen = Screen.CreateAccount,
                     status = "Setup",
                     error = "Log in or create an account before verifying a protected number."
                 )
@@ -199,7 +199,7 @@ internal class PhoneOnboardingCoordinator(
         if (currentUser == null) {
             setState(
                 PhoneAgentUiState(
-                    screen = Screen.AuthChoice,
+                    screen = Screen.CreateAccount,
                     status = "Setup",
                     error = "Log in or create an account before verifying a protected number."
                 )

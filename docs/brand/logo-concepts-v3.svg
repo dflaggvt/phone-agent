@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Call Held distinctive logo explorations</title>
+  <desc id="desc">Six distinctive Call Held logo concepts avoiding script wordmarks and generic phone icons.</desc>
+  <defs>
+    <linearGradient id="deepViolet" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#7059C8"/>
+      <stop offset=".52" stop-color="#332064"/>
+      <stop offset="1" stop-color="#120624"/>
+    </linearGradient>
+    <linearGradient id="glassViolet" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#8068DD"/>
+      <stop offset=".45" stop-color="#42307D"/>
+      <stop offset="1" stop-color="#17072E"/>
+    </linearGradient>
+    <linearGradient id="charcoal" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2B2842"/>
+      <stop offset="1" stop-color="#0E091C"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#FFFDF8"/>
+      <stop offset="1" stop-color="#ECE4DA"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#17072E" flood-opacity=".18"/>
+    </filter>
+    <filter id="markShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#17072E" flood-opacity=".22"/>
+    </filter>
+    <style>
+      .title { fill: #150727; font-family: Inter, Arial, sans-serif; font-size: 32px; font-weight: 840; }
+      .body { fill: #60586D; font-family: Inter, Arial, sans-serif; font-size: 19px; font-weight: 500; }
+      .tag { fill: #0B7E68; font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 840; letter-spacing: .08em; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="#F8F4FC"/>
+
+  <g transform="translate(80 70)">
+    <rect width="300" height="300" rx="72" fill="url(#deepViolet)" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M76 151C76 103 113 66 161 66C206 66 240 100 240 145C240 190 206 223 161 223C128 223 101 207 87 181" fill="none" stroke="#FFF8EF" stroke-width="22" stroke-linecap="round"/>
+      <path d="M126 151H238" stroke="#FFF8EF" stroke-width="22" stroke-linecap="round"/>
+      <path d="M238 105V197" stroke="#72D7A8" stroke-width="18" stroke-linecap="round"/>
+    </g>
+    <text x="0" y="372" class="tag">RECOMMENDED</text>
+    <text x="0" y="413" class="title">Hold Loop</text>
+    <text x="0" y="444" class="body">A call enters, pauses, and becomes controlled.</text>
+  </g>
+
+  <g transform="translate(460 70)">
+    <rect width="300" height="300" rx="72" fill="url(#charcoal)" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M88 104H188C219 104 244 129 244 160C244 191 219 216 188 216H88V104Z" fill="url(#mist)"/>
+      <path d="M88 104L58 75V245L88 216" fill="#FFF8EF" opacity=".86"/>
+      <path d="M122 151H203" stroke="#150727" stroke-width="18" stroke-linecap="round"/>
+      <path d="M122 184H168" stroke="#150727" stroke-width="18" stroke-linecap="round"/>
+      <circle cx="223" cy="101" r="11" fill="#F4BD55"/>
+    </g>
+    <text x="0" y="413" class="title">Message Hold</text>
+    <text x="0" y="444" class="body">Clear meaning, more communication-thread oriented.</text>
+  </g>
+
+  <g transform="translate(840 70)">
+    <rect width="300" height="300" rx="72" fill="#FFF8EF" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <circle cx="150" cy="150" r="99" fill="url(#glassViolet)"/>
+      <path d="M102 111C116 94 137 84 160 84C204 84 239 119 239 163C239 207 204 242 160 242C137 242 116 232 102 215" fill="none" stroke="#FFF8EF" stroke-width="19" stroke-linecap="round"/>
+      <path d="M86 150H207" stroke="#FFF8EF" stroke-width="19" stroke-linecap="round"/>
+      <path d="M207 111V189" stroke="#72D7A8" stroke-width="15" stroke-linecap="round"/>
+    </g>
+    <text x="0" y="413" class="title">Held Core</text>
+    <text x="0" y="444" class="body">Premium badge version for Play and social avatars.</text>
+  </g>
+
+  <g transform="translate(1220 70)">
+    <rect width="300" height="300" rx="72" fill="url(#deepViolet)" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M81 178C103 218 150 238 193 222C236 206 259 160 244 116" fill="none" stroke="#FFF8EF" stroke-width="21" stroke-linecap="round"/>
+      <path d="M81 178C66 134 89 88 132 72C175 56 222 76 244 116" fill="none" stroke="#FFF8EF" stroke-width="21" stroke-linecap="round" opacity=".55"/>
+      <path d="M112 151H221" stroke="#FFF8EF" stroke-width="21" stroke-linecap="round"/>
+      <path d="M221 117V185" stroke="#72D7A8" stroke-width="17" stroke-linecap="round"/>
+    </g>
+    <text x="0" y="413" class="title">Attention Gate</text>
+    <text x="0" y="444" class="body">More abstract: protects attention before interruption.</text>
+  </g>
+
+  <g transform="translate(80 560)">
+    <rect width="300" height="300" rx="72" fill="url(#glassViolet)" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M80 112C98 92 124 80 153 80C203 80 244 121 244 171" fill="none" stroke="#FFF8EF" stroke-width="20" stroke-linecap="round"/>
+      <path d="M80 188C98 208 124 220 153 220C203 220 244 179 244 129" fill="none" stroke="#FFF8EF" stroke-width="20" stroke-linecap="round"/>
+      <path d="M106 150H194" stroke="#FFF8EF" stroke-width="20" stroke-linecap="round"/>
+      <path d="M194 112V188" stroke="#F4BD55" stroke-width="16" stroke-linecap="round"/>
+      <circle cx="229" cy="101" r="10" fill="#72D7A8"/>
+    </g>
+    <text x="0" y="413" class="title">Context Bridge</text>
+    <text x="0" y="444" class="body">Two arcs: caller and user, bridged by assistant.</text>
+  </g>
+
+  <g transform="translate(460 560)">
+    <rect width="300" height="300" rx="72" fill="#150727" filter="url(#shadow)"/>
+    <g filter="url(#markShadow)">
+      <path d="M92 88H208C225 88 239 102 239 119V181C239 198 225 212 208 212H157L103 249V212H92C75 212 61 198 61 181V119C61 102 75 88 92 88Z" fill="#FFF8EF"/>
+      <path d="M107 132H195" stroke="#150727" stroke-width="17" stroke-linecap="round"/>
+      <path d="M107 169H158" stroke="#150727" stroke-width="17" stroke-linecap="round"/>
+      <path d="M232 72V120" stroke="#72D7A8" stroke-width="14" stroke-linecap="round"/>
+    </g>
+    <text x="0" y="413" class="title">Assistant Bubble</text>
+    <text x="0" y="444" class="body">Most literal, strongest for “AI answers calls.”</text>
+  </g>
+
+  <g transform="translate(840 560)">
+    <rect width="680" height="300" rx="44" fill="#FFFFFF" filter="url(#shadow)"/>
+    <text x="48" y="86" fill="#150727" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="860">Recommendation</text>
+    <text x="48" y="137" fill="#60586D" font-family="Inter, Arial, sans-serif" font-size="22">Use <tspan font-weight="800" fill="#150727">Hold Loop</tspan> as the primary icon. It is distinctive, simple, and directly tied to the product idea:</text>
+    <text x="48" y="178" fill="#60586D" font-family="Inter, Arial, sans-serif" font-size="22">the call is caught before it becomes an interruption.</text>
+    <text x="48" y="233" fill="#60586D" font-family="Inter, Arial, sans-serif" font-size="22">Use <tspan font-weight="800" fill="#150727">Held Core</tspan> as the polished app-store badge variant if you want something softer and more premium.</text>
+  </g>
+</svg>

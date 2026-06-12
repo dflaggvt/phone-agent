@@ -233,7 +233,8 @@ internal class PhoneAgentRepository @Inject constructor(
 
     suspend fun decideTopicSuggestion(token: String, suggestionId: String, accept: Boolean) {
         val action = if (accept) "accept" else "dismiss"
-        postJson(token, "/v1/topic-suggestions/${pathSegment(suggestionId)}/$action", null)
+        postJson(token, "/v1/topic-suggestions/${pathSegment(suggestionId)}/$action", JSONObject())
+        database.cacheDao().deleteTopicSuggestion(suggestionId)
     }
 
     suspend fun createAgentNote(token: String, request: AgentNoteCreateRequest) {

@@ -34,14 +34,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,9 +63,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,7 +95,6 @@ internal fun PhoneAgentApp(state: PhoneAgentUiState, actions: AppActions) {
         when (val screen = state.screen) {
             Screen.Startup -> StartupScreen(state, actions)
             Screen.StartupIssue -> StartupIssueScreen(state, actions)
-            Screen.AuthChoice -> AuthChoiceScreen(state, actions)
             Screen.Login -> LoginScreen(state, actions)
             Screen.CreateAccount -> CreateAccountScreen(state, actions)
             Screen.VerifyPhone -> VerifyPhoneScreen(state, actions)
@@ -112,7 +115,6 @@ internal fun PhoneAgentApp(state: PhoneAgentUiState, actions: AppActions) {
         if (
             state.loading &&
             state.screen !is Screen.Startup &&
-            state.screen !is Screen.AuthChoice &&
             state.screen !is Screen.Login &&
             state.screen !is Screen.CreateAccount &&
             state.screen !is Screen.VerifyPhone &&
@@ -211,7 +213,7 @@ private fun TopAppChrome(state: PhoneAgentUiState, actions: AppActions) {
             )
         }
         Text(
-            "Phone Agent",
+            "Call Held",
             color = Color.White,
             fontSize = 25.sp,
             lineHeight = 30.sp,
@@ -425,188 +427,88 @@ private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
 }
 
 @Composable
-private fun AuthChoiceScreen(state: PhoneAgentUiState, actions: AppActions) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.weight(0.95f))
-        SplashLogo()
-        Spacer(Modifier.height(22.dp))
-        Text(
-            "Phone Agent",
-            color = Color.White,
-            fontSize = 34.sp,
-            lineHeight = 39.sp,
-            fontWeight = FontWeight.ExtraBold,
-            maxLines = 1
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Your phone only rings when it should.",
-            color = Color.White.copy(alpha = 0.84f),
-            fontSize = 15.sp,
-            lineHeight = 21.sp
-        )
-        Spacer(Modifier.height(34.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color.White.copy(alpha = 0.94f),
-            shape = RoundedCornerShape(22.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
-            shadowElevation = 10.dp
-        ) {
-            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                PrimaryButton("Create account", Icons.Filled.AccountCircle, enabled = !state.loading, onClick = actions.openCreateAccount)
-                Spacer(Modifier.height(10.dp))
-                SecondaryButton("Log in", onClick = actions.openLogin)
-            }
-        }
-        state.error?.let {
-            Spacer(Modifier.height(12.dp))
-            ErrorCard(it)
-        }
-        Spacer(Modifier.weight(1.05f))
-    }
-}
-
-@Composable
-private fun SplashLogo() {
-    Surface(
-        modifier = Modifier.size(122.dp),
-        shape = CircleShape,
-        color = Color.White.copy(alpha = 0.14f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Surface(
-                modifier = Modifier.size(86.dp),
-                shape = CircleShape,
-                color = Card,
-                shadowElevation = 8.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.Call,
-                        contentDescription = null,
-                        tint = Brand,
-                        modifier = Modifier.size(38.dp)
-                    )
-                }
-            }
-            Surface(
-                modifier = Modifier
-                    .size(16.dp)
-                    .align(Alignment.TopEnd),
-                shape = CircleShape,
-                color = SuccessLight,
-                border = BorderStroke(2.dp, TwilightTop)
-            ) {}
-        }
-    }
-}
-
-@Composable
 private fun LoginScreen(state: PhoneAgentUiState, actions: AppActions) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    OnboardingFrame(
-        headerTitle = "Welcome back",
-        title = "Log in.",
-        subtitle = "Access your existing assistant.",
-        state = state
-    ) {
-        Text(
-            "Use an account you already created. If setup is unfinished, we will resume onboarding from the next required step.",
-            color = Muted,
-            fontSize = 15.sp,
-            lineHeight = 20.sp
-        )
-        Spacer(Modifier.height(12.dp))
-        PrimaryButton(
-            if (state.loading) "Opening Google" else "Log in with Google",
-            Icons.Filled.AccountCircle,
-            enabled = !state.loading,
-            onClick = { actions.startGoogleAuth(AuthFlow.Login) }
-        )
-        Spacer(Modifier.height(14.dp))
-        Text("or log in with email", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        AuthEmailPasswordFields(
-            email = email,
-            password = password,
-            onEmailChange = { email = it },
-            onPasswordChange = { password = it }
-        )
-        Spacer(Modifier.height(10.dp))
-        PrimaryButton(
-            if (state.loading) "Signing in" else "Log in with email",
-            Icons.AutoMirrored.Filled.Send,
-            enabled = !state.loading,
-            onClick = { actions.startEmailPasswordAuth(AuthFlow.Login, email, password) }
-        )
-        Spacer(Modifier.height(8.dp))
-        SecondaryButton(
-            "Send password reset",
-            onClick = { actions.sendPasswordReset(email) }
-        )
-        Spacer(Modifier.height(8.dp))
-        SecondaryButton("Create an account", onClick = actions.openCreateAccount)
-    }
+    var showEmailForm by remember { mutableStateOf(false) }
+    AuthProviderScreen(
+        state = state,
+        headline = "Log in to your account",
+        googleLabel = if (state.loading) "Opening Google" else "Sign in with Google",
+        emailLabel = "Sign in with Email",
+        switchLead = "Need an account?",
+        switchAction = "Sign up",
+        onClose = actions.openCreateAccount,
+        onGoogle = { actions.startGoogleAuth(AuthFlow.Login) },
+        onEmail = { showEmailForm = true },
+        onSwitch = actions.openCreateAccount,
+        emailForm = if (showEmailForm) {
+            {
+                AuthEmailPasswordFields(
+                    email = email,
+                    password = password,
+                    onEmailChange = { email = it },
+                    onPasswordChange = { password = it }
+                )
+                Spacer(Modifier.height(10.dp))
+                PrimaryButton(
+                    if (state.loading) "Signing in" else "Sign in with Email",
+                    Icons.Filled.Email,
+                    enabled = !state.loading,
+                    onClick = { actions.startEmailPasswordAuth(AuthFlow.Login, email, password) }
+                )
+                Spacer(Modifier.height(6.dp))
+                SecondaryButton("Send password reset", onClick = { actions.sendPasswordReset(email) })
+            }
+        } else {
+            null
+        }
+    )
 }
 
 @Composable
 private fun CreateAccountScreen(state: PhoneAgentUiState, actions: AppActions) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    OnboardingFrame(
-        headerTitle = "Get started",
-        title = "Create your account.",
-        subtitle = "Create the account first. Then we will finish your assistant setup.",
-        state = state
-    ) {
-        Text(
-            "Start with Google. After your account is created, we will guide you through assistant setup.",
-            color = Muted,
-            fontSize = 15.sp,
-            lineHeight = 20.sp
-        )
-        Spacer(Modifier.height(12.dp))
-        PrimaryButton(
-            if (state.loading) "Opening Google" else "Create with Google",
-            Icons.Filled.AccountCircle,
-            enabled = !state.loading,
-            onClick = { actions.startGoogleAuth(AuthFlow.CreateAccount) }
-        )
-        Spacer(Modifier.height(14.dp))
-        Text("or create with email", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        AuthEmailPasswordFields(
-            email = email,
-            password = password,
-            onEmailChange = { email = it },
-            onPasswordChange = { password = it }
-        )
-        Text(
-            "Use at least 8 characters.",
-            color = Muted,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-        Spacer(Modifier.height(10.dp))
-        PrimaryButton(
-            if (state.loading) "Creating" else "Create with email",
-            Icons.AutoMirrored.Filled.Send,
-            enabled = !state.loading,
-            onClick = { actions.startEmailPasswordAuth(AuthFlow.CreateAccount, email, password) }
-        )
-        Spacer(Modifier.height(8.dp))
-        SecondaryButton("I already have an account", onClick = actions.openLogin)
-    }
+    var showEmailForm by remember { mutableStateOf(false) }
+    AuthProviderScreen(
+        state = state,
+        headline = "Create an account",
+        googleLabel = if (state.loading) "Opening Google" else "Continue with Google",
+        emailLabel = "Continue with Email",
+        switchLead = "Have an account?",
+        switchAction = "Log in",
+        onClose = null,
+        onGoogle = { actions.startGoogleAuth(AuthFlow.CreateAccount) },
+        onEmail = { showEmailForm = true },
+        onSwitch = actions.openLogin,
+        emailForm = if (showEmailForm) {
+            {
+                AuthEmailPasswordFields(
+                    email = email,
+                    password = password,
+                    onEmailChange = { email = it },
+                    onPasswordChange = { password = it }
+                )
+                Text(
+                    "Use at least 8 characters.",
+                    color = Muted,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Spacer(Modifier.height(10.dp))
+                PrimaryButton(
+                    if (state.loading) "Creating" else "Create account",
+                    Icons.Filled.Email,
+                    enabled = !state.loading,
+                    onClick = { actions.startEmailPasswordAuth(AuthFlow.CreateAccount, email, password) }
+                )
+            }
+        } else {
+            null
+        }
+    )
 }
 
 @Composable
@@ -622,7 +524,19 @@ private fun AuthEmailPasswordFields(
         label = { Text("Email address") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Ink,
+            unfocusedTextColor = Ink,
+            focusedContainerColor = Card,
+            unfocusedContainerColor = Card,
+            focusedBorderColor = Brand,
+            unfocusedBorderColor = Line,
+            focusedLabelColor = Muted,
+            unfocusedLabelColor = Muted,
+            cursorColor = Brand
+        )
     )
     Spacer(Modifier.height(8.dp))
     OutlinedTextField(
@@ -632,8 +546,281 @@ private fun AuthEmailPasswordFields(
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Ink,
+            unfocusedTextColor = Ink,
+            focusedContainerColor = Card,
+            unfocusedContainerColor = Card,
+            focusedBorderColor = Brand,
+            unfocusedBorderColor = Line,
+            focusedLabelColor = Muted,
+            unfocusedLabelColor = Muted,
+            cursorColor = Brand
+        )
     )
+}
+
+@Composable
+private fun AuthProviderScreen(
+    state: PhoneAgentUiState,
+    headline: String,
+    googleLabel: String,
+    emailLabel: String,
+    switchLead: String,
+    switchAction: String,
+    onClose: (() -> Unit)?,
+    onGoogle: () -> Unit,
+    onEmail: () -> Unit,
+    onSwitch: () -> Unit,
+    emailForm: (@Composable ColumnScope.() -> Unit)? = null
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 18.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item {
+            Box(Modifier.fillMaxWidth().height(52.dp)) {
+                if (onClose != null) {
+                    AuthCloseButton(onClose)
+                }
+            }
+        }
+        item { Spacer(Modifier.height(if (emailForm == null) 72.dp else 30.dp)) }
+        item { CallHeldAuthWordmark() }
+        item { Spacer(Modifier.height(if (emailForm == null) 48.dp else 32.dp)) }
+        item {
+            Text(
+                headline,
+                color = Color.White.copy(alpha = 0.92f),
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        state.error?.let {
+            item {
+                Spacer(Modifier.height(16.dp))
+                AuthErrorBanner(it)
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+        item {
+            AuthProviderRow(
+                label = emailLabel,
+                enabled = !state.loading,
+                onClick = onEmail
+            ) {
+                Icon(Icons.Filled.Email, contentDescription = null, tint = Ink, modifier = Modifier.size(26.dp))
+            }
+        }
+        item { Spacer(Modifier.height(10.dp)) }
+        item {
+            AuthProviderRow(
+                label = googleLabel,
+                enabled = !state.loading,
+                onClick = onGoogle
+            ) {
+                Text("G", color = Color.Black, fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.ExtraBold)
+            }
+        }
+        if (emailForm != null) {
+            item {
+                Spacer(Modifier.height(14.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White.copy(alpha = 0.94f),
+                    shape = RoundedCornerShape(26.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
+                    shadowElevation = 8.dp
+                ) {
+                    Column(Modifier.padding(16.dp), content = emailForm)
+                }
+            }
+        }
+        item { Spacer(Modifier.height(20.dp)) }
+        item { AuthLegalCopy() }
+        item { Spacer(Modifier.height(if (emailForm == null) 52.dp else 34.dp)) }
+        item { AuthSwitchRow(switchLead, switchAction, onSwitch) }
+    }
+}
+
+@Composable
+private fun AuthCloseButton(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        shape = CircleShape,
+        color = TwilightBottom.copy(alpha = 0.42f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(30.dp))
+        }
+    }
+}
+
+@Composable
+private fun CallHeldAuthWordmark() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Call",
+                color = Color.White,
+                fontSize = 43.sp,
+                lineHeight = 48.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+            Text(
+                " Held",
+                color = SuccessLight,
+                fontSize = 43.sp,
+                lineHeight = 48.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "ANSWERS WHEN YOU CAN'T",
+            color = Color.White.copy(alpha = 0.62f),
+            fontSize = 10.sp,
+            lineHeight = 13.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.4.sp,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun AuthProviderRow(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    leading: @Composable () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = CircleShape,
+        color = Color.White.copy(alpha = if (enabled) 0.98f else 0.62f),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            Modifier.padding(horizontal = 22.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { leading() }
+            Spacer(Modifier.width(16.dp))
+            Text(
+                label,
+                color = Ink,
+                fontSize = 20.sp,
+                lineHeight = 23.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthLegalCopy() {
+    val uriHandler = LocalUriHandler.current
+    val baseStyle = TextStyle(
+        color = Color.White.copy(alpha = 0.92f),
+        fontSize = 15.sp,
+        lineHeight = 21.sp,
+        textAlign = TextAlign.Start
+    )
+    val linkStyle = baseStyle.copy(
+        color = Color.White,
+        fontWeight = FontWeight.Medium,
+        textDecoration = TextDecoration.Underline
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("By continuing, you agree to Call Held's ", style = baseStyle)
+            Text(
+                "Terms",
+                style = linkStyle,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { uriHandler.openUri("https://callheld.com/terms") }
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("and ", style = baseStyle)
+            Text(
+                "Privacy Policy",
+                style = linkStyle,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { uriHandler.openUri("https://callheld.com/privacy") }
+            )
+            Text(".", style = baseStyle)
+        }
+    }
+}
+
+@Composable
+private fun AuthSwitchRow(lead: String, action: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(lead, color = Color.White, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            action,
+            color = Color.White,
+            fontSize = 21.sp,
+            lineHeight = 26.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textDecoration = TextDecoration.Underline
+        )
+    }
+}
+
+@Composable
+private fun AuthErrorBanner(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White.copy(alpha = 0.94f),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f))
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text("Account issue", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(message, color = Critical, fontSize = 14.sp, lineHeight = 19.sp)
+        }
+    }
 }
 
 @Composable
@@ -866,6 +1053,7 @@ private fun LazyListScope.reviewItems(
     item {
         Text("Review is where calls, topic suggestions, and live requests get cleaned up before they become memory.", color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, lineHeight = 20.sp)
     }
+    state.error?.let { item { ErrorCard(it) } }
     item {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("All", "Topics", "Calls", "Live", "Updates").forEach { label ->
@@ -875,7 +1063,7 @@ private fun LazyListScope.reviewItems(
     }
     if ((filter == "All" || filter == "Topics") && state.suggestions.isNotEmpty()) {
         item { SectionLabel("Topic suggestions") }
-        state.suggestions.forEach { item { SuggestionCard(it, actions) } }
+        state.suggestions.forEach { item { SuggestionCard(it, actions, enabled = !state.loading) } }
     }
     if ((filter == "All" || filter == "Live") && liveRequestCount > 0) {
         item { SectionLabel("Live requests") }
@@ -932,6 +1120,7 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
                 }
             }
         }
+        state.error?.let { item { ErrorCard(it) } }
         item { SectionHeader("Needs review", if (reviewCount > 0) "All" else null, actions.openReview) }
         if (reviewCount == 0) {
             item { QuietCard("Nothing waiting", "If a caller needs an answer, a transfer needs approval, or a topic needs cleanup, it appears here.") }
@@ -943,7 +1132,7 @@ private fun AssistantScreen(state: PhoneAgentUiState, actions: AppActions) {
                 item { AnswerRequestCard(request, actions) }
             }
             visibleSuggestions.forEach { suggestion ->
-                item { SuggestionCard(suggestion, actions) }
+                item { SuggestionCard(suggestion, actions, enabled = !state.loading) }
             }
             if (hiddenSuggestionCount > 0) {
                 item { MoreReviewItemsRow(hiddenSuggestionCount, actions) }
@@ -1174,7 +1363,7 @@ private fun BillingScreen(state: PhoneAgentUiState, actions: AppActions) {
         item {
             WorkCard {
                 Text("Choose your spending limit", color = Ink, fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold)
-                Text("Phone Agent Personal is $19/month and includes your assistant number and 50 assistant minutes. You can change or pause this anytime.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
+                Text("Call Held Personal is $19/month and includes your assistant number and 50 assistant minutes. You can change or pause this anytime.", color = Muted, fontSize = 14.sp, lineHeight = 19.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("Current status: ${state.billing.display}", color = Ink, fontWeight = FontWeight.Bold)
                 Text("Monthly cap: ${state.billing.capDisplay}", color = Muted, fontSize = 14.sp)
@@ -1398,7 +1587,7 @@ private fun LazyListScope.profileItems(
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(state.user.displayName.ifBlank { "Phone Agent user" }, color = Ink, fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold)
+                    Text(state.user.displayName.ifBlank { "Call Held user" }, color = Ink, fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold)
                     Text(state.user.phoneNumber.ifBlank { "Verified phone" }, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(assistantStatusSentence(state), color = Muted, fontSize = 13.sp)
                 }
@@ -1422,8 +1611,6 @@ private fun LazyListScope.profileItems(
     item { SectionLabel("Support") }
     item {
         WorkCard {
-            SettingsRow("Diagnostics", "Version ${BuildConfig.VERSION_NAME}", Icons.Filled.Settings) { actions.refresh() }
-            Spacer(Modifier.height(8.dp))
             SecondaryButton("Log out", Modifier.fillMaxWidth(), onLogoutClick)
             Spacer(Modifier.height(8.dp))
             SecondaryButton("Remove account", Modifier.fillMaxWidth(), onRemoveAccountClick)
@@ -1461,7 +1648,7 @@ private fun LogoutDialog(show: Boolean, onDismiss: () -> Unit, onConfirm: () -> 
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text("Log out?") },
-            text = { Text("This signs you out on this phone and clears local cached app data. Your Phone Agent account and history stay in the cloud.") },
+            text = { Text("This signs you out on this phone and clears local cached app data. Your Call Held account and history stay in the cloud.") },
             confirmButton = {
                 TextButton(onClick = {
                     onDismiss()

@@ -12,7 +12,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 internal data class PhoneAgentUiState(
-    val screen: Screen = Screen.AuthChoice,
+    val screen: Screen = Screen.CreateAccount,
     val selectedTab: Tab = Tab.Home,
     val status: String = "Setup",
     val dataFreshness: DataFreshness = DataFreshness.fresh(),
@@ -37,7 +37,6 @@ internal data class PhoneAgentUiState(
 internal sealed interface Screen {
     data object Startup : Screen
     data object StartupIssue : Screen
-    data object AuthChoice : Screen
     data object Login : Screen
     data object CreateAccount : Screen
     data object VerifyPhone : Screen
@@ -291,15 +290,48 @@ internal data class CallRecord(val json: JSONObject) {
 
 internal data class TopicSuggestion(val json: JSONObject) {
     val id: String = json.optString("id")
-    val title: String = json.optString("suggestedTopicTitle", json.optString("title", "Suggested topic"))
+    val targetType: String = json.optString("targetType", "new_topic")
+    val title: String = json.optString(
+        "suggestedTopicTitle",
+        json.optString("suggestedTitle", json.optString("title", "Untitled topic"))
+    )
     val reason: String = json.optString("reason", "The assistant thinks this belongs with related communication.")
     val confidence: Double = json.optDouble("confidence", 0.0)
+    private val source: JSONObject? = json.optJSONObject("sourceCommunication")
+    private val sourceName: String = source?.optString("displayName").orEmpty()
+    private val sourceNumber: String = source?.optString("phoneNumber").orEmpty()
+    private val sourceTime: String = formatCallTime(source?.optString("occurredAt").orEmpty())
+    val sourceSummary: String = source?.optString("summary").orEmpty()
+    val sourceLabel: String = buildList {
+        val channel = source?.optString("channelLabel").orEmpty().ifBlank { "Communication" }
+        val caller = sourceName.ifBlank { sourceNumber.ifBlank { "unknown caller" } }
+        add("$channel from $caller")
+        if (sourceTime.isNotBlank()) add(sourceTime)
+    }.joinToString(" / ")
+    val compactSourceLabel: String = buildList {
+        val channel = source?.optString("channelLabel").orEmpty().ifBlank { "Communication" }
+        val caller = sourceName.ifBlank { sourceNumber.ifBlank { "unknown caller" } }
+        add("From $caller")
+        add(channel)
+        if (sourceTime.isNotBlank()) add(sourceTime)
+    }.joinToString(" · ")
+    val isExistingTopic: Boolean = targetType == "existing_topic"
+    val reviewLabel: String = if (isExistingTopic) "Topic match" else "Suggested topic"
+    val compactReason: String = compactSentence(sourceSummary.ifBlank { reason })
+    val actionPreview: String = if (isExistingTopic) {
+        "Add the source call to this topic."
+    } else {
+        "Create this topic and attach the source call."
+    }
+    val acceptLabel: String = if (isExistingTopic) "Add to topic" else "Create topic"
+    val dismissLabel: String = "Dismiss"
+    val acceptedToast: String = if (isExistingTopic) "Call added to topic." else "Topic created."
 }
 
 internal data class AppNotification(val json: JSONObject) {
     val id: String = json.optString("id", json.optString("notificationId"))
     val title: String = json.optString("title", "Assistant update")
-    val body: String = json.optString("body", "Open Phone Agent to review.")
+    val body: String = json.optString("body", "Open Call Held to review.")
 }
 
 internal data class AgentNote(val json: JSONObject) {
@@ -377,6 +409,16 @@ internal fun String.toForwardingDigits(): String {
 }
 
 internal fun cachedJson(value: String): JSONObject = runCatching { JSONObject(value) }.getOrElse { JSONObject() }
+
+private fun compactSentence(value: String, maxLength: Int = 120): String {
+    val normalized = value.replace(Regex("\\s+"), " ").trim()
+    if (normalized.length <= maxLength) return normalized
+    val sentenceEnd = listOf('.', '?', '!').map { normalized.indexOf(it) }
+        .filter { it in 24 until maxLength }
+        .minOrNull()
+    if (sentenceEnd != null) return normalized.take(sentenceEnd + 1)
+    return normalized.take(maxLength - 3).trimEnd() + "..."
+}
 
 internal fun stableCacheId(prefix: String, preferred: String, json: JSONObject): String {
     return preferred.ifBlank { "${prefix}_${json.toString().hashCode()}" }
