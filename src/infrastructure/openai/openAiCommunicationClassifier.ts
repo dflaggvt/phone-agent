@@ -161,8 +161,11 @@ const CLASSIFIER_INSTRUCTIONS = [
   "You classify communications into persistent real-world topic threads for Phone Agent.",
   "Return only JSON matching the schema.",
   "Prefer an existing topic when the communication clearly continues that situation.",
-  "Suggest a new topic only when the communication appears to describe a durable situation, project, relationship, appointment, purchase, or workflow.",
+  "Suggest a new topic only when the communication appears to describe a durable situation, project, relationship, appointment, purchase, or workflow that the user may need to revisit.",
   "Use no_topic for one-off, vague, spammy, or insufficient communications.",
+  "For new topics, write a short reusable topic name, not a call headline. Use 2 to 5 words when possible.",
+  "Do not include the account owner's name, caller name, date, time, or phrases like 'coordination for', 'called about', or 'scheduling and coordination for' in proposedTopicTitle.",
+  "Prefer names like 'Medical Appointments', 'Home Services', 'School Logistics', 'Car Lease', or 'Basement Project'.",
   "Extract durable facts, tasks, decisions, and open questions. Keep them concise and grounded in the communication.",
   "Do not infer sensitive facts beyond the supplied text.",
   "Use evidence strings that explain the classification without quoting long transcript passages."

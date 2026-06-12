@@ -108,7 +108,7 @@ describe("TopicSuggestionService", () => {
     const service = new TopicSuggestionService({ communicationItems, topics, suggestions, classifier });
 
     const first = await service.analyzeCommunication(item);
-    title = "Summit Health Primary Care Appointment for Daryl";
+    title = "Summit Health Primary Care Appointment for Daryl Flagg";
     const second = await service.analyzeCommunication(item);
     const pending = await service.listPending("default-user");
 
@@ -116,8 +116,79 @@ describe("TopicSuggestionService", () => {
     expect(second).toHaveLength(1);
     expect(second[0]?.id).toBe(first[0]?.id);
     expect(pending).toHaveLength(1);
-    expect(pending[0]?.suggestedTopicTitle).toBe("Summit Health Primary Care Appointment for Daryl");
+    expect(pending[0]?.suggestedTopicTitle).toBe("Summit Health Primary Care Appointment");
     expect(pending[0]?.confidence).toBe(0.95);
+  });
+
+  it("normalizes generated headline-style new topic titles before display and creation", async () => {
+    const communicationItems = new InMemoryCommunicationItemRepository();
+    const topics = new InMemoryTopicThreadRepository();
+    const suggestions = new InMemoryTopicSuggestionRepository();
+    const item = await communicationItems.create({
+      userId: "default-user",
+      channel: "phone_call",
+      direction: "inbound",
+      sourceProvider: "retell",
+      providerItemId: "call_verbose_topic_title",
+      sender: { displayName: "John" },
+      summary: "John called about doctor appointment schedule coordination."
+    });
+    const classifier: CommunicationClassifier = {
+      async classify() {
+        return {
+          topicAction: "new_topic",
+          proposedTopicTitle: "Scheduling and Coordination for Daryl Flagg's Doctor Appointments",
+          proposedTopicDescription: "Appointment scheduling and logistics.",
+          confidence: 0.91,
+          reason: "The call is about doctor appointment scheduling.",
+          evidence: ["Mentions doctor appointment schedule."],
+          extractedFacts: [],
+          extractedTasks: [],
+          extractedDecisions: [],
+          extractedOpenQuestions: []
+        };
+      }
+    };
+    const service = new TopicSuggestionService({ communicationItems, topics, suggestions, classifier });
+
+    const [created] = await service.analyzeCommunication(item);
+    const pending = await service.listPending("default-user");
+    const accepted = await service.acceptSuggestion(created!.id, "default-user");
+
+    expect(created?.suggestedTitle).toBe("Doctor Appointments");
+    expect(pending[0]?.suggestedTopicTitle).toBe("Doctor Appointments");
+    expect(accepted?.topic.title).toBe("Doctor Appointments");
+  });
+
+  it("normalizes stored pending suggestion titles from earlier classifier versions", async () => {
+    const communicationItems = new InMemoryCommunicationItemRepository();
+    const topics = new InMemoryTopicThreadRepository();
+    const suggestions = new InMemoryTopicSuggestionRepository();
+    const item = await communicationItems.create({
+      userId: "default-user",
+      channel: "phone_call",
+      direction: "inbound",
+      sourceProvider: "retell",
+      providerItemId: "call_legacy_verbose_topic_title",
+      summary: "A cleaner visit was coordinated."
+    });
+    await suggestions.upsertPending({
+      userId: "default-user",
+      communicationItemId: item.id,
+      targetType: "new_topic",
+      suggestedTitle: "Cleaner Visit Coordination for Daryl Flagg",
+      suggestedDescription: "Cleaner visit logistics.",
+      confidence: 0.86,
+      reason: "The call is about the cleaner visit.",
+      evidence: []
+    });
+    const service = new TopicSuggestionService({ communicationItems, topics, suggestions });
+
+    const pending = await service.listPending("default-user");
+    const accepted = await service.acceptSuggestion(pending[0]!.id, "default-user");
+
+    expect(pending[0]?.suggestedTopicTitle).toBe("Cleaner Visit");
+    expect(accepted?.topic.title).toBe("Cleaner Visit");
   });
 
   it("does not reopen a topic suggestion after the user dismisses it", async () => {

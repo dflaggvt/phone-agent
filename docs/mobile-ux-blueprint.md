@@ -846,6 +846,8 @@ Collapsed suggestion cards must not show confidence percentages, source-call box
 
 The Assistant queue must show at most one pending topic suggestion for a given source communication. If classifier retries or model wording produce multiple possible titles for the same call, text, or email, the app should render only the strongest current suggestion and the backend should treat accepting or dismissing it as resolving the duplicate siblings.
 
+Suggested topic titles shown in cards must be durable topic names, not generated call-summary headlines. Target `2-5` words and `18-42` characters. Titles must not include the account owner name, caller name, one-off dates, one-off times, or phrases such as `coordination for`, `called about`, or `scheduling and coordination for`. Prefer `Medical Appointments` over `Scheduling and Coordination for Daryl Flagg's Doctor Appointments`, and `Home Services` or `Cleaner Visit` over `Cleaner Visit Coordination for Daryl Flagg`.
+
 Actions:
 
 - `Create topic` for new-topic suggestions.

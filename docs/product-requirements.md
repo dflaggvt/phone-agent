@@ -89,7 +89,7 @@ The MVP remains Android-first and phone-first, but it should be built on the cro
 - Manual topic thread creation.
 - Manual attachment of call communication items to topic threads.
 - Basic topic thread detail state: title, description, participants, decisions, open questions, tasks, documents, timeline, status, and permissions.
-- AI-generated topic suggestions from call summaries. A single communication item should produce at most one pending topic-review decision; repeated classifier runs or title variations must update, collapse, or hide duplicate suggestions rather than asking the user to create the same topic twice.
+- AI-generated topic suggestions from call summaries. A single communication item should produce at most one pending topic-review decision; repeated classifier runs or title variations must update, collapse, or hide duplicate suggestions rather than asking the user to create the same topic twice. Suggested topic titles should be durable, short, reusable names such as `Medical Appointments`, `Home Services`, or `School Logistics`; they must not read like call summaries, include the user’s name, include caller-specific phrasing, or include one-off dates and times.
 - Firebase Auth account foundation with Google and email/password sign-in, plus Firebase Phone Auth for protected-number verification.
 - Per-user phone number and Retell routing configuration.
 - Usage/cost visibility and conservative plan limits.

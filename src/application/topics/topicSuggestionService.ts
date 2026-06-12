@@ -68,7 +68,7 @@ export class TopicSuggestionService {
       ? await this.getSuggestedExistingTopic(existing)
       : await this.dependencies.topics.create({
         userId: existing.userId,
-        title: existing.suggestedTitle ?? "New topic",
+        title: normalizeNewTopicTitle(existing.suggestedTitle ?? "") ?? existing.suggestedTitle ?? "New topic",
         description: existing.suggestedDescription
       });
 
@@ -121,7 +121,9 @@ export class TopicSuggestionService {
 
     return {
       ...suggestion,
-      suggestedTopicTitle: suggestion.suggestedTitle ?? targetTopic?.title ?? "Suggested topic",
+      suggestedTopicTitle: suggestion.targetType === "new_topic"
+        ? normalizeNewTopicTitle(suggestion.suggestedTitle ?? "") ?? suggestion.suggestedTitle ?? "Suggested topic"
+        : targetTopic?.title ?? suggestion.suggestedTitle ?? "Suggested topic",
       sourceCommunication: communication ? summarizeSourceCommunication(communication) : undefined
     };
   }
@@ -190,11 +192,15 @@ export class TopicSuggestionService {
     }
 
     if (classification.topicAction === "new_topic" && classification.proposedTopicTitle) {
+      const suggestedTitle = normalizeNewTopicTitle(classification.proposedTopicTitle);
+      if (!suggestedTitle) {
+        return [];
+      }
       const suggestion = await this.dependencies.suggestions.upsertPending({
         userId: item.userId,
         communicationItemId: item.id,
         targetType: "new_topic",
-        suggestedTitle: classification.proposedTopicTitle,
+        suggestedTitle,
         suggestedDescription: classification.proposedTopicDescription,
         confidence: classification.confidence,
         reason: classification.reason,
@@ -274,6 +280,75 @@ function isBetterVisibleSuggestion(candidate: TopicSuggestion, current: TopicSug
   }
   return candidate.createdAt.getTime() > current.createdAt.getTime();
 }
+
+function normalizeNewTopicTitle(value: string): string | undefined {
+  let title = normalizeWhitespace(value);
+  if (!title) {
+    return undefined;
+  }
+
+  title = stripDateAndTimeSuffix(title);
+  title = title
+    .replace(/^(?:scheduling and coordination|coordination|logistics|planning)\s+for\s+/i, "")
+    .replace(/\s+(?:scheduling and coordination|coordination|logistics|planning)\s+for\s+[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2}$/i, "")
+    .replace(/^[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+)?'s\s+/, "")
+    .replace(/\s+for\s+[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2}$/, "")
+    .replace(/[.:;,]+$/g, "")
+    .trim();
+
+  title = stripDateAndTimeSuffix(title);
+  title = normalizeWhitespace(title);
+  if (!title || GENERATED_TITLE_PHRASES.some((phrase) => title.toLowerCase().includes(phrase))) {
+    return undefined;
+  }
+
+  const words = title.split(" ").filter(Boolean);
+  if (words.length > 6 || title.length > 64) {
+    return undefined;
+  }
+
+  const lower = title.toLowerCase();
+  if (GENERIC_TOPIC_TITLES.has(lower)) {
+    return undefined;
+  }
+
+  return title === lower || title === title.toUpperCase() ? titleCase(title) : title;
+}
+
+function stripDateAndTimeSuffix(value: string): string {
+  const monthPattern = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  return value
+    .replace(new RegExp(`\\s*\\([^)]*(?:${monthPattern}|\\d{1,2}:\\d{2}|\\b(?:am|pm)\\b)[^)]*\\)\\s*$`, "i"), "")
+    .replace(new RegExp(`\\s+(?:on|for)\\s+${monthPattern}\\s+\\d{1,2}(?:,\\s*\\d{4})?(?:\\s+(?:at\\s+)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?)?\\s*$`, "i"), "")
+    .replace(/\s+(?:at|by)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\s*$/i, "")
+    .trim();
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function titleCase(value: string): string {
+  return value.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+const GENERATED_TITLE_PHRASES = [
+  "called about",
+  "call from",
+  "called to"
+];
+
+const GENERIC_TOPIC_TITLES = new Set([
+  "call",
+  "calls",
+  "coordination",
+  "scheduling",
+  "logistics",
+  "appointment",
+  "appointments",
+  "follow up",
+  "update"
+]);
 
 function summarizeSourceCommunication(item: CommunicationItem) {
   const sender = item.sender ?? item.participants[0];
