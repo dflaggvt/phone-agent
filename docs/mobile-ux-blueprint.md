@@ -857,7 +857,7 @@ Actions:
 Action feedback:
 
 - Buttons must never be inert. While saving, show the global saving state or row-level disabled state.
-- Topic suggestion actions use explicit review-action surfaces, not decorative text buttons. Each visible action target is at least `52dp` tall, spans its half of the card row, and has a direct click handler on the visible surface.
+- Topic suggestion actions use explicit review-action surfaces, not decorative text buttons. Each visible action target is `48dp` tall, spans its half of the card row, and has a direct click handler on the visible surface.
 - After success, remove the card from the visible queue and show a short confirmation such as `Topic created` or `Suggestion dismissed`.
 - If the action fails, keep the card visible and show a recoverable error.
 

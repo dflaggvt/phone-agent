@@ -308,7 +308,7 @@ private fun ReviewActionButton(
     val border = if (emphasized) null else BorderStroke(1.dp, Line)
     Surface(
         modifier = modifier
-            .height(52.dp)
+            .height(48.dp)
             .clip(shape)
             .clickable(enabled = enabled, onClick = onClick),
         shape = shape,
