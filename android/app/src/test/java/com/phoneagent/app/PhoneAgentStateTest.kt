@@ -188,6 +188,47 @@ class PhoneAgentStateTest {
     }
 
     @Test
+    fun topicSuggestionCleansLegacyGeneratedTitlesFromCachedSnapshots() {
+        val doctorSuggestion = TopicSuggestion(
+            JSONObject(
+                """
+                {
+                  "id": "suggestion_doctor",
+                  "targetType": "new_topic",
+                  "suggestedTitle": "Scheduling and Coordination for Daryl Flagg's Doctor Appointments"
+                }
+                """.trimIndent()
+            )
+        )
+        val cleanerSuggestion = TopicSuggestion(
+            JSONObject(
+                """
+                {
+                  "id": "suggestion_cleaner",
+                  "targetType": "new_topic",
+                  "suggestedTitle": "Cleaner Visit Coordination for Daryl Flagg"
+                }
+                """.trimIndent()
+            )
+        )
+        val medicalSuggestion = TopicSuggestion(
+            JSONObject(
+                """
+                {
+                  "id": "suggestion_summit",
+                  "targetType": "new_topic",
+                  "suggestedTitle": "Daryl's Summit Health Appointment on June 6, 2026"
+                }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals("Doctor Appointments", doctorSuggestion.title)
+        assertEquals("Cleaner Visit", cleanerSuggestion.title)
+        assertEquals("Summit Health Appointment", medicalSuggestion.title)
+    }
+
+    @Test
     fun contactSyncRequestSerializesOnlyAllowedContactFields() {
         val contact = DeviceContactInput(
             sourceContactId = "android-123",

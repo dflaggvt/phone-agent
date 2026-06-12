@@ -292,10 +292,11 @@ internal data class TopicSuggestion(val json: JSONObject) {
     val id: String = json.optString("id")
     val communicationItemId: String = json.optString("communicationItemId")
     val targetType: String = json.optString("targetType", "new_topic")
-    val title: String = json.optString(
+    private val rawTitle: String = json.optString(
         "suggestedTopicTitle",
         json.optString("suggestedTitle", json.optString("title", "Untitled topic"))
     )
+    val title: String = if (targetType == "new_topic") cleanTopicSuggestionTitle(rawTitle) else rawTitle
     val reason: String = json.optString("reason", "The assistant thinks this belongs with related communication.")
     val confidence: Double = json.optDouble("confidence", 0.0)
     private val source: JSONObject? = json.optJSONObject("sourceCommunication")
@@ -422,6 +423,43 @@ private fun compactSentence(value: String, maxLength: Int = 120): String {
     if (sentenceEnd != null) return normalized.take(sentenceEnd + 1)
     return normalized.take(maxLength - 3).trimEnd() + "..."
 }
+
+internal fun cleanTopicSuggestionTitle(value: String): String {
+    val original = value.replace(Regex("\\s+"), " ").trim()
+    if (original.isBlank()) return "Suggested topic"
+
+    var title = stripTopicDateAndTimeSuffix(original)
+        .replace(Regex("^(scheduling and coordination|coordination|logistics|planning)\\s+for\\s+", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s+(scheduling and coordination|coordination|logistics|planning)\\s+for\\s+[A-Z][A-Za-z'-]+(\\s+[A-Z][A-Za-z'-]+){0,2}$", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("^[A-Z][A-Za-z'-]+(\\s+[A-Z][A-Za-z'-]+)?'s\\s+"), "")
+        .replace(Regex("\\s+for\\s+[A-Z][A-Za-z'-]+(\\s+[A-Z][A-Za-z'-]+){1,2}$"), "")
+        .replace(Regex("[.:;,]+$"), "")
+        .trim()
+
+    title = stripTopicDateAndTimeSuffix(title).replace(Regex("\\s+"), " ").trim()
+    return when {
+        title.isBlank() -> original
+        title.length > 64 -> original
+        title.split(" ").filter(String::isNotBlank).size > 6 -> original
+        generatedTopicTitlePhrases.any { title.contains(it, ignoreCase = true) } -> original
+        else -> title
+    }
+}
+
+private fun stripTopicDateAndTimeSuffix(value: String): String {
+    val month = "(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?)"
+    return value
+        .replace(Regex("\\s*\\([^)]*($month|\\d{1,2}:\\d{2}|\\b(am|pm)\\b)[^)]*\\)\\s*$", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s+(on|for)\\s+$month\\s+\\d{1,2}(,\\s*\\d{4})?(\\s+(at\\s+)?\\d{1,2}(:\\d{2})?\\s*(am|pm)?)?\\s*$", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s+(at|by)\\s+\\d{1,2}(:\\d{2})?\\s*(am|pm)\\s*$", RegexOption.IGNORE_CASE), "")
+        .trim()
+}
+
+private val generatedTopicTitlePhrases = listOf(
+    "called about",
+    "call from",
+    "called to"
+)
 
 internal fun stableCacheId(prefix: String, preferred: String, json: JSONObject): String {
     return preferred.ifBlank { "${prefix}_${json.toString().hashCode()}" }

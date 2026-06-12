@@ -848,6 +848,8 @@ The Assistant queue must show at most one pending topic suggestion for a given s
 
 Suggested topic titles shown in cards must be durable topic names, not generated call-summary headlines. Target `2-5` words and `18-42` characters. Titles must not include the account owner name, caller name, one-off dates, one-off times, or phrases such as `coordination for`, `called about`, or `scheduling and coordination for`. Prefer `Medical Appointments` over `Scheduling and Coordination for Daryl Flagg's Doctor Appointments`, and `Home Services` or `Cleaner Visit` over `Cleaner Visit Coordination for Daryl Flagg`.
 
+The Android display model must apply the same title cleanup to cached legacy suggestions so old Room snapshots cannot continue showing generated headline-style topic names after the backend title policy changes.
+
 Actions:
 
 - `Create topic` for new-topic suggestions.
