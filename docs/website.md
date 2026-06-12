@@ -52,6 +52,25 @@ The website may describe these capabilities when phrased with clear user control
 
 Avoid absolute claims such as "the AI knows who is calling" or "the AI always remembers everything." Use qualified language such as "when recognized," "when connected," "when available," and "where policy allows."
 
+## Pricing Display
+
+The landing page may show beta pricing when it stays aligned with `docs/monetization.md` and the Stripe catalog configuration in `scripts/stripe-configure-catalog.mjs`.
+
+Current public pricing copy:
+
+- Personal plan: `$19/mo`.
+- Includes assistant number, `50` assistant-handled minutes, summaries, topic matching, and basic AI processing.
+- Additional assistant call time: `$0.39/min` after included minutes.
+- Default monthly spending cap: `$40/mo`.
+- Paid assistant work pauses at the cap unless the user raises it.
+
+The website must not mention Stripe, payment-provider object IDs, lookup keys, meter event names, voice-provider pricing, model-provider pricing, or raw token details. Those belong in implementation docs and internal billing surfaces.
+
+Pricing validation performed for this website update:
+
+- Source-validated against `scripts/stripe-configure-catalog.mjs`: lookup key `phone_agent_personal_monthly_usd` is configured at `1900` cents monthly, and lookup key `phone_agent_personal_call_minute_overage_usd` is configured as a monthly metered graduated price with `50` minutes at `0` cents and additional usage at `39` cents per minute.
+- Live Stripe API validation was not possible in the local shell because `STRIPE_SECRET_KEY` was not available and Stripe CLI was not installed/authenticated.
+
 ## Vercel Settings
 
 Create the Vercel project from the repository with:

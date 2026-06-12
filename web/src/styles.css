@@ -228,6 +228,7 @@ h1 {
 
 .section {
   padding: 88px 36px;
+  scroll-margin-top: 76px;
 }
 
 .section-inner {
@@ -518,6 +519,109 @@ h2 {
   color: #5d4cbf !important;
 }
 
+.pricing-section {
+  background: #181029;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(360px, 0.74fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.pricing-section .lead {
+  margin-top: 20px;
+  color: var(--muted);
+}
+
+.price-card {
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(247, 243, 237, 0.96);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.price-card-top {
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(20, 11, 43, 0.12);
+}
+
+.price-kicker {
+  color: #2f7b5f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.price-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.price-line strong {
+  font-size: 4.6rem;
+  line-height: 0.94;
+  font-weight: 900;
+}
+
+.price-currency,
+.price-line span:last-child {
+  color: #5b5266;
+  font-weight: 850;
+}
+
+.price-currency {
+  align-self: flex-start;
+  margin-top: 8px;
+  font-size: 1.4rem;
+}
+
+.price-card-top p,
+.pricing-note {
+  color: #5b5266;
+  line-height: 1.62;
+}
+
+.price-card-top p {
+  margin-top: 16px;
+}
+
+.pricing-details {
+  display: grid;
+  gap: 12px;
+  padding: 22px 0;
+}
+
+.pricing-details div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(20, 11, 43, 0.08);
+}
+
+.pricing-details div:last-child {
+  border-bottom: 0;
+}
+
+.pricing-details span {
+  color: #5b5266;
+  font-weight: 720;
+}
+
+.pricing-details strong {
+  color: var(--ink);
+  font-size: 1.02rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .trust-section {
   background: #181029;
 }
@@ -674,7 +778,8 @@ h2 {
   }
 
   .two-column,
-  .product-grid {
+  .product-grid,
+  .pricing-grid {
     grid-template-columns: 1fr;
     gap: 34px;
   }
@@ -695,6 +800,10 @@ h2 {
 
   .phone-shell {
     justify-self: start;
+  }
+
+  .price-card {
+    max-width: 520px;
   }
 
   .site-footer {
@@ -765,6 +874,25 @@ h2 {
     border-width: 7px;
     border-radius: 32px;
     padding: 16px;
+  }
+
+  .price-card {
+    padding: 22px;
+  }
+
+  .price-line strong {
+    font-size: 3.7rem;
+  }
+
+  .pricing-details div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .pricing-details strong {
+    text-align: left;
+    white-space: normal;
   }
 
   .topic-strip {
