@@ -49,7 +49,13 @@ export interface CreateTopicSuggestionInput {
 export interface TopicSuggestionRepository {
   upsertPending(input: CreateTopicSuggestionInput): Promise<TopicSuggestion>;
   get(id: string): Promise<TopicSuggestion | undefined>;
+  listForCommunication(userId: string, communicationItemId: string): Promise<TopicSuggestion[]>;
   listPendingForUser(userId: string): Promise<TopicSuggestion[]>;
   accept(id: string): Promise<TopicSuggestion | undefined>;
   dismiss(id: string): Promise<TopicSuggestion | undefined>;
+  dismissPendingForCommunication(input: {
+    userId: string;
+    communicationItemId: string;
+    exceptId?: string;
+  }): Promise<TopicSuggestion[]>;
 }

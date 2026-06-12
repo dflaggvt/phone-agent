@@ -290,6 +290,7 @@ internal data class CallRecord(val json: JSONObject) {
 
 internal data class TopicSuggestion(val json: JSONObject) {
     val id: String = json.optString("id")
+    val communicationItemId: String = json.optString("communicationItemId")
     val targetType: String = json.optString("targetType", "new_topic")
     val title: String = json.optString(
         "suggestedTopicTitle",
@@ -298,6 +299,8 @@ internal data class TopicSuggestion(val json: JSONObject) {
     val reason: String = json.optString("reason", "The assistant thinks this belongs with related communication.")
     val confidence: Double = json.optDouble("confidence", 0.0)
     private val source: JSONObject? = json.optJSONObject("sourceCommunication")
+    val sourceCommunicationId: String = source?.optString("id").orEmpty()
+    val dedupeKey: String = communicationItemId.ifBlank { sourceCommunicationId.ifBlank { id } }
     private val sourceName: String = source?.optString("displayName").orEmpty()
     private val sourceNumber: String = source?.optString("phoneNumber").orEmpty()
     private val sourceTime: String = formatCallTime(source?.optString("occurredAt").orEmpty())

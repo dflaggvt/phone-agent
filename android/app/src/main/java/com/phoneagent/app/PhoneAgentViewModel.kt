@@ -56,8 +56,11 @@ internal class PhoneAgentViewModel @Inject constructor(
     }
 
     fun removeTopicSuggestion(suggestionId: String) {
+        val selected = mutableUiState.value.suggestions.firstOrNull { it.id == suggestionId }
         mutableUiState.value = mutableUiState.value.copy(
-            suggestions = mutableUiState.value.suggestions.filterNot { it.id == suggestionId }
+            suggestions = mutableUiState.value.suggestions.filterNot {
+                it.id == suggestionId || (selected != null && it.dedupeKey == selected.dedupeKey)
+            }
         )
     }
 
@@ -80,7 +83,7 @@ internal class PhoneAgentViewModel @Inject constructor(
             onboarding = snapshot.onboarding,
             topics = snapshot.topics,
             calls = snapshot.calls,
-            suggestions = snapshot.suggestions,
+            suggestions = snapshot.suggestions.withoutDuplicateSourceCommunications(),
             notifications = snapshot.notifications,
             agentNotes = snapshot.agentNotes,
             approvalRequests = snapshot.approvalRequests,
@@ -108,5 +111,26 @@ internal class PhoneAgentViewModel @Inject constructor(
             !snapshot.onboarding.assistantProfileConfigured -> Screen.AssistantName
             else -> Screen.Main
         }
+    }
+}
+
+private fun List<TopicSuggestion>.withoutDuplicateSourceCommunications(): List<TopicSuggestion> {
+    val bestBySource = linkedMapOf<String, TopicSuggestion>()
+    forEach { suggestion ->
+        val current = bestBySource[suggestion.dedupeKey]
+        if (current == null || suggestion.isBetterVisibleSuggestionThan(current)) {
+            bestBySource[suggestion.dedupeKey] = suggestion
+        }
+    }
+    return bestBySource.values.toList()
+}
+
+private fun TopicSuggestion.isBetterVisibleSuggestionThan(other: TopicSuggestion): Boolean {
+    val targetRank = if (isExistingTopic) 1 else 0
+    val otherTargetRank = if (other.isExistingTopic) 1 else 0
+    return when {
+        targetRank != otherTargetRank -> targetRank > otherTargetRank
+        confidence != other.confidence -> confidence > other.confidence
+        else -> false
     }
 }

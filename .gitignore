@@ -27,3 +27,5 @@ release/
 .codex-remote-attachments/
 .codex-tools/
 .codex-tunnel/
+.codex-last-*.txt
+screenshots/

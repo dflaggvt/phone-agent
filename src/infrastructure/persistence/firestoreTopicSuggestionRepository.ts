@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Firestore } from "@google-cloud/firestore";
 import type {
   CreateTopicSuggestionInput,
@@ -18,7 +18,7 @@ export class FirestoreTopicSuggestionRepository implements TopicSuggestionReposi
     const existing = await this.findPendingMatch(input);
     const now = new Date();
     const suggestion: TopicSuggestion = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? stableSuggestionId(input),
       userId: input.userId,
       communicationItemId: input.communicationItemId,
       targetType: input.targetType,
@@ -41,6 +41,17 @@ export class FirestoreTopicSuggestionRepository implements TopicSuggestionReposi
     return doc.exists ? topicSuggestionFromFirestore(doc.id, doc.data() ?? {}) : undefined;
   }
 
+  async listForCommunication(userId: string, communicationItemId: string): Promise<TopicSuggestion[]> {
+    const snapshot = await this.collection()
+      .where("userId", "==", userId)
+      .where("communicationItemId", "==", communicationItemId)
+      .limit(100)
+      .get();
+    return snapshot.docs
+      .map((doc) => topicSuggestionFromFirestore(doc.id, doc.data()))
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
   async listPendingForUser(userId: string): Promise<TopicSuggestion[]> {
     const snapshot = await this.collection()
       .where("userId", "==", userId)
@@ -60,16 +71,42 @@ export class FirestoreTopicSuggestionRepository implements TopicSuggestionReposi
     return this.decide(id, "dismissed");
   }
 
-  private async findPendingMatch(input: CreateTopicSuggestionInput): Promise<TopicSuggestion | undefined> {
-    let query = this.collection()
+  async dismissPendingForCommunication(input: {
+    userId: string;
+    communicationItemId: string;
+    exceptId?: string;
+  }): Promise<TopicSuggestion[]> {
+    const snapshot = await this.collection()
       .where("userId", "==", input.userId)
       .where("communicationItemId", "==", input.communicationItemId)
-      .where("targetType", "==", input.targetType)
-      .where("status", "==", "pending");
+      .where("status", "==", "pending")
+      .limit(100)
+      .get();
+    const siblings = snapshot.docs
+      .map((doc) => topicSuggestionFromFirestore(doc.id, doc.data()))
+      .filter((suggestion) => suggestion.id !== input.exceptId);
+    const now = new Date();
+    const batch = this.firestore.batch();
+    const dismissed = siblings.map((suggestion) => ({
+      ...suggestion,
+      status: "dismissed" as const,
+      updatedAt: now,
+      decidedAt: now
+    }));
+    for (const suggestion of dismissed) {
+      batch.set(this.collection().doc(suggestion.id), removeUndefinedDeep(suggestion));
+    }
+    if (dismissed.length > 0) {
+      await batch.commit();
+    }
+    return dismissed;
+  }
 
-    query = input.suggestedTopicThreadId
-      ? query.where("suggestedTopicThreadId", "==", input.suggestedTopicThreadId)
-      : query.where("suggestedTitle", "==", input.suggestedTitle ?? "");
+  private async findPendingMatch(input: CreateTopicSuggestionInput): Promise<TopicSuggestion | undefined> {
+    const query = this.collection()
+      .where("userId", "==", input.userId)
+      .where("communicationItemId", "==", input.communicationItemId)
+      .where("status", "==", "pending");
 
     const snapshot = await query.limit(1).get();
     const doc = snapshot.docs[0];
@@ -126,4 +163,15 @@ function stringArray(value: unknown): string[] {
 
 function getString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function stableSuggestionId(input: CreateTopicSuggestionInput): string {
+  if (!input.userId || !input.communicationItemId) {
+    return randomUUID();
+  }
+  const hash = createHash("sha256")
+    .update(`${input.userId}:${input.communicationItemId}`)
+    .digest("hex")
+    .slice(0, 32);
+  return `communication_${hash}`;
 }

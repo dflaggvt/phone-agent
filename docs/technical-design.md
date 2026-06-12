@@ -547,7 +547,7 @@ Billing invoice responses must be sanitized: include invoice ID, status, amount,
 
 Current MVP implementation exposes onboarding status, communication inbox, communication item detail, topic create/list/detail, manual communication attachment, and create-only decisions/open questions/tasks. The Android app includes Setup, Communication Inbox, Topics, manual topic creation, manual communication attachment, and a basic topic detail view.
 
-The next implemented slice adds reviewable topic suggestions and communication extraction scaffolding. Suggestions are stored separately from topic associations until accepted by the user. The classifier is provider-neutral and currently uses an OpenAI-backed implementation with structured JSON output. Retell events may trigger this service, but Retell payloads are normalized into communication items first.
+The next implemented slice adds reviewable topic suggestions and communication extraction scaffolding. Suggestions are stored separately from topic associations until accepted by the user. A topic suggestion is the pending review state for a communication item, not an unbounded list of alternative generated titles; the backend should upsert by user and communication item, collapse existing duplicates in the review queue, and dismiss sibling pending suggestions when one is accepted or dismissed. The classifier is provider-neutral and currently uses an OpenAI-backed implementation with structured JSON output. Retell events may trigger this service, but Retell payloads are normalized into communication items first.
 
 Topic detach, update/delete for structured state, permissioned sharing, and full AI classification remain future work.
 

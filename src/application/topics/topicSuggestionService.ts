@@ -32,7 +32,7 @@ export class TopicSuggestionService {
 
   async listPending(userId: string): Promise<TopicSuggestionListItem[]> {
     const suggestions = await this.dependencies.suggestions.listPendingForUser(userId);
-    return Promise.all(suggestions.map((suggestion) => this.enrichSuggestion(suggestion)));
+    return Promise.all(collapsePendingSuggestions(suggestions).map((suggestion) => this.enrichSuggestion(suggestion)));
   }
 
   async analyzeCommunication(item: CommunicationItem): Promise<TopicSuggestion[]> {
@@ -85,6 +85,11 @@ export class TopicSuggestionService {
       reason: `Accepted suggestion: ${existing.reason}`
     });
     const accepted = await this.dependencies.suggestions.accept(id);
+    await this.dependencies.suggestions.dismissPendingForCommunication({
+      userId: existing.userId,
+      communicationItemId: existing.communicationItemId,
+      exceptId: id
+    });
     return accepted ? { suggestion: accepted, topic: attachedTopic ?? topic } : undefined;
   }
 
@@ -93,7 +98,13 @@ export class TopicSuggestionService {
     if (!existing || (userId && existing.userId !== userId)) {
       return undefined;
     }
-    return this.dependencies.suggestions.dismiss(id);
+    const dismissed = await this.dependencies.suggestions.dismiss(id);
+    await this.dependencies.suggestions.dismissPendingForCommunication({
+      userId: existing.userId,
+      communicationItemId: existing.communicationItemId,
+      exceptId: id
+    });
+    return dismissed;
   }
 
   private async getSuggestedExistingTopic(suggestion: TopicSuggestion): Promise<TopicThread | undefined> {
@@ -158,6 +169,12 @@ export class TopicSuggestionService {
       return [];
     }
 
+    const priorSuggestions = await this.dependencies.suggestions.listForCommunication(item.userId, item.id);
+    if (priorSuggestions.some((suggestion) => suggestion.status === "accepted" || suggestion.status === "dismissed")) {
+      return [];
+    }
+    const hadPendingSuggestion = priorSuggestions.some((suggestion) => suggestion.status === "pending");
+
     if (classification.topicAction === "existing_topic" && classification.existingTopicThreadId) {
       const suggestion = await this.dependencies.suggestions.upsertPending({
         userId: item.userId,
@@ -168,11 +185,7 @@ export class TopicSuggestionService {
         reason: classification.reason,
         evidence: classification.evidence
       });
-      await this.dependencies.notifications?.createTopicSuggestion({
-        userId: item.userId,
-        suggestionId: suggestion.id,
-        confidence: suggestion.confidence
-      });
+      await this.afterUpsertedSuggestion(suggestion, hadPendingSuggestion);
       return [suggestion];
     }
 
@@ -187,15 +200,26 @@ export class TopicSuggestionService {
         reason: classification.reason,
         evidence: classification.evidence
       });
-      await this.dependencies.notifications?.createTopicSuggestion({
-        userId: item.userId,
-        suggestionId: suggestion.id,
-        confidence: suggestion.confidence
-      });
+      await this.afterUpsertedSuggestion(suggestion, hadPendingSuggestion);
       return [suggestion];
     }
 
     return [];
+  }
+
+  private async afterUpsertedSuggestion(suggestion: TopicSuggestion, hadPendingSuggestion: boolean): Promise<void> {
+    await this.dependencies.suggestions.dismissPendingForCommunication({
+      userId: suggestion.userId,
+      communicationItemId: suggestion.communicationItemId,
+      exceptId: suggestion.id
+    });
+    if (!hadPendingSuggestion) {
+      await this.dependencies.notifications?.createTopicSuggestion({
+        userId: suggestion.userId,
+        suggestionId: suggestion.id,
+        confidence: suggestion.confidence
+      });
+    }
   }
 
   private async updateExtractions(
@@ -223,6 +247,32 @@ export class TopicSuggestionService {
       extractedTasks: extracted.extractedTasks
     });
   }
+}
+
+function collapsePendingSuggestions(suggestions: TopicSuggestion[]): TopicSuggestion[] {
+  const bestByCommunication = new Map<string, TopicSuggestion>();
+  for (const suggestion of suggestions) {
+    const existing = bestByCommunication.get(suggestion.communicationItemId);
+    if (!existing || isBetterVisibleSuggestion(suggestion, existing)) {
+      bestByCommunication.set(suggestion.communicationItemId, suggestion);
+    }
+  }
+  return [...bestByCommunication.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+function isBetterVisibleSuggestion(candidate: TopicSuggestion, current: TopicSuggestion): boolean {
+  const candidateTargetRank = candidate.targetType === "existing_topic" ? 1 : 0;
+  const currentTargetRank = current.targetType === "existing_topic" ? 1 : 0;
+  if (candidateTargetRank !== currentTargetRank) {
+    return candidateTargetRank > currentTargetRank;
+  }
+  if (candidate.confidence !== current.confidence) {
+    return candidate.confidence > current.confidence;
+  }
+  if (candidate.updatedAt.getTime() !== current.updatedAt.getTime()) {
+    return candidate.updatedAt.getTime() > current.updatedAt.getTime();
+  }
+  return candidate.createdAt.getTime() > current.createdAt.getTime();
 }
 
 function summarizeSourceCommunication(item: CommunicationItem) {

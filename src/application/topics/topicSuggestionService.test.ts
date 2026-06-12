@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CommunicationClassifier } from "../../domain/topics/communicationClassifier.js";
+import type { TopicSuggestion, TopicSuggestionRepository } from "../../domain/topics/topicSuggestion.js";
 import { InMemoryCommunicationItemRepository } from "../../infrastructure/persistence/inMemoryCommunicationItemRepository.js";
 import { InMemoryTopicSuggestionRepository } from "../../infrastructure/persistence/inMemoryTopicSuggestionRepository.js";
 import { InMemoryTopicThreadRepository } from "../../infrastructure/persistence/inMemoryTopicThreadRepository.js";
@@ -69,4 +70,196 @@ describe("TopicSuggestionService", () => {
     expect(pending[0]?.sourceCommunication?.phoneNumber).toBe("+15551234567");
     expect(pending[0]?.sourceCommunication?.summary).toContain("plumbing change order");
   });
+
+  it("updates the pending suggestion for a communication when classifier wording changes", async () => {
+    const communicationItems = new InMemoryCommunicationItemRepository();
+    const topics = new InMemoryTopicThreadRepository();
+    const suggestions = new InMemoryTopicSuggestionRepository();
+    const item = await communicationItems.create({
+      userId: "default-user",
+      channel: "phone_call",
+      direction: "inbound",
+      sourceProvider: "retell",
+      providerItemId: "call_summit_health",
+      sender: {
+        displayName: "Summit Health",
+        phoneNumber: "+19145550100"
+      },
+      summary: "Primary care called about Daryl's June 6 appointment."
+    });
+
+    let title = "Daryl's Summit Health Appointment on June 6, 2026";
+    const classifier: CommunicationClassifier = {
+      async classify() {
+        return {
+          topicAction: "new_topic",
+          proposedTopicTitle: title,
+          proposedTopicDescription: "Primary care appointment logistics.",
+          confidence: title.startsWith("Summit") ? 0.95 : 0.88,
+          reason: "The call is about the same Summit Health appointment.",
+          evidence: ["Mentions Summit Health and June 6 appointment."],
+          extractedFacts: [],
+          extractedTasks: [],
+          extractedDecisions: [],
+          extractedOpenQuestions: []
+        };
+      }
+    };
+    const service = new TopicSuggestionService({ communicationItems, topics, suggestions, classifier });
+
+    const first = await service.analyzeCommunication(item);
+    title = "Summit Health Primary Care Appointment for Daryl";
+    const second = await service.analyzeCommunication(item);
+    const pending = await service.listPending("default-user");
+
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+    expect(second[0]?.id).toBe(first[0]?.id);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.suggestedTopicTitle).toBe("Summit Health Primary Care Appointment for Daryl");
+    expect(pending[0]?.confidence).toBe(0.95);
+  });
+
+  it("does not reopen a topic suggestion after the user dismisses it", async () => {
+    const communicationItems = new InMemoryCommunicationItemRepository();
+    const topics = new InMemoryTopicThreadRepository();
+    const suggestions = new InMemoryTopicSuggestionRepository();
+    const item = await communicationItems.create({
+      userId: "default-user",
+      channel: "phone_call",
+      direction: "inbound",
+      sourceProvider: "retell",
+      providerItemId: "call_dismissed_topic",
+      summary: "A caller asked about appointment logistics."
+    });
+    const classifier: CommunicationClassifier = {
+      async classify() {
+        return {
+          topicAction: "new_topic",
+          proposedTopicTitle: "Appointment Logistics",
+          confidence: 0.9,
+          reason: "The call is about appointment logistics.",
+          evidence: ["Mentions appointment logistics."],
+          extractedFacts: [],
+          extractedTasks: [],
+          extractedDecisions: [],
+          extractedOpenQuestions: []
+        };
+      }
+    };
+    const service = new TopicSuggestionService({ communicationItems, topics, suggestions, classifier });
+
+    const [created] = await service.analyzeCommunication(item);
+    await service.dismissSuggestion(created!.id, "default-user");
+    const reopened = await service.analyzeCommunication(item);
+    const pending = await service.listPending("default-user");
+
+    expect(reopened).toHaveLength(0);
+    expect(pending).toHaveLength(0);
+  });
+
+  it("collapses stored duplicate pending suggestions and resolves siblings on dismiss", async () => {
+    const communicationItems = new InMemoryCommunicationItemRepository();
+    const topics = new InMemoryTopicThreadRepository();
+    const item = await communicationItems.create({
+      userId: "default-user",
+      channel: "phone_call",
+      direction: "inbound",
+      sourceProvider: "retell",
+      providerItemId: "call_duplicate_suggestions",
+      sender: { displayName: "Summit Health" },
+      summary: "Summit Health called about a June 6 appointment."
+    });
+    const now = new Date("2026-06-04T13:10:00.000Z");
+    const store = new Map<string, TopicSuggestion>([
+      ["lower-confidence", {
+        id: "lower-confidence",
+        userId: "default-user",
+        communicationItemId: item.id,
+        targetType: "new_topic",
+        suggestedTitle: "Daryl's Summit Health Appointment on June 6, 2026",
+        confidence: 0.84,
+        reason: "This is about a Summit Health appointment.",
+        evidence: [],
+        status: "pending",
+        createdAt: new Date(now.getTime() - 1000),
+        updatedAt: new Date(now.getTime() - 1000)
+      }],
+      ["higher-confidence", {
+        id: "higher-confidence",
+        userId: "default-user",
+        communicationItemId: item.id,
+        targetType: "new_topic",
+        suggestedTitle: "Summit Health Primary Care Appointment for Daryl",
+        confidence: 0.96,
+        reason: "This is about the same Summit Health appointment.",
+        evidence: [],
+        status: "pending",
+        createdAt: now,
+        updatedAt: now
+      }]
+    ]);
+    const suggestions: TopicSuggestionRepository = {
+      async upsertPending() {
+        throw new Error("not used");
+      },
+      async get(id) {
+        return store.get(id);
+      },
+      async listForCommunication(userId, communicationItemId) {
+        return [...store.values()].filter((suggestion) =>
+          suggestion.userId === userId && suggestion.communicationItemId === communicationItemId
+        );
+      },
+      async listPendingForUser(userId) {
+        return [...store.values()].filter((suggestion) =>
+          suggestion.userId === userId && suggestion.status === "pending"
+        );
+      },
+      async accept(id) {
+        return updateStoredSuggestion(store, id, "accepted");
+      },
+      async dismiss(id) {
+        return updateStoredSuggestion(store, id, "dismissed");
+      },
+      async dismissPendingForCommunication(input) {
+        const dismissed: TopicSuggestion[] = [];
+        for (const suggestion of store.values()) {
+          if (
+            suggestion.status === "pending"
+            && suggestion.userId === input.userId
+            && suggestion.communicationItemId === input.communicationItemId
+            && suggestion.id !== input.exceptId
+          ) {
+            const updated = updateStoredSuggestion(store, suggestion.id, "dismissed");
+            if (updated) dismissed.push(updated);
+          }
+        }
+        return dismissed;
+      }
+    };
+    const service = new TopicSuggestionService({ communicationItems, topics, suggestions });
+
+    const pending = await service.listPending("default-user");
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.id).toBe("higher-confidence");
+
+    await service.dismissSuggestion("higher-confidence", "default-user");
+    expect([...store.values()].filter((suggestion) => suggestion.status === "pending")).toHaveLength(0);
+  });
 });
+
+function updateStoredSuggestion(
+  store: Map<string, TopicSuggestion>,
+  id: string,
+  status: "accepted" | "dismissed"
+): TopicSuggestion | undefined {
+  const existing = store.get(id);
+  if (!existing) {
+    return undefined;
+  }
+  const now = new Date();
+  const updated: TopicSuggestion = { ...existing, status, updatedAt: now, decidedAt: now };
+  store.set(id, updated);
+  return updated;
+}

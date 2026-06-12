@@ -6,6 +6,8 @@ node_modules
 dist
 coverage
 *.log
+screenshots
+.codex-last-image.txt
 README.md
 docs
 android

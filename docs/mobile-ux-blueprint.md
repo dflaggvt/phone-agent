@@ -844,6 +844,8 @@ Collapsed suggestion card includes:
 
 Collapsed suggestion cards must not show confidence percentages, source-call boxes, full summaries, AI reasoning, participant lists, transcript snippets, source communication counts, or action explainer copy. Those details belong in a future expanded/detail state, not the primary Assistant queue.
 
+The Assistant queue must show at most one pending topic suggestion for a given source communication. If classifier retries or model wording produce multiple possible titles for the same call, text, or email, the app should render only the strongest current suggestion and the backend should treat accepting or dismissing it as resolving the duplicate siblings.
+
 Actions:
 
 - `Create topic` for new-topic suggestions.
