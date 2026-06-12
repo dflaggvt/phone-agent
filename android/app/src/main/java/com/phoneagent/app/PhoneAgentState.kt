@@ -244,8 +244,9 @@ internal data class TopicThread(val json: JSONObject) {
     val decisionCount: Int = json.optJSONArray("decisions")?.length() ?: 0
     val questionCount: Int = json.optJSONArray("openQuestions")?.length() ?: 0
     val taskCount: Int = json.optJSONArray("tasks")?.length() ?: 0
-    val compactMeta: String = "Active / $communicationCount comm / $decisionCount decisions"
     val timeline: List<TimelineItem> = json.optJSONArray("timeline").toList(::TimelineItem)
+    val isTimelineHydrating: Boolean = communicationCount > 0 && timeline.isEmpty()
+    val compactMeta: String = "Active / ${pluralize(communicationCount, "communication")} / ${pluralize(decisionCount, "decision")}"
     val unreadUpdateCount: Int = listOf(
         json.optInt("unreadUpdateCount", 0),
         json.optInt("newUpdateCount", 0),
@@ -262,6 +263,9 @@ internal data class TopicThread(val json: JSONObject) {
         else -> ""
     }
 }
+
+private fun pluralize(count: Int, singular: String): String =
+    "$count $singular${if (count == 1) "" else "s"}"
 
 internal data class TimelineItem(val json: JSONObject) {
     val title: String = json.optString("title", json.optString("channel", "Communication"))

@@ -67,7 +67,27 @@ class PhoneAgentStateTest {
         assertEquals(1, topic.decisionCount)
         assertEquals(1, topic.questionCount)
         assertEquals(1, topic.taskCount)
+        assertEquals("Active / 2 communications / 1 decision", topic.compactMeta)
+        assertFalse(topic.isTimelineHydrating)
         assertEquals("Contractor call", topic.timeline.single().title)
+    }
+
+    @Test
+    fun topicThreadFlagsPendingTimelineHydrationWhenCountExistsWithoutTimeline() {
+        val topic = TopicThread(
+            JSONObject(
+                """
+                {
+                  "id": "topic_medical",
+                  "title": "Doctor Appointments",
+                  "communicationCount": 1
+                }
+                """.trimIndent()
+            )
+        )
+
+        assertTrue(topic.isTimelineHydrating)
+        assertEquals("Active / 1 communication / 0 decisions", topic.compactMeta)
     }
 
     @Test

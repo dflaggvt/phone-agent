@@ -1044,6 +1044,7 @@ describe("app", () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.topic.communicationItemIds).toContain(communicationItemId);
+        expect(body.topic.timeline[0].communicationItemId).toBe(communicationItemId);
       });
 
     await request(app)
