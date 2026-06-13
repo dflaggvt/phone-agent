@@ -449,6 +449,14 @@ Runtime billing activation:
 - Stripe webhook processing must be guarded by a durable idempotency ledger keyed by Stripe event ID. Duplicate delivery after a successful event must return success without reapplying side effects. Failed events must remain retryable and record only sanitized error metadata.
 - Stripe Personal subscription creation must use a stable idempotency key per customer/plan, and subscription deletion events must be ignored when they refer to a stale duplicate subscription rather than the mirrored active subscription.
 
+Public beta signup:
+
+- `POST /v1/public/beta-signups` is unauthenticated but rate-limited.
+- The request accepts only Google Play email and explicit consent.
+- The backend stores a `BetaSignup` with normalized email, `pending` status, source, consent version, consent timestamp, and create/update timestamps.
+- The signup document ID is derived from a hash of the normalized email so repeated submissions are idempotent and raw email is not used as a Firestore document ID.
+- This endpoint must not collect phone numbers, names, device models, free-form notes, or use-case descriptions by default.
+
 Account removal:
 
 - `DELETE /v1/account` is authenticated and destructive. It cancels paid access, releases/deletes the assigned assistant number through the voice-number provider adapter when one exists, disables active device push tokens, unmaps phone routing, marks `UserConfig.accountStatus` as `deleted`, attempts Firebase user deletion through the auth admin adapter, and returns a minimal success response.
@@ -549,6 +557,7 @@ Client API examples:
 - `GET /v1/billing/usage`
 - `PATCH /v1/billing/spending-limit`
 - `GET /v1/billing/invoices`
+- `POST /v1/public/beta-signups`
 - `DELETE /v1/account`
 
 Billing invoice responses must be sanitized: include invoice ID, status, amount, currency, created date, and Stripe-hosted invoice/PDF URLs only. Do not include caller names, topic names, transcripts, calendar descriptions, or provider raw invoice line metadata in the default consumer response.

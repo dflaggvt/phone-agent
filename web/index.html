@@ -255,7 +255,25 @@
             Early testers help shape how the assistant answers calls, recognizes trusted people,
             and decides when a real interruption is worth it.
           </p>
-          <a class="button primary" href="mailto:support@callheld.com?subject=Call%20Held%20closed%20beta">Request access</a>
+          <form class="beta-form" data-beta-form>
+            <label class="field-label" for="beta-email">Email used for Google Play</label>
+            <input
+              id="beta-email"
+              name="googlePlayEmail"
+              type="email"
+              autocomplete="email"
+              inputmode="email"
+              placeholder="you@example.com"
+              required
+            />
+            <p class="field-help">Use the Google account email on your Android phone so we can add you to the closed test.</p>
+            <label class="consent-row">
+              <input name="consent" type="checkbox" required />
+              <span>I agree to be contacted about beta access and understand this is a pre-release Android test.</span>
+            </label>
+            <button class="button primary" type="submit">Request beta access</button>
+            <p class="form-status" data-beta-status role="status" aria-live="polite"></p>
+          </form>
         </div>
       </section>
     </main>

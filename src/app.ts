@@ -25,6 +25,7 @@ import { FirebaseAccountAdmin, NoopAuthAccountAdmin } from "./infrastructure/fir
 import { FirebaseAuthVerifier } from "./infrastructure/firebase/firebaseAuthVerifier.js";
 import { FirebaseCloudMessagingPushClient, NoopPushDeliveryClient } from "./infrastructure/firebase/firebaseCloudMessagingPushClient.js";
 import { FirestoreAgentNoteRepository } from "./infrastructure/persistence/firestoreAgentNoteRepository.js";
+import { FirestoreBetaSignupRepository } from "./infrastructure/persistence/firestoreBetaSignupRepository.js";
 import { FirestoreProductAnalyticsEventRepository } from "./infrastructure/persistence/firestoreProductAnalyticsEventRepository.js";
 import { FirestoreAnswerRequestRepository } from "./infrastructure/persistence/firestoreAnswerRequestRepository.js";
 import { FirestoreApprovalRequestRepository } from "./infrastructure/persistence/firestoreApprovalRequestRepository.js";
@@ -48,6 +49,7 @@ import { FirestoreUserConfigRepository } from "./infrastructure/persistence/fire
 import { FirestoreWebhookEventRepository } from "./infrastructure/persistence/firestoreWebhookEventRepository.js";
 import { createFirestore } from "./infrastructure/persistence/firestoreClient.js";
 import { InMemoryAgentNoteRepository } from "./infrastructure/persistence/inMemoryAgentNoteRepository.js";
+import { InMemoryBetaSignupRepository } from "./infrastructure/persistence/inMemoryBetaSignupRepository.js";
 import { InMemoryProductAnalyticsEventRepository } from "./infrastructure/persistence/inMemoryProductAnalyticsEventRepository.js";
 import { InMemoryAnswerRequestRepository } from "./infrastructure/persistence/inMemoryAnswerRequestRepository.js";
 import { InMemoryApprovalRequestRepository } from "./infrastructure/persistence/inMemoryApprovalRequestRepository.js";
@@ -80,6 +82,7 @@ import { MissingBillingProviderClient, StripeBillingClient } from "./infrastruct
 import { accountRoutes } from "./routes/accountRoutes.js";
 import { agentNoteRoutes } from "./routes/agentNoteRoutes.js";
 import { analyticsRoutes } from "./routes/analyticsRoutes.js";
+import { betaSignupRoutes } from "./routes/betaSignupRoutes.js";
 import { billingReturnRoutes, billingRoutes } from "./routes/billingRoutes.js";
 import { calendarRoutes } from "./routes/calendarRoutes.js";
 import { callRoutes } from "./routes/callRoutes.js";
@@ -122,6 +125,9 @@ export function createApp(dependencies: AppDependencies) {
   const billingAccounts = firestore
     ? new FirestoreBillingAccountRepository(firestore)
     : new InMemoryBillingAccountRepository();
+  const betaSignups = firestore
+    ? new FirestoreBetaSignupRepository(firestore)
+    : new InMemoryBetaSignupRepository();
   const answerRequestRepository = firestore
     ? new FirestoreAnswerRequestRepository(firestore)
     : new InMemoryAnswerRequestRepository();
@@ -401,6 +407,7 @@ export function createApp(dependencies: AppDependencies) {
 
   app.use(express.json({ limit: "1mb" }));
   app.use("/v1", clientRateLimiter);
+  app.use("/v1/public", betaSignupRoutes({ betaSignups }));
   app.use("/v1", firebaseAuth({ verifier: authVerifier, users: userConfigs }));
   app.use("/v1/billing", billingRoutes({ billing, usage }));
   app.use("/v1", accountRoutes({ accountRemoval }));

@@ -4,6 +4,11 @@ export const spendingLimitUpdateSchema = z.object({
   monthlySpendingCapCents: z.number().int().min(500).max(100000)
 });
 
+export const betaSignupCreateSchema = z.object({
+  googlePlayEmail: z.string().trim().toLowerCase().email().max(320),
+  consent: z.literal(true)
+});
+
 const analyticsAttributeValueSchema = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
 
 const analyticsEventSchema = z.object({

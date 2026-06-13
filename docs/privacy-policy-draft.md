@@ -11,6 +11,7 @@ Call Held helps users manage calls and related communication with an AI assistan
 We collect information needed to operate the assistant:
 
 - Account information such as email address, phone number, display name, assistant name, onboarding status, billing status, and app settings.
+- Beta signup information such as Google Play email address, signup source, consent version, and consent timestamp.
 - Call information such as caller phone number, called assistant number, call timestamps, call status, transcripts, summaries, intent, urgency, follow-up actions, and assistant outcomes.
 - Contact information if the user grants contact access, such as contact names and phone numbers, to help recognize known callers.
 - User-provided assistant notes and preferences.
@@ -48,7 +49,7 @@ We use encryption in transit, managed cloud storage with encryption at rest, man
 
 ## Data Retention And Deletion
 
-Users may request deletion of their account or specific categories of data by emailing `support@callheld.com`. Deletion requests can include account profile data, call history, transcripts, summaries, topics, assistant notes, synced contacts, calendar connection data, notification records, and support records. We may retain limited records when required for legal, security, fraud-prevention, accounting, dispute-resolution, or compliance purposes. We aim to respond within 7 days and complete verified deletion requests within 30 days unless a longer period is required by law, security review, billing dispute, or technical backup retention.
+Users may request deletion of their account or specific categories of data by emailing `support@callheld.com`. Deletion requests can include account profile data, beta signup records, call history, transcripts, summaries, topics, assistant notes, synced contacts, calendar connection data, notification records, and support records. We may retain limited records when required for legal, security, fraud-prevention, accounting, dispute-resolution, or compliance purposes. We aim to respond within 7 days and complete verified deletion requests within 30 days unless a longer period is required by law, security review, billing dispute, or technical backup retention.
 
 ## Call Recording, Transcription, And Disclosure
 

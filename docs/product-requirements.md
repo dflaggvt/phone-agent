@@ -72,6 +72,7 @@ For the current conditional-forwarding product, a phone call still rings the use
 The MVP remains Android-first and phone-first, but it should be built on the cross-channel model:
 
 - Self-serve account bootstrap for Google Play users.
+- Public website beta signup that collects only Google Play email plus explicit beta-contact consent before a user is approved for closed testing.
 - Per-user assistant profile with name, tone, greeting, disclosure, transfer, calendar, and interruption preferences.
 - Per-user phone routing configuration: user's real mobile number, assigned assistant forwarding number, provider-neutral voice agent mapping, transfer destination, provisioning state, and forwarding verification state.
 - Frictionless first-run onboarding flow that uses dedicated setup screens, not an activation card inside the Today tab, and gets a new user from install to first successful assistant-handled call with the fewest required decisions.

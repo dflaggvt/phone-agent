@@ -31,7 +31,15 @@ Create a Vercel project from this repository and set:
 - Output Directory: `dist`
 - Install Command: `npm install`
 
-The site is static. It does not call the backend, collect form submissions, or load analytics by default.
+The site is static and does not load analytics by default. The closed-beta signup form calls the Phone Agent backend.
+
+Set this environment variable in production:
+
+```text
+VITE_API_BASE_URL=https://<backend-domain>
+```
+
+Local Vite development defaults beta signup submissions to `http://127.0.0.1:3000`.
 
 ## URLs For Google Play
 

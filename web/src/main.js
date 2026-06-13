@@ -1,6 +1,8 @@
 import "./styles.css";
 
 const header = document.querySelector(".site-header");
+const betaForm = document.querySelector("[data-beta-form]");
+const betaStatus = document.querySelector("[data-beta-status]");
 
 function updateHeaderState() {
   if (!header) return;
@@ -26,3 +28,59 @@ window.addEventListener("scroll", updateHeaderState, { passive: true });
 window.addEventListener("load", scrollToHashTarget);
 window.addEventListener("hashchange", scrollToHashTarget);
 scrollToHashTarget();
+
+if (betaForm instanceof HTMLFormElement) {
+  betaForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void submitBetaSignup(betaForm);
+  });
+}
+
+async function submitBetaSignup(form) {
+  const submitButton = form.querySelector("button[type='submit']");
+  const formData = new FormData(form);
+  setBetaStatus("submitting", "Submitting...");
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl()}/v1/public/beta-signups`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        googlePlayEmail: String(formData.get("googlePlayEmail") ?? ""),
+        consent: formData.get("consent") === "on"
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("signup_failed");
+    }
+
+    form.reset();
+    setBetaStatus("success", "Thanks. If selected, we'll add this Google Play email to the closed test and send the opt-in link.");
+  } catch {
+    setBetaStatus("error", "Something went wrong. Please try again or email support@callheld.com.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
+}
+
+function apiBaseUrl() {
+  const configured = import.meta.env.VITE_API_BASE_URL;
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+  return import.meta.env.DEV ? "http://127.0.0.1:3000" : "";
+}
+
+function setBetaStatus(state, message) {
+  if (!betaStatus) return;
+  betaStatus.dataset.state = state;
+  betaStatus.textContent = message;
+}
