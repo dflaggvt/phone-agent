@@ -11,7 +11,7 @@ Call Held helps users manage calls and related communication with an AI assistan
 We collect information needed to operate the assistant:
 
 - Account information such as email address, phone number, display name, assistant name, onboarding status, billing status, and app settings.
-- Beta signup information such as Google Play email address, signup source, consent version, and consent timestamp.
+- Waitlist signup information such as email address, current phone platform, signup source, consent version, and consent timestamp.
 - Call information such as caller phone number, called assistant number, call timestamps, call status, transcripts, summaries, intent, urgency, follow-up actions, and assistant outcomes.
 - Contact information if the user grants contact access, such as contact names and phone numbers, to help recognize known callers.
 - User-provided assistant notes and preferences.

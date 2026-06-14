@@ -4,10 +4,30 @@ export const spendingLimitUpdateSchema = z.object({
   monthlySpendingCapCents: z.number().int().min(500).max(100000)
 });
 
-export const betaSignupCreateSchema = z.object({
-  googlePlayEmail: z.string().trim().toLowerCase().email().max(320),
-  consent: z.literal(true)
-});
+const betaSignupEmailSchema = z.string().trim().toLowerCase().email().max(320);
+
+export const betaSignupCreateSchema = z
+  .object({
+    email: betaSignupEmailSchema.optional(),
+    googlePlayEmail: betaSignupEmailSchema.optional(),
+    platform: z.enum(["android", "iphone", "other"]),
+    consent: z.literal(true)
+  })
+  .superRefine((value, context) => {
+    if (!value.email && !value.googlePlayEmail) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["email"],
+        message: "Email is required."
+      });
+    }
+  })
+  .transform((value) => ({
+    email: value.email ?? value.googlePlayEmail ?? "",
+    googlePlayEmail: value.email ?? value.googlePlayEmail ?? "",
+    platform: value.platform,
+    consent: value.consent
+  }));
 
 const analyticsAttributeValueSchema = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
 

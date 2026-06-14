@@ -15,6 +15,7 @@ export function betaSignupRoutes(input: {
     const parsed = betaSignupCreateSchema.parse(req.body);
     await input.betaSignups.save({
       googlePlayEmail: parsed.googlePlayEmail,
+      platform: parsed.platform,
       source: "website",
       consentVersion: CURRENT_BETA_SIGNUP_CONSENT_VERSION
     });

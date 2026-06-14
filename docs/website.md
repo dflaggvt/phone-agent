@@ -17,16 +17,19 @@ Included pages:
 - `/terms`: terms of service page.
 - `/account-deletion`: account and data deletion request instructions for Google Play. This page is intentionally not linked from the main landing page and is marked `noindex`.
 
-The site is static and does not include analytics, cookies, or third-party scripts by default. The closed-beta signup form posts directly to the Phone Agent backend so beta requests stay first-party.
+The site is static and does not include analytics, cookies, or third-party scripts by default. The waitlist signup form posts directly to the Phone Agent backend so beta requests stay first-party.
 
-## Beta Signup
+## Waitlist Signup
 
-The `Request beta access` flow should collect the minimum information needed for Google Play closed testing:
+The `Join the waitlist` flow should collect the minimum information needed to contact early testers and route them to the right platform program:
 
-- Google Play email address.
-- Explicit consent to be contacted about beta access and acknowledgement that the Android test is pre-release.
+- Email address.
+- Current phone platform: Android, iPhone, or other.
+- Explicit consent to be contacted about beta access and acknowledgement that Call Held is pre-release.
 
-The website posts this to `POST /v1/public/beta-signups`. The backend stores a `BetaSignup` record with normalized Google Play email, `pending` status, source `website`, consent version, consent timestamp, and create/update timestamps. It should not ask for name, phone number, device model, use case, or notes until there is a real operational need.
+The website posts this to `POST /v1/public/beta-signups`. The backend stores a `BetaSignup` record with normalized email, selected platform, `pending` status, source `website`, consent version, consent timestamp, and create/update timestamps. Android testers should use the email associated with Google Play so operators can add them to the closed test. The form should not ask for name, phone number, device model, use case, or notes until there is a real operational need.
+
+The waitlist form should appear in the first hero section so motivated visitors can sign up without scrolling to the bottom of the page. The primary navigation's `Join waitlist` link should target that hero form.
 
 Production website deployments must set `VITE_API_BASE_URL` to the backend origin. Local Vite development defaults the form API base to `http://127.0.0.1:3000`.
 

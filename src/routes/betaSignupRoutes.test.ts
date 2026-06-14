@@ -19,17 +19,31 @@ describe("betaSignupRoutes", () => {
     await request(createPublicBetaSignupApp())
       .post("/v1/public/beta-signups")
       .send({
-        googlePlayEmail: "Tester@Example.com",
+        email: "Tester@Example.com",
+        platform: "android",
         consent: true
       })
       .expect(202, { status: "pending" });
+  });
+
+  it("requires a phone platform", async () => {
+    const response = await request(createPublicBetaSignupApp())
+      .post("/v1/public/beta-signups")
+      .send({
+        email: "tester@example.com",
+        consent: true
+      })
+      .expect(400);
+
+    expect(response.body.error.code).toBe("validation_failed");
   });
 
   it("requires explicit consent", async () => {
     const response = await request(createPublicBetaSignupApp())
       .post("/v1/public/beta-signups")
       .send({
-        googlePlayEmail: "tester@example.com",
+        email: "tester@example.com",
+        platform: "iphone",
         consent: false
       })
       .expect(400);

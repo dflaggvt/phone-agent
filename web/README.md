@@ -31,7 +31,7 @@ Create a Vercel project from this repository and set:
 - Output Directory: `dist`
 - Install Command: `npm install`
 
-The site is static and does not load analytics by default. The closed-beta signup form calls the Phone Agent backend.
+The site is static and does not load analytics by default. The waitlist signup form calls the Phone Agent backend.
 
 Set this environment variable in production:
 

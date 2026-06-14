@@ -53,7 +53,8 @@ describe("public app routes", () => {
     await request(app)
       .post("/v1/public/beta-signups")
       .send({
-        googlePlayEmail: "tester@example.com",
+        email: "tester@example.com",
+        platform: "android",
         consent: true
       })
       .expect(202, { status: "pending" });

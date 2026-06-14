@@ -4,6 +4,10 @@ const header = document.querySelector(".site-header");
 const betaForm = document.querySelector("[data-beta-form]");
 const betaStatus = document.querySelector("[data-beta-status]");
 
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 function updateHeaderState() {
   if (!header) return;
   header.toggleAttribute("data-scrolled", window.scrollY > 12);
@@ -21,11 +25,13 @@ function scrollToHashTarget() {
   };
   window.requestAnimationFrame(scrollToTarget);
   window.setTimeout(scrollToTarget, 120);
+  window.setTimeout(scrollToTarget, 350);
 }
 
 updateHeaderState();
 window.addEventListener("scroll", updateHeaderState, { passive: true });
 window.addEventListener("load", scrollToHashTarget);
+window.addEventListener("pageshow", scrollToHashTarget);
 window.addEventListener("hashchange", scrollToHashTarget);
 scrollToHashTarget();
 
@@ -51,7 +57,8 @@ async function submitBetaSignup(form) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        googlePlayEmail: String(formData.get("googlePlayEmail") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        platform: String(formData.get("platform") ?? ""),
         consent: formData.get("consent") === "on"
       })
     });
@@ -61,7 +68,7 @@ async function submitBetaSignup(form) {
     }
 
     form.reset();
-    setBetaStatus("success", "Thanks. If selected, we'll add this Google Play email to the closed test and send the opt-in link.");
+    setBetaStatus("success", "Thanks. You're on the waitlist. We'll email you when there's a testing spot for your phone.");
   } catch {
     setBetaStatus("error", "Something went wrong. Please try again or email support@callheld.com.");
   } finally {

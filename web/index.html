@@ -27,7 +27,7 @@
         <a href="#capabilities">Capabilities</a>
         <a href="#how">How it works</a>
         <a href="#pricing">Pricing</a>
-        <a class="nav-cta" href="#beta">Join beta</a>
+        <a class="nav-cta" href="#beta">Join waitlist</a>
       </nav>
     </header>
 
@@ -43,8 +43,41 @@
             Call Held handles missed or declined calls, understands who is calling and why,
             summarizes what happened, and lets you decide what needs attention next.
           </p>
+          <form id="beta" class="beta-form hero-waitlist" data-beta-form aria-label="Join the waitlist">
+            <label class="field-label" for="beta-email">Email address</label>
+            <input
+              id="beta-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              inputmode="email"
+              placeholder="you@example.com"
+              required
+            />
+            <p class="field-help">Android users should use the Google Play email on their phone.</p>
+            <fieldset class="platform-field">
+              <legend>What phone do you use?</legend>
+              <label>
+                <input type="radio" name="platform" value="android" required />
+                <span>Android</span>
+              </label>
+              <label>
+                <input type="radio" name="platform" value="iphone" required />
+                <span>iPhone</span>
+              </label>
+              <label>
+                <input type="radio" name="platform" value="other" required />
+                <span>Other</span>
+              </label>
+            </fieldset>
+            <label class="consent-row">
+              <input name="consent" type="checkbox" required />
+              <span>I agree to be contacted about beta access and understand Call Held is pre-release.</span>
+            </label>
+            <button class="button primary" type="submit">Join waitlist</button>
+            <p class="form-status" data-beta-status role="status" aria-live="polite"></p>
+          </form>
           <div class="hero-actions">
-            <a class="button primary" href="#beta">Request closed beta access</a>
             <a class="button secondary" href="#how">See how it works</a>
           </div>
         </div>
@@ -247,35 +280,6 @@
         </div>
       </section>
 
-      <section id="beta" class="section beta-section" aria-labelledby="beta-title">
-        <div class="section-inner beta-panel">
-          <p class="eyebrow">Closed beta</p>
-          <h2 id="beta-title">Call Held is currently in private Android testing.</h2>
-          <p>
-            Early testers help shape how the assistant answers calls, recognizes trusted people,
-            and decides when a real interruption is worth it.
-          </p>
-          <form class="beta-form" data-beta-form>
-            <label class="field-label" for="beta-email">Email used for Google Play</label>
-            <input
-              id="beta-email"
-              name="googlePlayEmail"
-              type="email"
-              autocomplete="email"
-              inputmode="email"
-              placeholder="you@example.com"
-              required
-            />
-            <p class="field-help">Use the Google account email on your Android phone so we can add you to the closed test.</p>
-            <label class="consent-row">
-              <input name="consent" type="checkbox" required />
-              <span>I agree to be contacted about beta access and understand this is a pre-release Android test.</span>
-            </label>
-            <button class="button primary" type="submit">Request beta access</button>
-            <p class="form-status" data-beta-status role="status" aria-live="polite"></p>
-          </form>
-        </div>
-      </section>
     </main>
 
     <footer class="site-footer">
