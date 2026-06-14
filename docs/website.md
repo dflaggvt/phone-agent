@@ -29,7 +29,7 @@ The `Join the waitlist` flow should collect the minimum information needed to co
 
 The website posts this to `POST /v1/public/beta-signups`. The backend stores a `BetaSignup` record with normalized email, selected platform, `pending` status, source `website`, consent version, consent timestamp, and create/update timestamps. Android testers should use the email associated with Google Play so operators can add them to the closed test. The form should not ask for name, phone number, device model, use case, or notes until there is a real operational need.
 
-The waitlist form should appear in the first hero section so motivated visitors can sign up without scrolling to the bottom of the page. The primary navigation's `Join waitlist` link should target that hero form.
+The waitlist form should appear in the first hero section so motivated visitors can sign up without scrolling to the bottom of the page. The primary navigation's `Join waitlist` link should target that hero form. The hero eyebrow should stay platform-neutral because the waitlist accepts Android, iPhone, and other users; Android-specific closed-test guidance belongs in the form helper text.
 
 Production website deployments must set `VITE_API_BASE_URL` to the backend origin. Local Vite development defaults the form API base to `http://127.0.0.1:3000`.
 
@@ -68,9 +68,11 @@ Avoid absolute claims such as "the AI knows who is calling" or "the AI always re
 
 ## Pricing Display
 
-The landing page may show beta pricing when it stays aligned with `docs/monetization.md` and the Stripe catalog configuration in `scripts/stripe-configure-catalog.mjs`.
+The landing page should hide pricing during the waitlist-focused beta acquisition phase. Pricing remains documented internally in `docs/monetization.md` and configured through `scripts/stripe-configure-catalog.mjs`, but the public website should avoid asking waitlist visitors to make a purchase decision before they have been invited to test.
 
-Current public pricing copy:
+When public pricing is reintroduced, it should stay aligned with the internal monetization docs and active payment-provider catalog.
+
+Previously validated pricing copy:
 
 - Personal plan: `$19/mo`.
 - Includes assistant number, `50` assistant-handled minutes, summaries, topic matching, and basic AI processing.
@@ -78,7 +80,7 @@ Current public pricing copy:
 - Default monthly spending cap: `$40/mo`.
 - Paid assistant work pauses at the cap unless the user raises it.
 
-The website must not mention Stripe, payment-provider object IDs, lookup keys, meter event names, voice-provider pricing, model-provider pricing, or raw token details. Those belong in implementation docs and internal billing surfaces.
+If pricing is visible again, the website must not mention Stripe, payment-provider object IDs, lookup keys, meter event names, voice-provider pricing, model-provider pricing, or raw token details. Those belong in implementation docs and internal billing surfaces.
 
 Pricing validation performed for this website update:
 
