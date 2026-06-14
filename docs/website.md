@@ -29,7 +29,7 @@ The `Join the waitlist` flow should collect the minimum information needed to co
 
 The website posts this to `POST /v1/public/beta-signups`. The backend stores a `BetaSignup` record with normalized email, selected platform, `pending` status, source `website`, consent version, consent timestamp, and create/update timestamps. Android testers should use the email associated with Google Play so operators can add them to the closed test. The form should not ask for name, phone number, device model, use case, or notes until there is a real operational need.
 
-The waitlist form should appear in the first hero section so motivated visitors can sign up without scrolling to the bottom of the page. The primary navigation's `Join waitlist` link should target that hero form. The hero eyebrow should stay platform-neutral because the waitlist accepts Android, iPhone, and other users; Android-specific closed-test guidance belongs in the form helper text.
+The waitlist form should appear in the first hero section so motivated visitors can sign up without scrolling to the bottom of the page. The primary navigation's waitlist link should target that hero form. Hero and form copy should frame this as a private beta invitation with small-batch early access, without inventing fake scarcity or unsupported demand claims. The hero eyebrow should stay platform-neutral because the waitlist accepts Android, iPhone, and other users; Android-specific closed-test guidance belongs in the form helper text.
 
 Production website deployments must set `VITE_API_BASE_URL` to the backend origin. Local Vite development defaults the form API base to `http://127.0.0.1:3000`.
 
